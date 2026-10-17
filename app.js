@@ -84,7 +84,7 @@ const bank=Pdf.detectBank(txt,file.name);
 if(ext==='pdf'){const header=Pdf.identity(pdf.lines.slice(0,18).map(x=>x.content).join('\n'));if(c.cnpj&&header.cnpj&&c.cnpj!==header.cnpj)throw Error('CNPJ do extrato diferente do CNPJ do plano. Importação bloqueada.');if(!c.cnpj&&header.cnpj){if(!confirm('Plano sem CNPJ. O extrato indica '+header.cnpj+'. Confirma que pertencem à mesma empresa?'))return;c.cnpj=header.cnpj;c.identityVerified=true;}}
 let account=c.accounts.find(a=>a.id===f.elements.accountId.value);
 if(account&&bank&&Core.norm(account.bank)!==Core.norm(bank))throw Error('Banco selecionado difere do banco encontrado no extrato.');
-if(!account)account=c.accounts.find(a=>a.bank===bank&&c.plan.some(p=>p.code===a.chartCode&&p.analytic));
+if(!account){const possible=c.accounts.filter(a=>a.bank===bank&&c.plan.some(p=>p.code===a.chartCode&&p.analytic));if(possible.length>1)throw Error('Há mais de uma conta do mesmo banco. Selecione a conta correta para evitar mistura.');account=possible[0];}
 if(!account){const code=guessBankAccount(c,bank);if(bank&&code){account={id:Core.id(),bank,label:'Identificação automática do extrato',chartCode:code};c.accounts.push(account)}}
 if(!account)throw Error('Código do banco não identificado com segurança. Abra Plano de contas e empresa, vincule o banco a uma conta analítica e reimporte.');
 const parsed=ext==='pdf'?Pdf.parseStatementText(pdf.lines,file.name,account.id,period,Core):ext==='ofx'?Core.parseOfx(txt,account.id,file.name):Core.parseStatementCsv(Core.parseCsv(txt),account.id,file.name);
