@@ -62,12 +62,18 @@ function report(core,company,period){
 const colName=n=>{let s='';for(;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s};
 function sheetXml(sheet){const columns=sheet.widths||[];const out=['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>','<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">','<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>','<sheetFormatPr defaultRowHeight="18"/>','<cols>'+columns.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${Math.min(w,100)}" customWidth="1"/>`).join('')+'</cols>','<sheetData>'];
  for(let i=0;i<sheet.rows.length;i++){
-  const row=sheet.rows[i];out.push(`<row r="${i+1}"${i===0?' ht="26" customHeight="1"':''}>`);
+  const row=sheet.rows[i];const status=(sheet.name==='Conferencia'&&i>0)?String(row[5]||''):'';const rowTone=/DIVERG|DUPLIC|INVÁLIDO|INVALIDO/.test(status)?'red':/PENDENTE|SUGERIDA|CONFIRMAR/.test(status)?'yellow':/CONFIRMAD|VALIDAD|TRANSFERÊNCIA/.test(status)?'green':'';
+  const cellStyle=rowTone==='red'?5:rowTone==='yellow'?3:rowTone==='green'?7:0;
+  const numberStyle=rowTone==='red'?6:rowTone==='yellow'?4:rowTone==='green'?8:2;
+  out.push(`<row r="${i+1}"${i===0?' ht="26" customHeight="1"':''}>`);
   for(let j=0;j<row.length;j++){
-   const val=row[j];if(val===null||val===undefined||val==='')continue;
+   const val=row[j];if(val===null||val===undefined||val===''){
+     if(cellStyle&&sheet.name==='Conferencia'&&(j===1||j===2))out.push(`<c r="${colName(j+1)+(i+1)}" t="inlineStr" s="${cellStyle}"><is><t></t></is></c>`);
+     continue;
+   }
    const ref=colName(j+1)+(i+1);
-   if(typeof val==='object'&&val.n!==undefined&&Number.isFinite(val.n))out.push(`<c r="${ref}" s="${i===0?1:2}"><v>${val.n}</v></c>`);
-   else out.push(`<c r="${ref}" t="inlineStr" s="${i===0?1:0}"><is><t xml:space="preserve">${asXml(formulaText(val))}</t></is></c>`);
+   if(typeof val==='object'&&val.n!==undefined&&Number.isFinite(val.n))out.push(`<c r="${ref}" s="${i===0?1:numberStyle}"><v>${val.n}</v></c>`);
+   else out.push(`<c r="${ref}" t="inlineStr" s="${i===0?1:cellStyle}"><is><t xml:space="preserve">${asXml(formulaText(val))}</t></is></c>`);
   }
   out.push('</row>');
  }
@@ -77,7 +83,7 @@ function sheetXml(sheet){const columns=sheet.widths||[];const out=['<?xml versio
  out.push('</worksheet>');return out.join('');
 }
 const contentTypes=names=>'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+names.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')+'</Types>';
-const styles='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF183750"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="1" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="2" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+const styles='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF183750"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFF1C7"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFDAD2"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE7F8EF"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="9"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="1" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="2" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="2" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1" applyNumberFormat="1"/><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="2" fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1" applyNumberFormat="1"/><xf numFmtId="0" fontId="0" fillId="4" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="2" fontId="0" fillId="4" borderId="0" xfId="0" applyFill="1" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
 function packBytes(entries){
  const bytes=[],directory=[],timestamp=0,crcTable=[];
  for(let i=0;i<256;i++){let c=i;for(let j=0;j<8;j++)c=c&1?0xEDB88320^(c>>>1):c>>>1;crcTable[i]=c>>>0;}
