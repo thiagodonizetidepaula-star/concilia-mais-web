@@ -119,7 +119,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))];c.movements.p
  if(allPeriods.length===1){period=allPeriods[0];$('#period').value=period;}
  let totalSuggested=0,possibleTransfers=0,ambiguousTransfers=0,ledgerHits=0;
  for(const ym of allPeriods){ledgerHits+=suggestFromLedger(c,ym).applied;const moves=Core.periodMovements(c,ym);totalSuggested+=moves.filter(m=>m.suggested&&!m.counterpart).length;const pairs=Core.transferSuggestions(c,ym);possibleTransfers+=pairs.proposals.length;ambiguousTransfers+=pairs.ambiguous.length;}
- if(ok.length||ledgerHits)await store('IMPORTACAO_EM_LOTE',`${ok.length} novos, ${skipped.length} já existentes, ${bad.length} falhas; ${total} novas movimentações`);
+ if(ok.length||ledgerHits)await store('IMPORTACAO_EM_LOTE',`${ok.length} novos, ${skipped.length} já existentes, ${bad.length} falhas; ${total} novas movimentações`);else render();
  const failures=bad.map(r=>`${r.name}: ${r.error}`).join(' | ');
  const existingTotal=allPeriods.reduce((n,ym)=>n+Core.periodMovements(c,ym).length,0);
  let summary;
