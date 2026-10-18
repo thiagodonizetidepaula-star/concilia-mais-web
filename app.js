@@ -13,7 +13,7 @@ function openDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open('
 function loadDB(){return new Promise((resolve,reject)=>{const tx=db.transaction('app','readonly');const req=tx.objectStore('app').get('workspace');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 function saveDB(){return new Promise((resolve,reject)=>{const tx=db.transaction('app','readwrite');tx.objectStore('app').put(state,'workspace');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
 function log(type,detail){state.audit.push({at:new Date().toISOString(),companyId,action:type,detail});}
-async function store(type,detail){log(type,detail);await saveDB();render()}
+async function store(type,detail){if(!['EXTRATO_REFAZER','IMPORTACAO_EXCLUIDA'].includes(type))ultimoExcluido=null;log(type,detail);await saveDB();render()}
 function table(headers,rows){if(!rows.length)return empty('Nenhum registro para exibir.');return `<div class="tablewrap"><table><thead><tr>${headers.map(h=>`<th>${safe(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${v??''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
 function badge(s){const kind=/CONFIRM|CONCILIADO|OK/.test(s)?'ok':/PENDENTE|SUGERIDA|AMBIGU|DUPLIC/.test(s)?'warn':'';return `<span class="badge ${kind}">${safe(s)}</span>`}
 function datePT(d){return String(d||'').split('-').reverse().join('/')}
