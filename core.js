@@ -98,6 +98,31 @@
     }
     return {lines,errors};
   }
+  // Sugere contrapartidas do Razão sem confirmar a classificação contábil.
+  // Evita casos repetidos e transferências entre contas bancárias próprias.
+  function ledgerSuggestions(company,period){
+    const latest=(company.ledger||[]).filter(v=>v.period===period).at(-1);
+    if(!latest)return {hasLedger:false,suggestions:[],ambiguous:0};
+    const allowed=new Set((company.plan||[]).filter(p=>p.analytic).map(p=>String(p.code)));
+    const bankCodes=new Set((company.accounts||[]).map(a=>String(a.chartCode)));
+    const bankById=new Map((company.accounts||[]).map(a=>[a.id,String(a.chartCode)]));
+    const transfers=new Set((company.transfers||[]).filter(t=>t.status==='CONFIRMADA').flatMap(t=>[t.outId,t.inId]));
+    const movements=periodMovements(company,period).filter(m=>m.status!=='PENDENTE_DUPLICIDADE'&&!transfers.has(m.id));
+    const movementIndex=new Map();
+    for(const m of movements){const bank=bankById.get(m.accountId);if(!bank||!allowed.has(bank))continue;const k=[m.date,Math.abs(m.cents),bank,m.cents>0?'D':'C'].join('|');movementIndex.set(k,[...(movementIndex.get(k)||[]),m]);}
+    const ledgerIndex=new Map();
+    for(const l of latest.entries){if(bankCodes.has(String(l.debit))&&bankCodes.has(String(l.credit)))continue;
+      for(const [bank,side,cp] of [[String(l.debit),'D',String(l.credit)],[String(l.credit),'C',String(l.debit)]]){
+        if(!bankCodes.has(bank)||!allowed.has(cp)||bank===cp)continue;
+        const k=[l.date,Math.abs(l.cents),bank,side].join('|');ledgerIndex.set(k,[...(ledgerIndex.get(k)||[]),{entry:l,counterpart:cp}]);
+      }
+    }
+    const suggestions=[];let ambiguous=0;
+    for(const [key,ms] of movementIndex){const ls=ledgerIndex.get(key)||[];if(ms.length===1&&ls.length===1){
+      const m=ms[0],item=ls[0];suggestions.push({movementId:m.id,ledgerId:item.entry.id,counterpart:item.counterpart,evidence:'Data, valor, banco e sentido conferidos com o Razão'});
+    }else if(ls.length&&ms.length)ambiguous+=ms.length;}
+    return {hasLedger:true,suggestions,ambiguous};
+  }
   function reconcile(company,period){const {lines,errors}=proposedJournal(company,period);const versions=company.ledger.filter(l=>l.period===period);const ledger=versions.length?versions[versions.length-1].entries:[];const key=x=>`${x.date}|${x.debit}|${x.credit}|${x.cents}`;
     const grouped=new Map();for(const l of ledger){const k=key(l);grouped.set(k,[...(grouped.get(k)||[]),l]);}
     let checked=[],matchedLedger=new Set();for(const row of lines){const ms=grouped.get(key(row))||[];if(ms.length===1 && lines.filter(o=>key(o)===key(row)).length===1){checked.push({...row,recon:'CONCILIADO',matchedId:ms[0].id});matchedLedger.add(ms[0].id);}else checked.push({...row,recon:ms.length>0?'AMBIGUO':'NAO_ENCONTRADO_NO_RAZAO'});}
@@ -106,5 +131,5 @@
   function previewExport(company,period){const report=reconcile(company,period);return {rows:report.checked.filter(l=>l.recon==='NAO_ENCONTRADO_NO_RAZAO'),blocked:report.checked.filter(l=>l.recon==='AMBIGUO'),errors:report.errors};}
   const csvCell=x=>'"'+String(x??'').replace(/"/g,'""')+'"';
   const exportCsv=rows=>['Data;Cód. Conta Débito;Cód. Conta Crédito;Valor;Complemento Histórico',...rows.map(r=>[r.date.split('-').reverse().join('/'),r.debit,r.credit,(r.cents/100).toFixed(2).replace('.',','),r.history].map(csvCell).join(';'))].join('\r\n');
-  return {norm,id,money,date,parseCsv,mapped,parsePlan,parseStatementCsv,parseOfx,parseLedger,dayDistance,periodMovements,transferSuggestions,proposedJournal,reconcile,previewExport,exportCsv};
+  return {norm,id,money,date,parseCsv,mapped,parsePlan,parseStatementCsv,parseOfx,parseLedger,dayDistance,periodMovements,transferSuggestions,ledgerSuggestions,proposedJournal,reconcile,previewExport,exportCsv};
 });
