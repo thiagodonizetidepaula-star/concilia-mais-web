@@ -21,3 +21,5 @@
 .status-red{display:inline-block;background:#ffe6e1;padding:4px 7px;border-radius:8px;color:#a42c25;font-size:11px;font-weight:750}
 #downloadPdf{margin-top:8px}
 @media(max-width:720px){.guide-workflow{padding:12px}.guide-step{gap:8px;padding:9px}.guide-step strong{font-size:11px}.guide-step small{font-size:10px}.guide-step em{font-size:9px}.guide-head{align-items:flex-start;flex-direction:column}.guide-step b{width:25px;height:25px}.completion-banner{padding:13px}}
+
+.legacy-steps{display:none}#p-visao>.grid-2{grid-template-columns:1fr}
