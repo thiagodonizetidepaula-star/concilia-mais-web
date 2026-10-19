@@ -19,7 +19,7 @@ function divergenciasSaldo(c,period){
  return out;
 }
 function analisar(core,c,period){
- const zero={status:'SEM_PLANO',total:0,pending:0,divergences:0,ledger:false,ready:false,files:0,transfers:0,unverified:0,orphanBankLedger:0};
+ const zero={status:'SEM_PLANO',total:0,pending:0,divergences:0,ledger:false,ready:false,exportable:false,files:0,transfers:0,unverified:0,orphanBankLedger:0,withoutLedger:[],ledgerBalanceDifferences:[],pendingReading:0,notInLedger:0};
  if(!c||!c.plan?.length)return zero;
  const movements=core.periodMovements(c,period),mids=new Set(movements.map(m=>m.id));
  const transferred=new Set((c.transfers||[]).filter(t=>t.status==='CONFIRMADA'&&mids.has(t.outId)&&mids.has(t.inId)).flatMap(t=>[t.outId,t.inId]));
