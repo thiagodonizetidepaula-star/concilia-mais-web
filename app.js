@@ -59,15 +59,15 @@ function renderAssistente(){
  const currentStep=steps.findIndex(x=>!x[2]);if(guide)guide.innerHTML='<div class="guide-head"><div><strong>Seu assistente contábil</strong><p>Siga as etapas. Cada código pertence ao plano da empresa selecionada.</p></div><span>'+safe(c?.name||'Nenhuma empresa')+'</span></div><div class="guide-items">'+steps.map((t,i)=>`<button type="button" data-go="${safe(t[3])}" class="guide-step ${t[2]?'done':i===currentStep?'next':''}"><b>${t[2]?'✓':i+1}</b><span><strong>${safe(t[0])}</strong><small>${safe(t[1])}</small></span><em>${t[2]?'Concluído':i===currentStep?'Próximo passo':'Pendente'}</em></button>`).join('')+'</div>';
  if(banner){let message=status.ready?'TRABALHO CONCLUÍDO: conferência pronta para revisão e download de Excel/PDF.':status.status==='DIVERGENCIA'?'ATENÇÃO: divergências ou duplicidades precisam ser verificadas.':status.total?'CONFERÊNCIA EM ANDAMENTO: '+status.pending+' lançamento(s) precisam de código ou conferência.':'AGUARDANDO EXTRATOS E RAZÃO: comece pelas etapas acima.';
  banner.className='completion-banner '+(status.ready?'done':status.divergences?'bad':'pending');
- banner.innerHTML='<strong>'+safe(message)+'</strong><div>'+status.total+' movimentações • '+status.files+' extrato(s) • '+status.transfers+' transferências confirmadas • '+status.pending+' pendências manuais • '+status.divergences+' alertas de divergência • Razão: '+(status.ledger?'importado':'pendente')+'</div><p>O Excel de conferência e o PDF ficam disponíveis com pendências indicadas; somente códigos confirmados podem integrar lançamentos prontos.</p>';}
+ banner.innerHTML='<strong>'+safe(message)+'</strong><div>'+status.total+' movimentações • '+status.files+' extrato(s) • '+status.transfers+' transferências confirmadas • '+status.pending+' pendências manuais • '+status.divergences+' alertas de divergência • '+status.unverified+' saldos não verificados • '+status.pendingReading+' linhas para revisão • '+status.orphanBankLedger+' lançamentos bancários do Razão sem vínculo • Razão: '+(status.ledger?'importado':'pendente')+'</div><p>O Excel de conferência e o PDF ficam disponíveis com pendências indicadas; somente códigos confirmados podem integrar lançamentos prontos.</p>';}
  $('#downloadPdf').disabled=!status.total;
  const undo=$('#undoRemove');if(undo)undo.hidden=!ultimoExcluido;
 }
 function renderImport(){const c=current();$('#allImports').innerHTML=c?table(['Arquivo','Tipo','Competência(s)','Movimentos','Saldos','Situação','Ações'],c.imports.slice().reverse().map(i=>[
  safe(i.name),badge(i.type),safe((i.periods||[]).join(', ')),i.movementCount??i.count??0,
- i.balanceCheck?.status==='DIVERGENTE'?'<span class="status-red">DIVERGENTE</span>':i.balanceCheck?.status==='OK'?badge('OK · diferença '+currency(i.balanceCheck.difference)):badge(i.balanceCheck?.status||'NÃO CONFERIDO'),
+ i.balanceCheck?.status==='DIVERGENTE'?'<span class="status-red">DIVERGENTE</span>':['OK','MANUAL_OK'].includes(i.balanceCheck?.status)?badge((i.balanceCheck?.status==='MANUAL_OK'?'CONFERIDO MANUALMENTE':'OK')+' · diferença '+currency(i.balanceCheck.difference)):badge(i.balanceCheck?.status||'NÃO CONFERIDO'),
  badge(i.reviewCount?'COM REVISÕES':'IMPORTADO'),
- ['EXTRATO','RAZAO'].includes(i.type)?'<div class="inline-actions"><button type="button" data-delete-import="'+safe(i.id)+'">Excluir</button><button type="button" data-redo-import="'+safe(i.id)+'">Refazer</button></div>':'—'
+ ['EXTRATO','RAZAO'].includes(i.type)?'<div class="inline-actions">'+(i.type==='EXTRATO'&&!['OK','MANUAL_OK'].includes(i.balanceCheck?.status)?'<button type="button" data-balance-check="'+safe(i.id)+'">Conferir saldo</button>':'')+'<button type="button" data-delete-import="'+safe(i.id)+'">Excluir</button><button type="button" data-redo-import="'+safe(i.id)+'">Refazer</button></div>':'—'
  ])):empty('Importe o plano de contas para iniciar.');
 }
 
@@ -159,7 +159,29 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  $('#runRecon').onclick=()=>action(()=>{const c=getCompany();renderRecon();const rec=Core.reconcile(c,period);say(`${rec.checked.filter(x=>x.recon==='CONCILIADO').length} lançamento(s) conciliados; ${rec.missingLedger.length} registros do Razão sem vínculo.`)});
  $('#downloadExcel').onclick=()=>action(()=>{const c=getCompany();const data=window.ConciliaExcel.report(Core,c,period);const filename='CONFERENCIA_'+(c.cnpj||Core.norm(c.name)).replace(/[^A-Za-z0-9]/g,'')+'_'+period+'.xlsx';window.ConciliaExcel.download(data,filename);say(`Excel gerado: ${data.counts.movements} movimentações, ${data.counts.ready} lançamentos prontos, ${data.counts.suggested} sugestões a confirmar.`);});
  $('#downloadPdf').onclick=()=>{try{const c=getCompany();const html=window.ConciliaAssistente.relatorioHtml(Core,c,period);const w=window.open('','_blank');if(!w)throw Error('O navegador bloqueou a janela do PDF. Permita pop-ups para este site e tente novamente.');w.document.open();w.document.write(html);w.document.close();say('Relatório aberto. Escolha Imprimir → Salvar como PDF.');}catch(e){say(e.message,true)}};
- $('#downloadCsv').onclick=()=>action(()=>{const c=getCompany(),out=Core.previewExport(c,period);if(c.imports.some(i=>i.type==='EXTRATO'&&i.periods.includes(period)&&i.balanceCheck?.status==='DIVERGENTE'))throw Error('Extrato com diferença de saldos: resolva a divergência antes de exportar.');if(out.errors.length)throw Error(`Há ${out.errors.length} erro(s) de código contábil. Corrija antes de exportar.`);if(!c.ledger.some(l=>l.period===period))throw Error('Importe ou atualize o Razão desta competência antes de liberar a exportação.');if(!out.rows.length)throw Error('Não há lançamentos confirmados e não encontrados no Razão para exportar.');if(!confirm(`Exportar ${out.rows.length} lançamento(s) em prévia CSV? Valide o arquivo antes de importar no Domínio.`))return;putFile(null,`PREVIA_${c.dominio}_${period}.csv`,'\uFEFF'+Core.exportCsv(out.rows));say('Prévia CSV exportada. Ainda não homologada no Domínio.')});
+ $('#downloadCsv').onclick=()=>action(()=>{const c=getCompany(),audit=window.ConciliaAssistente.analisar(Core,c,period);if(!audit.ready)throw Error('Prévia de lançamentos bloqueada: confira contrapartidas, extratos, saldos, duplicidades, transferências e Razão antes de exportar. Excel de conferência e PDF seguem disponíveis.');const out=Core.previewExport(c,period);if(c.imports.some(i=>i.type==='EXTRATO'&&i.periods.includes(period)&&i.balanceCheck?.status==='DIVERGENTE'))throw Error('Extrato com diferença de saldos: resolva a divergência antes de exportar.');if(out.errors.length)throw Error(`Há ${out.errors.length} erro(s) de código contábil. Corrija antes de exportar.`);if(!c.ledger.some(l=>l.period===period))throw Error('Importe ou atualize o Razão desta competência antes de liberar a exportação.');if(!out.rows.length)throw Error('Não há lançamentos confirmados e não encontrados no Razão para exportar.');if(!confirm(`Exportar ${out.rows.length} lançamento(s) em prévia CSV? Valide o arquivo antes de importar no Domínio.`))return;putFile(null,`PREVIA_${c.dominio}_${period}.csv`,'\uFEFF'+Core.exportCsv(out.rows));say('Prévia CSV exportada. Ainda não homologada no Domínio.')});
+ document.addEventListener('click',e=>{const button=e.target.closest('[data-balance-check]');if(!button)return;action(async()=>{
+  const c=getCompany(),item=c.imports.find(i=>i.id===button.dataset.balanceCheck);
+  if(!item||item.type!=='EXTRATO')throw Error('Extrato não encontrado.');
+  if(['OK','MANUAL_OK'].includes(item.balanceCheck?.status))throw Error('Este extrato já possui saldos conferidos.');
+  const enteredStart=prompt('Informe o SALDO INICIAL deste extrato (exemplo: 9798,49). Use o saldo indicado no documento, não um valor estimado:');
+  if(enteredStart===null)return;
+  const enteredEnd=prompt('Informe o SALDO FINAL do mesmo extrato. O sistema comparará com a soma dos movimentos importados:');
+  if(enteredEnd===null)return;
+  const initial=Core.money(enteredStart),final=Core.money(enteredEnd);
+  const movements=c.movements.filter(m=>m.importId?m.importId===item.id:m.origin===item.name);
+  if(!movements.length)throw Error('Nenhuma movimentação vinculada ao arquivo.');
+  const sum=movements.reduce((n,m)=>n+m.cents,0),difference=initial+sum-final;
+  if(Math.abs(difference)>1){
+    item.balanceCheck={status:'DIVERGENTE',method:'OPERADOR',initial,final,movementSum:sum,difference,checkedAt:new Date().toISOString()};
+    await store('SALDO_DIVERGENTE',item.name+': diferença '+currency(difference));
+    say('DIVERGÊNCIA de '+currency(difference)+'! Não é seguro liberar os lançamentos deste extrato.',true);return;
+  }
+  if(!confirm('A soma bate, mas você precisa conferir que TODAS as páginas e movimentações foram importadas. Confirma ter verificado o extrato completo e os saldos inicial/final?'))return;
+  item.balanceCheck={status:'MANUAL_OK',method:'OPERADOR',initial,final,movementSum:sum,difference,checkedAt:new Date().toISOString()};
+  await store('SALDO_CONFERIDO_PELO_OPERADOR',item.name+': '+movements.length+' movimentos; '+currency(sum));
+  say('Saldo conferido manualmente. Isso não substitui a comparação com o Razão.');
+ });});
  document.addEventListener('click',e=>{const target=e.target.closest('[data-delete-import],[data-redo-import]');if(!target)return;action(async()=>{const c=getCompany(),id=target.dataset.deleteImport||target.dataset.redoImport,item=c.imports.find(i=>i.id===id);if(!item)throw Error('Importação não encontrada');const redo=!!target.dataset.redoImport;
  const message=redo?'Refazer '+item.name+'? O processamento anterior será removido. Depois selecione o mesmo arquivo novamente. Salve backup se necessário.':'Excluir '+item.name+' e seus movimentos associados? Os outros extratos serão mantidos. Antes de excluir, recomenda-se baixar o backup.';
  if(!confirm(message))return;
