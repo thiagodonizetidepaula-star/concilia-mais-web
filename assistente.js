@@ -96,6 +96,34 @@ function relatorioHtml(core,c,period){
  const msg=s.ready?'CONCILIAÇÃO COM RAZÃO CONCLUÍDA - REVISÃO FINAL RECOMENDADA':s.exportable?'CONFERÊNCIA OPERACIONAL PRONTA - LANÇAMENTOS AUSENTES NO RAZÃO EXIGEM REVISÃO':s.divergences?'CONFERÊNCIA COM DIVERGÊNCIAS - NÃO FINALIZADA':'CONFERÊNCIA PARCIAL - PENDÊNCIAS E/OU SALDOS NÃO VERIFICADOS';
  return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Concilia+ | '+title+' | '+compet+'</title><style>@page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#163049;font-size:10px}header{border-bottom:3px solid #087993;padding-bottom:12px;margin-bottom:12px}h1{margin:0;color:#0b6077;font-size:22px}.subtitle{font-size:12px;color:#62758a;margin-top:4px}.grid{display:flex;gap:8px;margin:12px 0}.k{flex:1;padding:10px;border-radius:7px;background:#f0f6fa;border:1px solid #d7e7ed}.k strong{display:block;font-size:15px}.k span{font-size:9px;color:#567}.alert{border-left:4px solid #d9992d;background:#fff8e7;padding:9px;margin:12px 0}.bad{border-color:#ba493b;background:#fff0ed}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:8.3px}thead{display:table-header-group}th{background:#173b53;color:white;text-align:left;padding:7px 4px}td{border-bottom:1px solid #e5ebee;padding:6px 4px;overflow-wrap:anywhere;vertical-align:top}tr{break-inside:avoid}.num{text-align:right;white-space:nowrap}th:nth-child(1){width:10%}th:nth-child(2){width:8%}th:nth-child(3),th:nth-child(4){width:8%}th:nth-child(5){width:11%}th:nth-child(6){width:24%}th:nth-child(7){width:17%}th:nth-child(8){width:14%}.yellow{background:#fff8db}.red{background:#ffe6e1}.green{background:#effaf3}.legend{margin:10px 0;padding:8px;border:1px solid #e2e8ed}.footer{font-size:9px;color:#677c8a;margin-top:16px;border-top:1px solid #ddd;padding-top:8px}.audit-section{break-before:page;margin-top:16px}.audit-section h2{font-size:17px;color:#0b6077;margin:10px 0}.audit-table th:nth-child(1){width:9%}.audit-table th:nth-child(2){width:9%}.audit-table th:nth-child(3){width:13%}.audit-table th:nth-child(4){width:10%}.audit-table th:nth-child(5){width:11%}.audit-table th:nth-child(6){width:13%}.audit-table th:nth-child(7){width:16%}.audit-table th:nth-child(8){width:19%}@media print{.noprint{display:none}}@media screen{body{padding:20px;max-width:1250px;margin:auto}.noprint{background:#087993;color:white;border:0;border-radius:8px;padding:12px;margin:8px 0;font-size:15px;cursor:pointer}}</style></head><body><button class="noprint" onclick="window.print()">Imprimir / Salvar como PDF</button><header><h1>Concilia+ | Relatório de Conciliação</h1><div class="subtitle">'+title+' &nbsp; • &nbsp; CNPJ '+esc(c.cnpj||'não identificado')+' &nbsp; • &nbsp; Competência '+compet+'</div></header><div class="grid"><div class="k"><span>Movimentações</span><strong>'+s.total+'</strong></div><div class="k"><span>Entradas</span><strong>'+esc(moeda(s.entry))+'</strong></div><div class="k"><span>Saídas</span><strong>'+esc(moeda(s.exit))+'</strong></div><div class="k"><span>Pendências manuais</span><strong>'+s.pending+'</strong></div><div class="k"><span>Divergências</span><strong>'+s.divergences+'</strong></div></div><div class="alert '+(s.divergences?'bad':'')+'"><strong>'+msg+'</strong><div>Razão da competência: '+(s.ledger?'importado':'não importado')+' • Transferências confirmadas: '+s.transfers+' • Extratos: '+s.files+' • Saldos não verificados: '+s.unverified+' • Linhas em revisão: '+s.pendingReading+' • Razão bancário sem par: '+s.orphanBankLedger+' • Contas sem Razão: '+s.withoutLedger.join(', ')+' • Diferenças de saldo entre Razão e banco: '+s.ledgerBalanceDifferences.map(d=>d.bank+' ('+d.bankCode+'): '+new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(d.difference/100)).join('; ')+' • Novos lançamentos candidatos: '+s.notInLedger+'</div></div><div class="legend">Cores: <b>verde</b> = códigos/transferências confirmados; <b>amarelo</b> = pendência manual ou sugestão; <b>vermelho</b> = divergência ou possível duplicidade. Nenhum código foi inventado. O extrato pode estar matematicamente conferido sem o Razão estar conciliado.</div><table><thead><tr><th>Data</th><th>Banco</th><th>Cód. Débito</th><th>Cód. Crédito</th><th>Valor (R$)</th><th>Histórico</th><th>Situação</th><th>Arquivo origem</th></tr></thead><tbody>'+tr+'</tbody></table>'+auditHtml+'<div class="footer">Relatório de apoio à conciliação contábil • Gerado em '+esc(new Date().toLocaleString('pt-BR'))+' • Prévia para conferência; valide antes de importar no Domínio. Arquivos originais e códigos permanecem associados à empresa.</div></body></html>';
 }
+/* Recomeçar a competência ou todas as importações da empresa,
+   sem afetar plano, contas bancárias, regras e outras empresas. */
+function restaurarImportacoes(c,period,reviews=[],scope='period'){
+ if(!c||!Array.isArray(c.movements)||!Array.isArray(c.ledger)||!Array.isArray(c.imports))throw Error('Empresa não configurada.');
+ if(scope!=='period'&&scope!=='company')throw Error('Escopo de restauração inválido.');
+ if(scope==='period'&&!/^\d{4}-\d{2}$/.test(period))throw Error('Selecione uma competência válida.');
+ const documentTypes=new Set(['EXTRATO','RAZAO']);
+ const files=c.imports.filter(i=>documentTypes.has(i.type)&&(scope==='company'||(i.periods||[]).includes(period)));
+ if(scope==='period'){
+   const mixed=files.filter(i=>(i.periods||[]).some(p=>p!==period));
+   if(mixed.length)throw Error('Os arquivos '+mixed.map(i=>i.name).join(', ')+' também contêm outras competências. Para evitar apagar dados de outros meses, escolha “Todos os períodos da empresa” ou refaça esses arquivos individualmente.');
+ }
+ const ids=new Set(files.map(i=>i.id));
+ const isForPeriod=r=>scope==='company'||String(r.date||r.period||'').slice(0,7)===period;
+ const removedMovements=c.movements.filter(isForPeriod),movementsIds=new Set(removedMovements.map(m=>m.id));
+ const removedLedger=c.ledger.filter(v=>scope==='company'||v.period===period);
+ const removedTransfers=(c.transfers||[]).filter(t=>scope==='company'||movementsIds.has(t.outId)||movementsIds.has(t.inId));
+ // Revisões modernas têm importId. Para arquivos antigos, só apagar por nome quando
+ // nenhum outro documento da empresa tem o mesmo nome.
+ const originalNames=new Set(files.filter(i=>!c.imports.some(other=>other.id!==i.id&&other.name===i.name)).map(i=>i.name));
+ const retainedReviews=(reviews||[]).filter(r=>!(r.companyId===c.id&&(scope==='company'||(r.importId?ids.has(r.importId):originalNames.has(r.origin)))));
+ const stats={movements:removedMovements.length,ledgerVersions:removedLedger.length,transfers:removedTransfers.length,imports:files.length,reviews:(reviews||[]).length-retainedReviews.length};
+ c.movements=c.movements.filter(m=>!isForPeriod(m));
+ c.ledger=c.ledger.filter(v=>!(scope==='company'||v.period===period));
+ c.transfers=(c.transfers||[]).filter(t=>!removedTransfers.includes(t));
+ c.imports=c.imports.filter(i=>!ids.has(i.id));
+ return {stats,reviews:retainedReviews};
+}
 function remover(c,item,allReviews){
  if(!c||!item||!['EXTRATO','RAZAO'].includes(item.type))throw Error('Apenas extrato ou versão do Razão podem ser excluídos.');
  const duplicatedName=c.imports.some(i=>i.id!==item.id&&i.type===item.type&&i.name===item.name);
@@ -111,5 +139,5 @@ function remover(c,item,allReviews){
  const reviews=allReviews.filter(r=>!(r.companyId===c.id&&(r.importId?r.importId===item.id:r.origin===item.name)));
  return {removed:dropped.length,reviews};
 }
-return {analisar,divergenciasSaldo,etapas,contasLinhas,relatorioHtml,remover};
+return {analisar,divergenciasSaldo,etapas,contasLinhas,relatorioHtml,remover,restaurarImportacoes};
 });
