@@ -13,7 +13,7 @@ function openDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open('
 function loadDB(){return new Promise((resolve,reject)=>{const tx=db.transaction('app','readonly');const req=tx.objectStore('app').get('workspace');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 function saveDB(){return new Promise((resolve,reject)=>{const tx=db.transaction('app','readwrite');tx.objectStore('app').put(state,'workspace');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
 function log(type,detail){state.audit.push({at:new Date().toISOString(),companyId,action:type,detail});}
-async function store(type,detail){if(!['EXTRATO_REFAZER','IMPORTACAO_EXCLUIDA'].includes(type))ultimoExcluido=null;log(type,detail);await saveDB();render()}
+async function store(type,detail){if(!['EXTRATO_REFAZER','IMPORTACAO_EXCLUIDA','RESTAURACAO_IMPORTACOES'].includes(type))ultimoExcluido=null;log(type,detail);await saveDB();render()}
 function table(headers,rows){if(!rows.length)return empty('Nenhum registro para exibir.');return `<div class="tablewrap"><table><thead><tr>${headers.map(h=>`<th>${safe(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${v??''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
 function badge(s){const kind=/CONFIRM|CONCILIADO|OK/.test(s)?'ok':/PENDENTE|SUGERIDA|AMBIGU|DUPLIC/.test(s)?'warn':'';return `<span class="badge ${kind}">${safe(s)}</span>`}
 function datePT(d){return String(d||'').split('-').reverse().join('/')}
@@ -29,7 +29,7 @@ function canImport(c){return !!c && c.plan.length>0}
 function optionsFor(c,selected=''){return '<option value="">Selecione código analítico</option>'+c.plan.filter(p=>p.analytic).map(p=>`<option value="${safe(p.code)}" ${p.code===selected?'selected':''}>${safe(p.code)} — ${safe(p.description)}</option>`).join('')}
 function renderSelection(){const prev=companyId;$('#companySelect').innerHTML='<option value="">Selecione uma empresa</option>'+state.companies.map(c=>`<option value="${safe(c.id)}">${safe(c.name)} • ${safe(c.dominio)}</option>`).join('');if(state.companies.find(c=>c.id===prev))$('#companySelect').value=prev;else{companyId=state.companies[0]?.id||'';$('#companySelect').value=companyId}}
 function showPage(page){currentPage=page;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('visible',x.id==='p-'+page));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===page));const titles={visao:['Visão geral','PAINEL OPERACIONAL','Selecione uma empresa e acompanhe o andamento da competência.'],empresas:['Empresas e plano de contas','CONFIGURAÇÃO INICIAL','Cada empresa utiliza seu próprio plano, seus bancos e suas regras.'],importar:['Importar extratos e Razão','PROCESSAMENTO DE DOCUMENTOS','O plano de contas é obrigatório antes dos extratos.'],movimentos:['Classificações','MOVIMENTAÇÕES','Conferência das contrapartidas e regras da empresa selecionada.'],transferencias:['Transferências entre contas','CRUZAMENTO DE BANCOS','Propostas que exigem confirmação da titularidade.'],conciliacao:['Conciliação e exportação','RAZÃO CONTÁBIL','Somente lançamentos confirmados e não encontrados no Razão.'],revisao:['Revisão de leitura','CONTROLE DE PENDÊNCIAS','Nenhuma linha ilegível deve desaparecer.']} ;const [title,eye,sub]=titles[page]||titles.visao;$('#pageTitle').textContent=title;$('#eyebrow').textContent=eye;$('#subtitle').textContent=sub;render()}
-function render(){const c=current();$('#quickImport').disabled=!canImport(c);$('#statementButton').disabled=!canImport(c);$('#importPlanButton').disabled=false;$('#addBank').disabled=!c||!c.plan.length;$('#addRule').disabled=!c||!c.plan.length;$('#ledgerButton').disabled=!c;$('#downloadCsv').disabled=!c;$('#downloadExcel').disabled=!c;renderSetup();renderDashboard();renderImport();renderMovements();renderTransfers();renderRecon();renderAuditoria();renderReviews();renderAssistente();}
+function render(){const c=current();$('#quickImport').disabled=!canImport(c);$('#statementButton').disabled=!canImport(c);$('#importPlanButton').disabled=false;$('#addBank').disabled=!c||!c.plan.length;$('#addRule').disabled=!c||!c.plan.length;$('#ledgerButton').disabled=!c;$('#downloadCsv').disabled=!c;$('#downloadExcel').disabled=!c;const resetButton=$('#resetAll');if(resetButton)resetButton.disabled=!c;renderSetup();renderDashboard();renderImport();renderMovements();renderTransfers();renderRecon();renderAuditoria();renderReviews();renderAssistente();}
 function renderDashboard(){const c=current();if(!c){$('#stepBanner').innerHTML='<strong>Primeiro passo:</strong> importe o plano de contas; a empresa será criada automaticamente.';$('#metrics').innerHTML='';$('#steps').innerHTML='';$('#recentFiles').innerHTML=empty('Sem empresas cadastradas.');return}
   const mv=Core.periodMovements(c,period);const balance=Core.reconcile(c,period);const acc=new Set(mv.map(x=>x.accountId));const confirmed=balance.checked.filter(x=>x.recon==='CONCILIADO').length;
   const availablePeriods=[...new Set(c.imports.filter(x=>x.type==='EXTRATO').flatMap(x=>x.periods||[]))].sort().reverse();
@@ -275,6 +275,31 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  await store(redo?'EXTRATO_REFAZER':'IMPORTACAO_EXCLUIDA',item.type+': '+item.name+'; '+result.removed+' movimentos removidos');
  showPage('importar');say((redo?'Pronto para refazer. Selecione novamente o arquivo.':'Importação excluída. ')+result.removed+' movimento(s) removido(s); os demais extratos foram preservados.');
  });});
+ $('#resetAll').onclick=()=>action(async()=>{
+  const c=getCompany(),scope=$('#resetScope').value,companyName=c.name||'empresa',when=scope==='period'?'competência '+period:'todos os períodos desta empresa';
+  const attachments=(c.imports||[]).filter(i=>['EXTRATO','RAZAO'].includes(i.type)&&(scope==='company'||(i.periods||[]).includes(period)));
+  if(scope==='period'){
+    const mixed=attachments.filter(i=>(i.periods||[]).some(p=>p!==period));
+    if(mixed.length)throw Error('Existem arquivos que abrangem mais de um mês: '+mixed.map(i=>i.name).join(', ')+'. Para preservar as outras competências, escolha todos os períodos da empresa ou refaça esses arquivos individualmente.');
+  }
+  const moves=c.movements.filter(m=>scope==='company'||m.date?.slice(0,7)===period).length;
+  const ledgers=c.ledger.filter(l=>scope==='company'||l.period===period).length;
+  if(!attachments.length&&!moves&&!ledgers){$('#resetStatus').textContent='Não existem extratos nem Razões para recomeçar neste escopo.';return;}
+  if(!confirm('RESTAURAR TUDO — '+companyName+'\n\nEscopo: '+when+'\n\nSerão limpos '+attachments.length+' arquivo(s), '+moves+' movimento(s) e '+ledgers+' versão(ões) do Razão, além de vínculos, classificações e revisões correspondentes.\n\nO plano de contas, contas bancárias cadastradas, regras e outras empresas NÃO serão apagados.\n\nDeseja preparar um backup antes de continuar?'))return;
+  const backupPayload=JSON.stringify({format:'concilia-plus-demo-backup-v1',exported:new Date().toISOString(),state},null,2);
+  const filename='ConciliaMais_ANTES_RESTAURAR_'+String(c.cnpj||c.id).replace(/[^a-zA-Z0-9]/g,'')+'_'+(scope==='period'?period:'TODOS')+'.json';
+  putFile(null,filename,backupPayload);
+  const confirmText=prompt('Solicitei o download do backup '+filename+'.\n\nConfirme se ele foi salvo no seu dispositivo. Para limpar '+when+', digite exatamente ZERAR:\n\n(O botão “Desfazer” também ficará disponível até sua próxima alteração.)');
+  if(confirmText!=='ZERAR'){$('#resetStatus').textContent='Operação cancelada. Nenhum dado foi apagado. Backup solicitado.';return;}
+  const snapshot=JSON.parse(JSON.stringify(state));
+  const result=window.ConciliaAssistente.restaurarImportacoes(c,period,state.reviews,scope);
+  state.reviews=result.reviews;ultimoExcluido=snapshot;
+  await store('RESTAURACAO_IMPORTACOES',companyName+' — '+when+'; '+result.stats.imports+' arquivo(s), '+result.stats.movements+' movimento(s), '+result.stats.ledgerVersions+' Razão/versão(ões) e '+result.stats.transfers+' vínculo(s) removidos.');
+  $('#resetStatus').textContent='Restauração concluída: '+result.stats.imports+' arquivo(s) e '+result.stats.movements+' movimento(s) limpos. Plano e contas mantidos. Pode importar novamente extratos e Razões. Se necessário, use Desfazer última exclusão/restauração.';
+  $('#resetStatus').className='import-status success';
+  say('Pronto para reimportar: '+result.stats.imports+' arquivo(s) limpos. Plano de contas preservado.');
+  showPage('importar');
+ });
  $('#undoRemove').onclick=()=>action(async()=>{if(!ultimoExcluido)throw Error('Nenhuma exclusão para desfazer');if(!confirm('Restaurar a última exclusão?'))return;state=ultimoExcluido;ultimoExcluido=null;await saveDB();renderSelection();render();say('Última exclusão desfeita.');});
  $('#backup').onclick=()=>action(()=>{const payload=JSON.stringify({format:'concilia-plus-demo-backup-v1',exported:new Date().toISOString(),state},null,2);putFile(null,'ConciliaMais_backup_'+new Date().toISOString().slice(0,10)+'.json',payload);say('Backup exportado. Guarde o arquivo com segurança.')});
  $('#restore').onchange=e=>{action(async()=>{const f=e.currentTarget.files[0];if(!f)return;const {txt}=await asText(f);const obj=JSON.parse(txt);if(obj.format!=='concilia-plus-demo-backup-v1'||!Array.isArray(obj.state?.companies))throw Error('Arquivo de backup inválido');if(!confirm('Restaurar este backup SUBSTITUIRÁ os dados deste navegador. Prosseguir?'))return;state=obj.state;companyId=state.companies[0]?.id||'';await saveDB();renderSelection();render();say('Backup restaurado com sucesso.');e.currentTarget.value=''})};
