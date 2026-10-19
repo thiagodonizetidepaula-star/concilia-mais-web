@@ -164,7 +164,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  }else{const txt=(await asText(file)).txt;parsed=Core.parseLedger(Core.parseCsv(txt),file.name)}
  if(!parsed.entries.length)throw Error('Nenhum lançamento contábil válido no Razão. Confira Revisão.');
  const periods=[...new Set(parsed.entries.map(l=>month(l.date)))],importId=Core.id();
- for(const p of periods)c.ledger.push({id:Core.id(),importId,period:p,accountCode,at:new Date().toISOString(),entries:parsed.entries.filter(l=>month(l.date)===p),file:file.name});
+ for(const p of periods)c.ledger.push({id:Core.id(),importId,period:p,accountCode,openingBalance:parsed.openingBalance??null,at:new Date().toISOString(),entries:parsed.entries.filter(l=>month(l.date)===p),file:file.name});
  const detected=periods.reduce((n,p)=>n+suggestFromLedger(c,p).applied,0);
  c.imports.push({id:importId,type:'RAZAO',name:file.name,sha,periods,accountCode,format:parsed.format||ext.toUpperCase(),count:parsed.entries.length,reviewCount:parsed.reviews.length,at:new Date().toISOString()});
  await afterImport('RAZAO',c,file,parsed,sha,importId);await store('RAZAO_IMPORTADO',file.name+': '+parsed.entries.length+' lançamentos; banco '+(accountCode||'múltiplos'));
