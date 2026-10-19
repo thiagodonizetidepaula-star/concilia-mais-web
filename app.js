@@ -180,26 +180,60 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  if(skipped.length&&!ok.length&&!bad.length)say(`Extrato já importado: ${existingTotal} movimentações preservadas. Abra Classificações.`);
  else say(`${ok.length} novo(s), ${skipped.length} já importado(s), ${bad.length} falha(s). ${total} novas movimentações.`,!!bad.length);
  }catch(err){setStatementStatus('error','IMPORTAÇÃO NÃO CONCLUÍDA: '+(err.message||String(err))+'. Confira o arquivo ou a empresa e tente novamente.');throw err;}})};
- $('#importLedger').onsubmit=e=>{e.preventDefault();action(async()=>{
- const c=getCompany(),file=e.currentTarget.elements.file.files[0];if(!file)throw Error('Selecione o Razão do Domínio.');
- const ext=fileExt(file.name);if(!['pdf','csv','txt'].includes(ext))throw Error('Razão: importe PDF digital, CSV ou TXT.');
- const bytes=await file.arrayBuffer(),sha=await hash(bytes);
- if(c.imports.some(x=>x.type==='RAZAO'&&x.sha===sha))throw Error('Este Razão já foi importado para esta empresa.');
- let parsed=null,accountCode='';
- if(ext==='pdf'){
-  const doc=await Pdf.extractPdf(file);const docCnpj=window.ConciliaLayouts.documentCnpj(doc);
-  if(!docCnpj||!c.cnpj||docCnpj!==c.cnpj)throw Error('CNPJ do Razão PDF diferente do CNPJ confirmado da empresa, ou ausente. Importação bloqueada.');
-  parsed=window.ConciliaLayouts.parseDominioLedgerPdf(doc,file.name,Core);
-  accountCode=String(parsed.accountCode);
-  if(!c.plan.some(p=>p.analytic&&String(p.code)===accountCode))throw Error('Código '+accountCode+' do Razão não consta como analítico no plano da empresa.');
- }else{const txt=(await asText(file)).txt;parsed=Core.parseLedger(Core.parseCsv(txt),file.name)}
- if(!parsed.entries.length)throw Error('Nenhum lançamento contábil válido no Razão. Confira Revisão.');
- const periods=[...new Set(parsed.entries.map(l=>month(l.date)))],importId=Core.id();
- for(const p of periods)c.ledger.push({id:Core.id(),importId,period:p,accountCode,openingBalance:parsed.openingBalance??null,at:new Date().toISOString(),entries:parsed.entries.filter(l=>month(l.date)===p),file:file.name});
- const detected=periods.reduce((n,p)=>n+suggestFromLedger(c,p).applied,0);
- c.imports.push({id:importId,type:'RAZAO',name:file.name,sha,periods,accountCode,format:parsed.format||ext.toUpperCase(),count:parsed.entries.length,reviewCount:parsed.reviews.length,at:new Date().toISOString()});
- await afterImport('RAZAO',c,file,parsed,sha,importId);await store('RAZAO_IMPORTADO',file.name+': '+parsed.entries.length+' lançamentos; banco '+(accountCode||'múltiplos'));
- e.currentTarget.reset();say('Razão importado: '+parsed.entries.length+' lançamentos • '+parsed.reviews.length+' linhas para revisão • '+detected+' novas contrapartidas sugeridas.');
+ $('#importLedger').onsubmit=e=>{e.preventDefault();const form=e.currentTarget;action(async()=>{
+ const c=getCompany(),files=Array.from(form.elements.file.files||[]),button=$('#ledgerButton'),status=$('#ledgerStatus');
+ if(!files.length)throw Error('Selecione um ou mais Razões para importar.');
+ if(files.length>20)throw Error('Escolha até 20 Razões por lote para evitar sobrecarga no celular.');
+ const results=[];button.disabled=true;
+ const show=(type,message)=>{if(status){status.textContent=message;status.className='import-status '+type;}};
+ try{
+  for(const file of files){
+   show('working','Lendo Razão '+(results.length+1)+' de '+files.length+': '+file.name+'. Os outros Razões serão preservados.');
+   try{
+    const ext=fileExt(file.name);
+    if(!['pdf','csv','txt'].includes(ext))throw Error('Formato incompatível. Envie PDF digital, CSV ou TXT.');
+    const bytes=await file.arrayBuffer(),sha=await hash(bytes);
+    const previous=c.imports.find(i=>i.type==='RAZAO'&&i.sha===sha);
+    if(previous){results.push({name:file.name,type:'existing',count:previous.count||0,accountCode:previous.accountCode||'',periods:previous.periods||[]});continue;}
+    let parsed,accountCode='';
+    if(ext==='pdf'){
+     const doc=await Pdf.extractPdf(file);
+     const docCnpj=window.ConciliaLayouts.documentCnpj(doc);
+     if(!docCnpj||!c.cnpj||docCnpj!==c.cnpj)throw Error('CNPJ do PDF ausente ou diferente do plano da empresa. Não misturar empresas.');
+     parsed=window.ConciliaLayouts.parseDominioLedgerPdf(doc,file.name,Core);
+     accountCode=String(parsed.accountCode||'');
+     if(!c.plan.some(p=>p.analytic&&String(p.code)===accountCode))throw Error('Conta '+accountCode+' do Razão não existe como analítica no plano desta empresa.');
+    }else{
+     const txt=(await asText(file)).txt;
+     parsed=Core.parseLedger(Core.parseCsv(txt),file.name);
+    }
+    if(!parsed.entries?.length)throw Error('Nenhum lançamento reconhecido. Confira se é um Razão legível.');
+    const periods=[...new Set(parsed.entries.map(l=>month(l.date)))];
+    if(accountCode){
+     const overlapping=periods.filter(p=>(c.ledger||[]).some(l=>l.period===p&&String(l.accountCode||'')===accountCode));
+     if(overlapping.length)throw Error('Já existe Razão para a conta '+accountCode+' na(s) competência(s) '+overlapping.join(', ')+'. Use Refazer no arquivo anterior para atualizar, evitando substituir lançamentos sem aviso.');
+    }
+    const importId=Core.id(),at=new Date().toISOString();
+    for(const p of periods)c.ledger.push({id:Core.id(),importId,period:p,accountCode,openingBalance:parsed.openingBalance??null,at,entries:parsed.entries.filter(l=>month(l.date)===p),file:file.name});
+    c.imports.push({id:importId,type:'RAZAO',name:file.name,sha,periods,accountCode,format:parsed.format||ext.toUpperCase(),count:parsed.entries.length,reviewCount:(parsed.reviews||[]).length,at});
+    await afterImport('RAZAO',c,file,parsed,sha,importId);
+    results.push({name:file.name,type:'success',count:parsed.entries.length,accountCode,periods,reviews:(parsed.reviews||[]).length});
+   }catch(err){console.warn('Razão não importado:',file.name,err);results.push({name:file.name,type:'error',reason:err.message||String(err)});}
+  }
+  const success=results.filter(x=>x.type==='success'),existing=results.filter(x=>x.type==='existing'),errors=results.filter(x=>x.type==='error');
+  let matched=0;
+  if(success.length){
+   const periods=[...new Set(success.flatMap(x=>x.periods))];
+   for(const p of periods){try{matched+=suggestFromLedger(c,p).applied;}catch(err){console.warn('Sugestões do Razão:',err);}}
+   await store('RAZOES_IMPORTADOS_EM_LOTE',success.length+' novo(s), '+existing.length+' repetido(s), '+errors.length+' erro(s). '+success.reduce((n,x)=>n+x.count,0)+' lançamentos contábeis; '+matched+' sugestões.');
+  }else render();
+  const header='RAZÕES: '+success.length+' importado(s), '+existing.length+' já existente(s), '+errors.length+' com erro. '+success.reduce((n,x)=>n+x.count,0)+' lançamentos novos; '+matched+' sugestões a revisar.';
+  const detail=results.map(x=>x.type==='success'?'✓ '+x.name+': '+x.count+' lançamento(s), conta '+(x.accountCode||'múltiplas')+', '+x.periods.join(', ')+(x.reviews?' • '+x.reviews+' linha(s) em revisão':''):x.type==='existing'?'↷ '+x.name+': já cadastrado, preservado':'✕ '+x.name+': '+x.reason).join('\n');
+  show(errors.length?'error':'success',header+'\n'+detail+'\nOs Razões de outros bancos não foram apagados.');
+  if(success.length||existing.length)form.reset();
+  say(header,!!errors.length);
+ }catch(err){show('error','Falha ao salvar o lote: '+(err.message||String(err))+'. Verifique o histórico antes de tentar novamente.');throw err;}
+ finally{button.disabled=false;}
  })};
  $('#suggest').onclick=()=>action(async()=>{const c=getCompany();let changed=0;for(const m of Core.periodMovements(c,period)){if(m.status==='PENDENTE_DUPLICIDADE'||m.status==='CONFIRMADO'||transferIds(c).has(m.id))continue;const rules=c.rules.filter(r=>Core.norm(m.history).includes(Core.norm(r.term)));const codes=[...new Set(rules.map(r=>r.counterpart))];if(codes.length===1){m.suggested=codes[0];m.confidence='regra própria';changed++;}else if(!codes.length){autoSuggest(c,m);if(m.suggested)changed++;}}await store('SUGESTOES_GERADAS',`${changed} sugestões para ${period}`);say(`${changed} sugestões de contrapartida geradas. Confirme cada uma.`)});
  $('#autoAnalyze').onclick=()=>action(async()=>{const c=getCompany(),moves=Core.periodMovements(c,period);if(!moves.length)throw Error('Importe os extratos da competência antes de analisar.');let rules=0;for(const m of moves){if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||transferIds(c).has(m.id))continue;if(!m.suggested){autoSuggest(c,m);if(m.suggested)rules++;}}
