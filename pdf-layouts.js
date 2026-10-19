@@ -27,8 +27,8 @@ function parsePagBank(pdf,origin,accountId,Core){let movements=[],reviews=[],bal
  if(!cents||!history){reviews.push({origin,line:row.line,content:row.s,reason:'Movimento sem histórico/valor'});continue}
  movements.push(make(Core,origin,accountId,date,cents,history,row.page));
  }
- const final=balances.slice().sort((a,b)=>b.date.localeCompare(a.date))[0]?.cents;
- return{movements,reviews,balances,balanceCheck:{status:'INDETERMINADO',final,reason:'Extrato com saldo diário, mas sem saldo inicial declarado; conferir'},format:'PDF_PAGBANK',parsedCount:movements.length};
+ const lastBalance=balances.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];const final=lastBalance?.cents;
+ return{movements,reviews,balances,balanceCheck:{status:'INDETERMINADO',final,endDate:lastBalance?.date,reason:'Extrato com saldo diário, mas sem saldo inicial declarado; conferir'},format:'PDF_PAGBANK',parsedCount:movements.length};
 }
 function parseStone(pdf,origin,accountId,Core){const rows=linesOf(pdf),movements=[],reviews=[],balances=[];let current=null;
  const flush=()=>{if(!current)return;const r=current;current=null;const parts=[...r.text.matchAll(/[+-]?\s*R\$\s*(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2}/g)];
@@ -46,8 +46,8 @@ function parseStone(pdf,origin,accountId,Core){const rows=linesOf(pdf),movements
  if(current&&!/^(?:PÁGINA|EXTRATO|DATA\s+TIPO|OUVIDORIA|INFORMAÇÕES|CÓDIGO\s+DA|DÚVIDAS)/i.test(row.s)&&current.text.length<1200){current.text+=' '+row.s}
  }
  flush();
- const final=balances.slice().sort((a,b)=>b.date.localeCompare(a.date))[0]?.cents;
- return{movements,reviews,balances,balanceCheck:{status:'INDETERMINADO',final,reason:'Stone: validar primeiro e último saldo da competência'},format:'PDF_STONE',parsedCount:movements.length};
+ const lastBalance=balances.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];const final=lastBalance?.cents;
+ return{movements,reviews,balances,balanceCheck:{status:'INDETERMINADO',final,endDate:lastBalance?.date,reason:'Stone: validar primeiro e último saldo da competência'},format:'PDF_STONE',parsedCount:movements.length};
 }
 const months={JAN:1,FEV:2,MAR:3,ABR:4,MAI:5,JUN:6,JUL:7,AGO:8,SET:9,OUT:10,NOV:11,DEZ:12};
 function parseNubank(pdf,origin,accountId,Core){const movements=[],reviews=[],rows=linesOf(pdf);let currentDate='',direction=0,pending=null;
