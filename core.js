@@ -74,17 +74,22 @@
   }catch(e){reviews.push({origin,line:r.rowNumber,content:r.values.join(' | '),reason:e.message});}return{entries,reviews};}
   const dayDistance=(a,b)=>Math.abs(Math.round((Date.parse(a+'T12:00:00Z')-Date.parse(b+'T12:00:00Z'))/86400000));
   const periodMovements=(company,period)=>company.movements.filter(m=>m.date.slice(0,7)===period);
-  function transferSuggestions(company,period){ const movements=periodMovements(company,period).filter(m=>m.status!=='PENDENTE_DUPLICIDADE'), accepted=new Set((company.transfers||[]).filter(t=>t.status==='CONFIRMADA').flatMap(t=>[t.outId,t.inId]));let proposals=[],ambiguous=[];
-    const outs=movements.filter(m=>m.cents<0&&!accepted.has(m.id));const ins=movements.filter(m=>m.cents>0&&!accepted.has(m.id));
-    const eligible=(out,inn)=>out.accountId!==inn.accountId && -out.cents===inn.cents && dayDistance(out.date,inn.date)<=2;
-    for(const out of outs){const possible=ins.filter(inn=>eligible(out,inn));if(!possible.length)continue;
-      const unique=possible.length===1 && outs.filter(o=>eligible(o,possible[0])).length===1;
-      if(unique)proposals.push({outId:out.id,inId:possible[0].id,status:'SUGERIDA'});
-      else ambiguous.push({outId:out.id,possibleInIds:possible.map(m=>m.id),reason:'Múltiplas correspondências possíveis'});
-    }
-    return{proposals,ambiguous};
-  }
-  function proposedJournal(company,period){let lines=[],errors=[];const mv=periodMovements(company,period);const accountMap=new Map(company.accounts.map(a=>[a.id,a]));const planMap=new Map(company.plan.map(a=>[a.code,a]));const confirmed=new Set();
+  function transferSuggestions(company,period){
+ const moves=periodMovements(company,period).filter(m=>m.status!=='PENDENTE_DUPLICIDADE');
+ const confirmed=new Set((company.transfers||[]).filter(t=>t.status==='CONFIRMADA').flatMap(t=>[t.outId,t.inId]));
+ const rejected=new Set((company.transfers||[]).filter(t=>t.status==='REJEITADA').map(t=>t.outId+'|'+t.inId));
+ const outs=moves.filter(m=>m.cents<0&&!confirmed.has(m.id));
+ const ins=moves.filter(m=>m.cents>0&&!confirmed.has(m.id));
+ const eligible=(out,inn)=>out.accountId!==inn.accountId&&-out.cents===inn.cents&&dayDistance(out.date,inn.date)<=2&&!rejected.has(out.id+'|'+inn.id);
+ const proposals=[],ambiguous=[];
+ for(const out of outs){const candidates=ins.filter(inn=>eligible(out,inn));if(!candidates.length)continue;
+   const unique=candidates.length===1&&outs.filter(o=>eligible(o,candidates[0])).length===1;
+   if(unique)proposals.push({outId:out.id,inId:candidates[0].id,status:'SUGERIDA'});
+   else ambiguous.push({outId:out.id,possibleInIds:candidates.map(m=>m.id),reason:'Vários pares possíveis; conferir titularidade e comprovantes'});
+ }
+ return {proposals,ambiguous};
+}
+function proposedJournal(company,period){let lines=[],errors=[];const mv=periodMovements(company,period);const accountMap=new Map(company.accounts.map(a=>[a.id,a]));const planMap=new Map(company.plan.map(a=>[a.code,a]));const confirmed=new Set();
     for(const t of company.transfers.filter(t=>t.status==='CONFIRMADA')){
       const out=mv.find(m=>m.id===t.outId),inn=mv.find(m=>m.id===t.inId);if(!out||!inn)continue;const src=accountMap.get(out.accountId),dst=accountMap.get(inn.accountId);
       if(!src||!dst||src.id===dst.id||out.cents>=0||inn.cents<=0||out.cents!==-inn.cents){errors.push('Transferência inválida '+t.outId);continue;}
