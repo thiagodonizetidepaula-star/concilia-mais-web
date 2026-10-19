@@ -27,7 +27,8 @@ function parsePagBank(pdf,origin,accountId,Core){let movements=[],reviews=[],bal
  if(!cents||!history){reviews.push({origin,line:row.line,content:row.s,reason:'Movimento sem histórico/valor'});continue}
  movements.push(make(Core,origin,accountId,date,cents,history,row.page));
  }
- return{movements,reviews,balances,balanceCheck:{status:'INDETERMINADO',reason:'Extrato apresenta saldos diários, mas não declara saldo inicial de setembro'},format:'PDF_PAGBANK',parsedCount:movements.length};
+ const final=balances.slice().sort((a,b)=>b.date.localeCompare(a.date))[0]?.cents;
+ return{movements,reviews,balances,balanceCheck:{status:'INDETERMINADO',final,reason:'Extrato com saldo diário, mas sem saldo inicial declarado; conferir'},format:'PDF_PAGBANK',parsedCount:movements.length};
 }
 function parseStone(pdf,origin,accountId,Core){const rows=linesOf(pdf),movements=[],reviews=[],balances=[];let current=null;
  const flush=()=>{if(!current)return;const r=current;current=null;const parts=[...r.text.matchAll(/[+-]?\s*R\$\s*(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2}/g)];
@@ -45,7 +46,8 @@ function parseStone(pdf,origin,accountId,Core){const rows=linesOf(pdf),movements
  if(current&&!/^(?:PÁGINA|EXTRATO|DATA\s+TIPO|OUVIDORIA|INFORMAÇÕES|CÓDIGO\s+DA|DÚVIDAS)/i.test(row.s)&&current.text.length<1200){current.text+=' '+row.s}
  }
  flush();
- return{movements,reviews,balances,balanceCheck:{status:'INDETERMINADO',reason:'Stone: saldo inicial não declarado; validar início e fim da competência'},format:'PDF_STONE',parsedCount:movements.length};
+ const final=balances.slice().sort((a,b)=>b.date.localeCompare(a.date))[0]?.cents;
+ return{movements,reviews,balances,balanceCheck:{status:'INDETERMINADO',final,reason:'Stone: validar primeiro e último saldo da competência'},format:'PDF_STONE',parsedCount:movements.length};
 }
 const months={JAN:1,FEV:2,MAR:3,ABR:4,MAI:5,JUN:6,JUL:7,AGO:8,SET:9,OUT:10,NOV:11,DEZ:12};
 function parseNubank(pdf,origin,accountId,Core){const movements=[],reviews=[],rows=linesOf(pdf);let currentDate='',direction=0,pending=null;
@@ -101,7 +103,11 @@ function parseDominioLedgerPdf(pdf,origin,Core){const all=pdf.items||[],pages=pd
  }
  }
  if(!entries.length)reviews.push({origin,line:'?',content:'Documento sem lançamentos interpretáveis',reason:'Razão Domínio sem movimentos válidos'});
- return{entries,reviews,format:'RAZAO_PDF_DOMINIO',accountCode:bankCode};
+ const openingText=linesOf(pdf).find(r=>/SALDO ANTERIOR/i.test(r.s))?.s||'';
+ const openMatch=openingText.match(/(d{1,3}(?:.d{3})*|d+),(d{2})s*([DC])/i);
+ let openingBalance=null;
+ if(openMatch){openingBalance=money(openMatch[1]+','+openMatch[2],Core)*(openMatch[3].toUpperCase()==='C'?-1:1)}
+ return{entries,reviews,format:'RAZAO_PDF_DOMINIO',accountCode:bankCode,openingBalance};
 }
 function parseStatement(pdf,origin,accountId,period,Core,bank,fallback){switch(bank){case'PagBank':return parsePagBank(pdf,origin,accountId,Core);case'Stone':return parseStone(pdf,origin,accountId,Core);case'Nubank':return parseNubank(pdf,origin,accountId,Core);default:return fallback();}}
 return{bankOf,documentCnpj,parseStatement,parsePagBank,parseStone,parseNubank,parseDominioLedgerPdf};
