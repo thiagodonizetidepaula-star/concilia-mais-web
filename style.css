@@ -28,3 +28,12 @@
 .audit-differences>div{border-top:1px solid #edb2a5;margin-top:5px;padding-top:5px}
 
 #ledgerStatus{white-space:pre-line;max-height:360px;overflow-y:auto}#importLedger input[type=file]{width:100%;max-width:100%}
+
+/* Recomeçar importações com escopo explícito e confirmação */
+.reset-panel{margin-top:16px;padding:15px;border:1px solid #d7e3eb;border-radius:12px;background:#f7fafc}
+.reset-panel>strong{display:block;color:#203d52;margin-bottom:7px;font-size:14px}
+.reset-panel label{display:block;font-weight:600;font-size:12px;color:#36566a;margin:10px 0}
+.reset-panel select{display:block;width:100%;min-height:42px;margin-top:6px;padding:9px 11px;border:1px solid #c3d5df;border-radius:9px;background:#fff}
+.reset-panel #resetAll{border:1px solid #c47b5c;color:#783a2c;background:#fff8f5;padding:12px}
+.reset-panel #resetAll:disabled{opacity:.45}
+#resetStatus{white-space:pre-line;font-size:12px;margin:12px 0 0}
