@@ -26,3 +26,5 @@
 
 .audit-differences{margin-top:10px;padding:12px;border-left:4px solid #a62e20;border-radius:8px;background:#ffe4dd;color:#852d1f;font-weight:650;line-height:1.65;font-size:12px}
 .audit-differences>div{border-top:1px solid #edb2a5;margin-top:5px;padding-top:5px}
+
+#ledgerStatus{white-space:pre-line;max-height:360px;overflow-y:auto}#importLedger input[type=file]{width:100%;max-width:100%}
