@@ -23,3 +23,6 @@
 @media(max-width:720px){.guide-workflow{padding:12px}.guide-step{gap:8px;padding:9px}.guide-step strong{font-size:11px}.guide-step small{font-size:10px}.guide-step em{font-size:9px}.guide-head{align-items:flex-start;flex-direction:column}.guide-step b{width:25px;height:25px}.completion-banner{padding:13px}}
 
 .legacy-steps{display:none}#p-visao>.grid-2{grid-template-columns:1fr}
+
+.audit-differences{margin-top:10px;padding:12px;border-left:4px solid #a62e20;border-radius:8px;background:#ffe4dd;color:#852d1f;font-weight:650;line-height:1.65;font-size:12px}
+.audit-differences>div{border-top:1px solid #edb2a5;margin-top:5px;padding-top:5px}
