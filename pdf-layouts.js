@@ -104,7 +104,7 @@ function parseDominioLedgerPdf(pdf,origin,Core){const all=pdf.items||[],pages=pd
  }
  if(!entries.length)reviews.push({origin,line:'?',content:'Documento sem lançamentos interpretáveis',reason:'Razão Domínio sem movimentos válidos'});
  const openingText=linesOf(pdf).find(r=>/SALDO ANTERIOR/i.test(r.s))?.s||'';
- const openMatch=openingText.match(/(d{1,3}(?:.d{3})*|d+),(d{2})s*([DC])/i);
+ const openMatch=openingText.match(/(\d{1,3}(?:\.\d{3})*|\d+),(\d{2})\s*([DC])/i);
  let openingBalance=null;
  if(openMatch){openingBalance=money(openMatch[1]+','+openMatch[2],Core)*(openMatch[3].toUpperCase()==='C'?-1:1)}
  return{entries,reviews,format:'RAZAO_PDF_DOMINIO',accountCode:bankCode,openingBalance};
