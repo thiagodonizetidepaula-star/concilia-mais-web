@@ -4,6 +4,7 @@ const Core=window.ConciliaCore, Pdf=window.ConciliaPDF, $=s=>document.querySelec
 const currency=c=>BRL.format((c||0)/100),safe=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const empty=x=>`<div class="empty">${safe(x)}</div>`;
 let state={companies:[],reviews:[],audit:[]},companyId='',period='2026-08',currentPage='visao',db,ultimoExcluido=null;
+let cloudSyncEnabled=false;
  let movementFilterScope='',selectedMovementStatement='';
 const current=()=>state.companies.find(c=>c.id===companyId);
 const getCompany=()=>{const c=current();if(!c)throw Error('Importe o plano de contas da empresa primeiro.');return c};
@@ -14,7 +15,7 @@ function openDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open('
 function loadDB(){return new Promise((resolve,reject)=>{const tx=db.transaction('app','readonly');const req=tx.objectStore('app').get('workspace');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 function saveDB(){return new Promise((resolve,reject)=>{const tx=db.transaction('app','readwrite');tx.objectStore('app').put(state,'workspace');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
 function log(type,detail){state.audit.push({at:new Date().toISOString(),companyId,action:type,detail});}
-async function store(type,detail){if(!['EXTRATO_REFAZER','IMPORTACAO_EXCLUIDA','RESTAURACAO_IMPORTACOES'].includes(type))ultimoExcluido=null;log(type,detail);await saveDB();render()}
+async function store(type,detail){if(!['EXTRATO_REFAZER','IMPORTACAO_EXCLUIDA','RESTAURACAO_IMPORTACOES'].includes(type))ultimoExcluido=null;log(type,detail);await saveDB();render();if(cloudSyncEnabled&&window.ConciliaCloud?.authenticated()){try{await window.ConciliaCloud.serializedSave(JSON.parse(JSON.stringify(state)));cloudMessage('Alterações salvas na nuvem.');}catch(err){cloudSyncEnabled=false;cloudMessage('Falha ao sincronizar: '+err.message+'. Dados locais preservados. Faça backup JSON antes de continuar.',true)}}}
 function table(headers,rows){if(!rows.length)return empty('Nenhum registro para exibir.');return `<div class="tablewrap"><table><thead><tr>${headers.map(h=>`<th>${safe(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${v??''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
 function badge(s){const kind=/CONFIRM|CONCILIADO|OK/.test(s)?'ok':/PENDENTE|SUGERIDA|AMBIGU|DUPLIC/.test(s)?'warn':'';return `<span class="badge ${kind}">${safe(s)}</span>`}
 function datePT(d){return String(d||'').split('-').reverse().join('/')}
@@ -28,6 +29,51 @@ function analyticalSelect(id,placeholder){const c=current();const select=$(id);c
 function validBankAccounts(c){const allowed=new Set(c.plan.filter(p=>p.analytic).map(p=>p.code));return c.accounts.filter(a=>allowed.has(a.chartCode))}
 function canImport(c){return !!c && c.plan.length>0}
 function optionsFor(c,selected=''){return '<option value="">Selecione código analítico</option>'+c.plan.filter(p=>p.analytic).map(p=>`<option value="${safe(p.code)}" ${p.code===selected?'selected':''}>${safe(p.code)} — ${safe(p.description)}</option>`).join('')}
+
+function cloudMessage(msg,error=false){const el=$('#cloudStatus');if(el){el.textContent=msg;el.classList.toggle('cloud-error',error);}}
+function cloudDisplay(){
+ const cloud=window.ConciliaCloud,logged=cloud?.authenticated()||false;
+ $('#cloudSignedOut').hidden=logged;$('#cloudSignedIn').hidden=!logged;
+ if(logged)$('#cloudUser').textContent=cloud.identity()+(cloudSyncEnabled?' · Sincronizando':' · Sincronização aguardando');
+}
+async function initializeCloud(){
+ const cloud=window.ConciliaCloud;if(!cloud)return;
+ try{await cloud.session();cloudDisplay();if(cloud.authenticated())cloudMessage('Conectado. Clique em Carregar nuvem para obter os dados salvos, ou Enviar dados locais para a primeira migração.');}
+ catch(e){cloudMessage('Não foi possível verificar login: '+e.message,true);}
+}
+function bindCloud(){
+ const cloud=window.ConciliaCloud;
+ $('#cloudLogin').onclick=()=>action(async()=>{
+  const email=$('#cloudEmail').value.trim(),pwd=$('#cloudPassword').value;
+  if(!email||!pwd)throw Error('Informe e-mail e senha.');
+  cloudMessage('Entrando no Supabase...');await cloud.signIn(email,pwd);
+  cloudSyncEnabled=false;cloudDisplay();cloudMessage('Login concluído. Escolha Carregar nuvem ou Enviar dados locais.');
+  $('#cloudPassword').value='';
+ });
+ $('#cloudSignup').onclick=()=>action(async()=>{
+  const email=$('#cloudEmail').value.trim(),pwd=$('#cloudPassword').value;
+  if(!email||pwd.length<6)throw Error('Informe e-mail e senha com pelo menos 6 caracteres.');
+  await cloud.signUp(email,pwd);
+  $('#cloudPassword').value='';cloudMessage('Cadastro solicitado. Confira a caixa de entrada para confirmar o e-mail e depois faça login.');
+ });
+ $('#cloudLogout').onclick=()=>action(async()=>{await cloud.waitWrites();await cloud.signOut();cloudSyncEnabled=false;cloudDisplay();cloudMessage('Desconectado. Os dados locais continuam neste navegador.');});
+ $('#cloudDownload').onclick=()=>action(async()=>{
+  if(!confirm('Carregar a cópia da nuvem neste navegador? Seus dados locais atuais serão substituídos. Faça Backup JSON antes de continuar.'))return;
+  await cloud.waitWrites();const remote=await cloud.fetchWorkspace();
+  if(!remote){cloudSyncEnabled=false;cloudDisplay();cloudMessage('A nuvem ainda está vazia. Seus dados locais continuam aqui. Use Enviar dados locais se quiser migrá-los.');return;}
+  if(!Array.isArray(remote.companies))throw Error('Dados da nuvem em formato inválido.');
+  state=remote;cloudSyncEnabled=true;companyId=state.companies[0]?.id||'';ultimoExcluido=null;
+  await saveDB();renderSelection();render();cloudDisplay();cloudMessage('Dados carregados. Sincronização automática ativada neste computador.');
+ });
+ $('#cloudUpload').onclick=()=>action(async()=>{
+  if(!confirm('Enviar os cadastros, extratos e conciliações deste navegador para sua conta Supabase? Faça o Backup JSON primeiro. Se já existir uma cópia na nuvem, o envio será bloqueado para não substituir dados.'))return;
+  const existing=await cloud.fetchWorkspace();
+  if(existing){cloudSyncEnabled=false;cloudDisplay();cloudMessage('Já existe um workspace na nuvem. Para evitar sobrescrever os dados, use Carregar nuvem. Seus dados locais foram mantidos.',true);return;}
+  await cloud.saveWorkspace(JSON.parse(JSON.stringify(state)));
+  cloudSyncEnabled=true;cloudDisplay();cloudMessage('Primeira migração concluída! Novas alterações serão sincronizadas automaticamente.');
+ });
+}
+
 function renderSelection(){
  const prev=companyId,sel=$('#companySelect'),search=Core.norm($('#companySearch')?.value||'');
  const options=state.companies.filter(c=>!search||Core.norm(c.name).includes(search)||Core.norm(c.cnpj).includes(search)||Core.norm(c.dominio).includes(search)||c.id===prev);
@@ -171,6 +217,7 @@ function suggestFromLedger(c,ym){
  return {applied,conflicts,ambiguous:analysis.ambiguous};
 }
 function binds(){
+ bindCloud();
  $('#companySearch').oninput=()=>renderSelection();
  $('#movementStatementFilter').onchange=e=>{selectedMovementStatement=e.target.value;renderMovements();};document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>showPage(b.dataset.page));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>showPage(b.dataset.go));
  document.addEventListener('click',e=>{const b=e.target.closest('[data-use-period]');if(!b)return;period=b.dataset.usePeriod;$('#period').value=period;render()});
@@ -353,4 +400,4 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  const existing=c.transfers.find(t=>t.outId===outId&&t.inId===inId);if(existing)existing.status=decision;else c.transfers.push({outId,inId,status:decision});await store('TRANSFERENCIA_'+decision,`${outId} → ${inId}`);say('Decisão sobre a transferência registrada.')})}
  });
 }
-(async()=>{try{db=await openDB();const v=await loadDB();if(v&&Array.isArray(v.companies)){state=v;}const params=new URLSearchParams(location.search);if(params.has('demo')&&!state.companies.length){say('Para começar, importe o plano de contas e depois os extratos de demonstração.');}renderSelection();binds();if(!state.companies.length)showPage('empresas');else render()}catch(e){console.error(e);$('#notice').textContent='Erro ao acessar IndexedDB. Habilite o armazenamento local do navegador ou use um navegador atualizado.';say(e.message,true)}})();
+(async()=>{try{db=await openDB();const v=await loadDB();if(v&&Array.isArray(v.companies)){state=v;}const params=new URLSearchParams(location.search);if(params.has('demo')&&!state.companies.length){say('Para começar, importe o plano de contas e depois os extratos de demonstração.');}renderSelection();binds();await initializeCloud();if(!state.companies.length)showPage('empresas');else render()}catch(e){console.error(e);$('#notice').textContent='Erro ao acessar IndexedDB. Habilite o armazenamento local do navegador ou use um navegador atualizado.';say(e.message,true)}})();
