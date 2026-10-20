@@ -65,3 +65,53 @@
 .cloud-panel .cloud-identity{font-size:11px;color:#d3f9ea;overflow-wrap:anywhere}
 .cloud-panel [hidden]{display:none!important}
 @media(max-width:720px){.cloud-panel{margin-top:12px}.cloud-panel label{max-width:500px}}
+
+/* Concilia+ • Autenticação obrigatória / identidade visual profissional */
+body:not(.authenticated) .shell{display:none!important}
+body.authenticated .shell{display:flex!important}
+.auth-screen{min-height:100vh;display:grid;place-items:center;padding:22px;background:radial-gradient(circle at 15% 10%,#dff5f6 0%,transparent 40%),linear-gradient(140deg,#f3f8fc 0%,#e6edf5 100%)}
+body.authenticated .auth-screen{display:none!important}
+.auth-card{width:min(100%,440px);background:#fff;border:1px solid #dce7ef;border-radius:22px;padding:36px;box-shadow:0 28px 80px rgba(11,42,64,.12)}
+.auth-logo{display:flex;align-items:center;gap:12px;font-size:24px;letter-spacing:-1px;font-weight:850;color:#143247;margin-bottom:28px}
+.auth-logo small{background:#e7f1f6;border-radius:5px;color:#24738a;font-size:10px;letter-spacing:1px;padding:4px 6px;vertical-align:middle}
+.auth-logo-icon{width:46px;height:46px;display:grid;place-items:center;background:#0a7993;color:#fff;border-radius:13px}
+.auth-logo-icon svg{width:24px;height:24px}
+.auth-card h1{font-size:24px;letter-spacing:-.6px;color:#172b3e;margin:0 0 8px}
+.auth-card>p{font-size:13px;line-height:1.6;color:#667d8f;margin:0 0 23px}
+.auth-fields{display:grid;gap:14px}
+.auth-fields label{font-size:12px;font-weight:750;color:#355269}
+.auth-fields input{margin-top:6px;min-height:47px;border-radius:10px;padding:11px 14px}
+.auth-fields .primary{margin-top:5px;min-height:48px;display:flex;align-items:center;justify-content:center;gap:9px;font-size:14px}
+.auth-links{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:18px}
+.auth-links button{border:0;background:transparent;color:#19788d;padding:6px 0;font-size:12px;font-weight:750}
+.auth-links button:hover{text-decoration:underline}
+.auth-card .auth-feedback{margin:18px 0 0;border-radius:9px;padding:11px;background:#eef5f8;color:#3d6579;font-size:12px}
+.auth-card .auth-feedback.error{background:#ffefeb;color:#a04132}
+.sidebar .brand-icon svg{width:21px;height:21px}
+nav button{display:flex;align-items:center;gap:12px;min-height:43px}
+nav button svg{width:18px;height:18px;color:#98b7c6;flex-shrink:0;stroke-width:1.8}
+nav button.active svg,nav button:hover svg{color:#49dfc2}
+.cloud-panel{margin-top:auto}
+.cloud-userhead{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:750;color:#fff;margin-bottom:9px}
+.cloud-userhead svg{width:17px;height:17px;color:#5fdfbf}
+.cloud-panel .logout-button{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;background:#264f67}
+.logout-button svg{width:16px;height:16px}
+.cloud-settings{border-top:1px solid #426276;margin-top:14px;padding-top:12px}
+.cloud-settings summary{display:flex;gap:8px;align-items:center;font-size:11px;color:#d0e8f1;font-weight:700;cursor:pointer}
+.cloud-settings summary svg{width:15px;height:15px}
+.cloud-settings>button,.cloud-settings .mini-btn{width:100%;text-align:center;margin-top:8px}
+.cloud-panel .mini-btn.fake-button{font-size:11px;border:1px solid #318daa;background:#166d8d;color:white;padding:9px}
+.cloud-panel .mini-btn.fake-button input{display:none!important}
+.restart-button{margin-top:9px;display:inline-flex;align-items:center;gap:7px;border:1px solid #cae0e8;color:#2c6a7e;border-radius:8px;background:#fff;font-size:12px;font-weight:750;padding:8px 11px}
+.restart-button:hover{background:#eff8fa}
+.restart-button svg{width:15px;height:15px}
+.restart-dialog{border:1px solid #d8e5ed;border-radius:16px;width:min(92vw,520px);padding:25px;box-shadow:0 20px 80px rgba(0,0,0,.23);color:#143247}
+.restart-dialog::backdrop{background:rgba(12,28,43,.6)}
+.restart-dialog h2{display:flex;align-items:center;gap:9px;font-size:20px;margin:0 0 10px}
+.restart-dialog h2 svg{width:22px;height:22px}
+.restart-dialog p{font-size:13px;color:#697e8e;line-height:1.5;margin:0 0 16px}
+.restart-dialog label{display:flex;align-items:center;gap:10px;padding:13px 10px;border:1px solid #e3eaf1;border-radius:9px;margin:8px 0;font-weight:600;font-size:13px;cursor:pointer}
+.restart-dialog label:has(input:checked){background:#eef8f9;border-color:#7cc4cf}
+.restart-dialog input{width:auto;min-height:auto;margin:0}
+.restart-dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+@media(max-width:720px){body.authenticated .shell{display:block!important}.auth-card{padding:25px}.cloud-panel{margin:10px 0}.restart-dialog{padding:18px}}
