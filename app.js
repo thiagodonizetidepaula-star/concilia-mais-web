@@ -4,6 +4,7 @@ const Core=window.ConciliaCore, Pdf=window.ConciliaPDF, $=s=>document.querySelec
 const currency=c=>BRL.format((c||0)/100),safe=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const empty=x=>`<div class="empty">${safe(x)}</div>`;
 let state={companies:[],reviews:[],audit:[]},companyId='',period='2026-08',currentPage='visao',db,ultimoExcluido=null;
+ let movementFilterScope='',selectedMovementStatement='';
 const current=()=>state.companies.find(c=>c.id===companyId);
 const getCompany=()=>{const c=current();if(!c)throw Error('Importe o plano de contas da empresa primeiro.');return c};
 function setStatementStatus(kind,message){const el=$('#statementStatus');if(el){el.textContent=message;el.className='import-status '+kind;}}
@@ -74,9 +75,40 @@ function renderImport(){const c=current();$('#allImports').innerHTML=c?table(['A
 }
 
 function transferIds(c){return new Set(c.transfers.filter(t=>t.status==='CONFIRMADA').flatMap(t=>[t.outId,t.inId]))}
-function renderMovements(){const c=current();if(!c){$('#movementTable').innerHTML=empty('Selecione uma empresa.');return}const matched=transferIds(c),accounts=new Map(c.accounts.map(a=>[a.id,a]));const rows=sortedMoves(c).map(m=>[
-  datePT(m.date),safe(accounts.get(m.accountId)?.bank||'Conta excluída'),`<span class="fiscal">${safe(m.history)}<div class="subtle">${safe(m.party||'Sem contraparte informada')}</div></span>`, `<span class="${m.cents<0?'flag':''}">${currency(m.cents)}</span>`,badge(matched.has(m.id)?'TRANSFERÊNCIA':m.status),matched.has(m.id)?'<small>Vínculo confirmado</small>':`<div class="inline-actions"><select id="cp_${safe(m.id)}" ${m.status==='PENDENTE_DUPLICIDADE'?'disabled':''}>${optionsFor(c,m.counterpart||m.suggested)}</select><button data-classify="${safe(m.id)}" ${m.status==='PENDENTE_DUPLICIDADE'?'disabled':''}>Confirmar</button></div>`]);
- $('#movementTable').innerHTML=table(['Data','Banco','Histórico','Valor','Situação','Contrapartida'],rows);const list=sortedMoves(c);const tr=$('#movementTable').querySelectorAll('tbody tr');tr.forEach((row,i)=>{const m=list[i];if(!m)return;row.classList.add(m.status==='PENDENTE_DUPLICIDADE'?'row-red':matched.has(m.id)||m.status==='CONFIRMADO'?'row-green':'row-yellow')});
+function movementOriginKey(m){return m.importId?'id:'+m.importId:'legacy:'+String(m.origin||'SEM_ORIGEM');}
+function movementOriginLabel(m,imports,accounts){
+ const imp=m.importId?imports.get(m.importId):null;
+ const filename=imp?.name||m.origin||'Origem não identificada';
+ const bank=imp?.bank||accounts.get(m.accountId)?.bank||'Banco não informado';
+ return bank+' — '+filename;
+}
+function renderMovements(){
+ const c=current(),filter=$('#movementStatementFilter'),summary=$('#movementFilterSummary');
+ if(!c){filter.innerHTML='<option value="">Selecione uma empresa</option>';summary.textContent='';$('#movementTable').innerHTML=empty('Selecione uma empresa.');return;}
+ const matched=transferIds(c),accounts=new Map(c.accounts.map(a=>[a.id,a])),imports=new Map(c.imports.filter(i=>i.type==='EXTRATO').map(i=>[i.id,i]));
+ const all=sortedMoves(c),scope=companyId+'|'+period;
+ const sources=new Map();
+ for(const m of all){
+  const key=movementOriginKey(m);
+  if(!sources.has(key))sources.set(key,{key,label:movementOriginLabel(m,imports,accounts),count:0,at:imports.get(m.importId)?.at||''});
+  sources.get(key).count++;
+ }
+ const ordered=[...sources.values()].sort((a,b)=>b.at.localeCompare(a.at)||a.label.localeCompare(b.label,'pt-BR'));
+ if(movementFilterScope!==scope){movementFilterScope=scope;selectedMovementStatement='';}
+ if(!ordered.some(x=>x.key===selectedMovementStatement))selectedMovementStatement=ordered[0]?.key||'';
+ filter.innerHTML=ordered.length?ordered.map(x=>`<option value="${safe(x.key)}">${safe(x.label)} (${x.count})</option>`).join(''):'<option value="">Nenhum extrato nesta competência</option>';
+ filter.disabled=!ordered.length;
+ filter.value=selectedMovementStatement;
+ const list=all.filter(m=>movementOriginKey(m)===selectedMovementStatement);
+ summary.textContent=ordered.length?list.length+' lançamento(s) deste extrato · '+ordered.length+' extrato(s) na competência '+period:'Nenhuma movimentação nesta competência.';
+ const rows=list.map(m=>[
+  datePT(m.date),safe(accounts.get(m.accountId)?.bank||'Conta excluída'),`<span title="${safe(movementOriginLabel(m,imports,accounts))}">${safe(imports.get(m.importId)?.name||m.origin||'Origem não identificada')}</span>`,
+  `<span class="fiscal">${safe(m.history)}<div class="subtle">${safe(m.party||'Sem contraparte informada')}</div></span>`,
+  `<span class="${m.cents<0?'flag':''}">${currency(m.cents)}</span>`,badge(matched.has(m.id)?'TRANSFERÊNCIA':m.status),
+  matched.has(m.id)?'<small>Vínculo confirmado</small>':`<div class="inline-actions"><select id="cp_${safe(m.id)}" ${m.status==='PENDENTE_DUPLICIDADE'?'disabled':''}>${optionsFor(c,m.counterpart||m.suggested)}</select><button data-classify="${safe(m.id)}" ${m.status==='PENDENTE_DUPLICIDADE'?'disabled':''}>Confirmar</button></div>`
+ ]);
+ $('#movementTable').innerHTML=table(['Data','Banco','Extrato de origem','Histórico','Valor','Situação','Contrapartida'],rows);
+ $('#movementTable').querySelectorAll('tbody tr').forEach((row,i)=>{const m=list[i];if(!m)return;row.classList.add(m.status==='PENDENTE_DUPLICIDADE'?'row-red':matched.has(m.id)||m.status==='CONFIRMADO'?'row-green':'row-yellow');});
 }
 function renderTransfers(){const c=current();if(!c){$('#transferTable').innerHTML=empty('Selecione uma empresa.');$('#transferSummary').innerHTML='';return}const mv=new Map(Core.periodMovements(c,period).map(m=>[m.id,m]));const accounts=new Map(c.accounts.map(a=>[a.id,a]));const suggestions=Core.transferSuggestions(c,period);const stored=c.transfers.filter(t=>mv.has(t.outId)&&mv.has(t.inId));const present=new Set(stored.map(t=>t.outId+'|'+t.inId));const all=stored.concat(suggestions.proposals.filter(t=>!present.has(t.outId+'|'+t.inId)));
   $('#transferSummary').innerHTML=`<div class="pills">${badge(`${c.transfers.filter(t=>t.status==='CONFIRMADA').length} confirmadas`)}${badge(`${suggestions.ambiguous.length} saídas ambíguas`)}</div>`;
@@ -132,7 +164,8 @@ function suggestFromLedger(c,ym){
  }
  return {applied,conflicts,ambiguous:analysis.ambiguous};
 }
-function binds(){document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>showPage(b.dataset.page));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>showPage(b.dataset.go));
+function binds(){
+ $('#movementStatementFilter').onchange=e=>{selectedMovementStatement=e.target.value;renderMovements();};document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>showPage(b.dataset.page));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>showPage(b.dataset.go));
  document.addEventListener('click',e=>{const b=e.target.closest('[data-use-period]');if(!b)return;period=b.dataset.usePeriod;$('#period').value=period;render()});
  document.addEventListener('click',e=>{const b=e.target.closest('#stepBanner [data-go],#workflowGuide [data-go]');if(b)showPage(b.dataset.go)});
  $('#period').onchange=()=>{period=$('#period').value;render()};$('#companySelect').onchange=()=>{companyId=$('#companySelect').value;render()};
