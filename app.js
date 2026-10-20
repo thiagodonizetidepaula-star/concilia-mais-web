@@ -289,7 +289,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
   const backupPayload=JSON.stringify({format:'concilia-plus-demo-backup-v1',exported:new Date().toISOString(),state},null,2);
   const filename='ConciliaMais_ANTES_RESTAURAR_'+String(c.cnpj||c.id).replace(/[^a-zA-Z0-9]/g,'')+'_'+(scope==='period'?period:'TODOS')+'.json';
   putFile(null,filename,backupPayload);
-   if(!confirm('Backup de segurança solicitado: '+filename+'\\n\\nVerifique na pasta Downloads se o arquivo JSON foi salvo.\\n\\nATENÇÃO: ao continuar, serão removidos apenas os extratos, Razões e respectivas análises de '+when+'. Os cadastros, planos de contas, bancos e regras serão preservados.\\n\\nDeseja realmente limpar essas importações agora?')){$('#resetStatus').textContent='Operação cancelada. Nenhum dado foi apagado. Backup solicitado.';return;}
+   if(!confirm('Backup de segurança solicitado: '+filename+'\n\nVerifique na pasta Downloads se o arquivo JSON foi salvo.\n\nATENÇÃO: ao continuar, serão removidos apenas os extratos, Razões e respectivas análises de '+when+'. Os cadastros, planos de contas, bancos e regras serão preservados.\n\nDeseja realmente limpar essas importações agora?')){$('#resetStatus').textContent='Operação cancelada. Nenhum dado foi apagado. Backup solicitado.';return;}
   const snapshot=JSON.parse(JSON.stringify(state));
   const result=window.ConciliaAssistente.restaurarImportacoes(c,period,state.reviews,scope);
   state.reviews=result.reviews;ultimoExcluido=snapshot;
