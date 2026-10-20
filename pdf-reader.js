@@ -21,11 +21,11 @@ function parsePlanPdf(pdf,origin='Plano de contas PDF'){
  const accounts=[],reviews=[],seen=new Set();
  for(const row of pdf.lines||[]){
    const str=String(row.content||'').replace(/\s+/g,' ').trim();
-   const match=str.match(/^(\d{1,7})\s+([AS])\s+(\d+(?:\.\d+)*)\s+(.+?)\s+([1-9])$/i);
+   const match=str.match(/^(\d{1,7})\s+(?:([AS])\s+)?(\d+(?:\.\d+)*)\s+(.+?)\s+([1-9])$/i);
    if(!match)continue;
-   const [,code,kind,classification,description,degree]=match;
+   const [,code,kind='',classification,description,degree]=match;
    if(seen.has(code)){reviews.push({origin,line:row.line,content:str,reason:'Código repetido'});continue;}
-   seen.add(code);accounts.push({code,description:description.trim(),analytic:kind.toUpperCase()==='A',rawAnalytic:kind.toUpperCase(),classification,degree:Number(degree)});
+   seen.add(code);accounts.push({code,description:description.trim(),analytic:kind.toUpperCase()!=='S',rawAnalytic:kind.toUpperCase()||'A',classification,degree:Number(degree)});
  }
  const header=(pdf.lines||[]).filter(r=>r.page===1).slice(0,18).map(r=>r.content).join('\n');
  const data=identity(header,origin);
