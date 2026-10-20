@@ -28,7 +28,13 @@ function analyticalSelect(id,placeholder){const c=current();const select=$(id);c
 function validBankAccounts(c){const allowed=new Set(c.plan.filter(p=>p.analytic).map(p=>p.code));return c.accounts.filter(a=>allowed.has(a.chartCode))}
 function canImport(c){return !!c && c.plan.length>0}
 function optionsFor(c,selected=''){return '<option value="">Selecione código analítico</option>'+c.plan.filter(p=>p.analytic).map(p=>`<option value="${safe(p.code)}" ${p.code===selected?'selected':''}>${safe(p.code)} — ${safe(p.description)}</option>`).join('')}
-function renderSelection(){const prev=companyId;$('#companySelect').innerHTML='<option value="">Selecione uma empresa</option>'+state.companies.map(c=>`<option value="${safe(c.id)}">${safe(c.name)} • ${safe(c.dominio)}</option>`).join('');if(state.companies.find(c=>c.id===prev))$('#companySelect').value=prev;else{companyId=state.companies[0]?.id||'';$('#companySelect').value=companyId}}
+function renderSelection(){
+ const prev=companyId,sel=$('#companySelect'),search=Core.norm($('#companySearch')?.value||'');
+ const options=state.companies.filter(c=>!search||Core.norm(c.name).includes(search)||Core.norm(c.cnpj).includes(search)||Core.norm(c.dominio).includes(search)||c.id===prev);
+ sel.innerHTML='<option value="">'+(options.length?'Selecione uma empresa':'Nenhuma empresa encontrada')+'</option>'+options.map(c=>`<option value="${safe(c.id)}">${safe(c.name)} • ${safe(c.cnpj||c.dominio||'sem CNPJ')}</option>`).join('');
+ if(state.companies.some(c=>c.id===prev)){sel.value=prev;}
+ else{companyId=state.companies[0]?.id||'';sel.value=companyId}
+}
 function showPage(page){currentPage=page;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('visible',x.id==='p-'+page));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===page));const titles={visao:['Visão geral','PAINEL OPERACIONAL','Selecione uma empresa e acompanhe o andamento da competência.'],empresas:['Empresas e plano de contas','CONFIGURAÇÃO INICIAL','Cada empresa utiliza seu próprio plano, seus bancos e suas regras.'],importar:['Importar extratos e Razão','PROCESSAMENTO DE DOCUMENTOS','O plano de contas é obrigatório antes dos extratos.'],movimentos:['Classificações','MOVIMENTAÇÕES','Conferência das contrapartidas e regras da empresa selecionada.'],transferencias:['Transferências entre contas','CRUZAMENTO DE BANCOS','Propostas que exigem confirmação da titularidade.'],conciliacao:['Conciliação e exportação','RAZÃO CONTÁBIL','Somente lançamentos confirmados e não encontrados no Razão.'],revisao:['Revisão de leitura','CONTROLE DE PENDÊNCIAS','Nenhuma linha ilegível deve desaparecer.']} ;const [title,eye,sub]=titles[page]||titles.visao;$('#pageTitle').textContent=title;$('#eyebrow').textContent=eye;$('#subtitle').textContent=sub;render()}
 function render(){const c=current();$('#quickImport').disabled=!canImport(c);$('#statementButton').disabled=!canImport(c);$('#importPlanButton').disabled=false;$('#addBank').disabled=!c||!c.plan.length;$('#addRule').disabled=!c||!c.plan.length;$('#ledgerButton').disabled=!c;$('#downloadCsv').disabled=!c;$('#downloadExcel').disabled=!c;const resetButton=$('#resetAll');if(resetButton)resetButton.disabled=!c;renderSetup();renderDashboard();renderImport();renderMovements();renderTransfers();renderRecon();renderAuditoria();renderReviews();renderAssistente();}
 function renderDashboard(){const c=current();if(!c){$('#stepBanner').innerHTML='<strong>Primeiro passo:</strong> importe o plano de contas; a empresa será criada automaticamente.';$('#metrics').innerHTML='';$('#steps').innerHTML='';$('#recentFiles').innerHTML=empty('Sem empresas cadastradas.');return}
@@ -165,6 +171,7 @@ function suggestFromLedger(c,ym){
  return {applied,conflicts,ambiguous:analysis.ambiguous};
 }
 function binds(){
+ $('#companySearch').oninput=()=>renderSelection();
  $('#movementStatementFilter').onchange=e=>{selectedMovementStatement=e.target.value;renderMovements();};document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>showPage(b.dataset.page));document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>showPage(b.dataset.go));
  document.addEventListener('click',e=>{const b=e.target.closest('[data-use-period]');if(!b)return;period=b.dataset.usePeriod;$('#period').value=period;render()});
  document.addEventListener('click',e=>{const b=e.target.closest('#stepBanner [data-go],#workflowGuide [data-go]');if(b)showPage(b.dataset.go)});
