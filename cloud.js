@@ -12,7 +12,7 @@
  }
  function setUser(u){user=u||null;if(!user)revision=null;}
  async function signIn(email,password){const {data,error}=await connect().auth.signInWithPassword({email,password});if(error)throw error;setUser(data.user);return data.user;}
- async function signUp(email,password){const {data,error}=await connect().auth.signUp({email,password});if(error)throw error;return data;}
+ async function signUp(email,password){const {data,error}=await connect().auth.signUp({email,password,options:{emailRedirectTo:'https://concilia-mais-web.onrender.com/'}});if(error)throw error;return data;}
  async function signOut(){const {error}=await connect().auth.signOut();if(error)throw error;setUser(null);}
  async function session(){const {data,error}=await connect().auth.getUser();if(error||!data?.user){setUser(null);return null;}setUser(data.user);return user;}
  function identity(){return user?.email||'';}
