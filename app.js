@@ -39,6 +39,7 @@ function cloudMessage(msg,error=false){
 function cloudDisplay(){
  const cloud=window.ConciliaCloud,logged=authReady&&cloud?.authenticated();
  document.body.classList.toggle('authenticated',!!logged);
+ const panel=$('#app');panel.hidden=!logged;panel.inert=!logged;
  if(logged){
   $('#cloudUser').textContent=cloud.identity()+(cloudSyncEnabled?' · Sincronização ativa':' · Aguardando sincronização');
   $('#cloudLogout').disabled=false;
@@ -90,8 +91,15 @@ function bindCloud(){
  });
  $('#cloudLogout').onclick=()=>{
   authReady=false;cloudSyncEnabled=false;state=blankState();companyId='';ultimoExcluido=null;
-  $('#cloudPassword').value='';cloudDisplay();cloudMessage('Sessão encerrada. Entre novamente.');
-  action(async()=>{try{await cloud.waitWrites();await cloud.signOut();}catch(err){cloudMessage('Falha ao encerrar a sessão no servidor: '+err.message+'. Feche esta aba e tente novamente.',true);}});
+  $('#cloudPassword').value='';cloudDisplay();renderSelection();render();cloudMessage('Encerrando sessão...');
+  $('#cloudLogin').disabled=true;
+  action(async()=>{
+   try{await cloud.waitWrites();await cloud.signOut();cloudMessage('Sessão encerrada. Entre novamente.');}
+   catch(err){
+    try{await cloud.connect().auth.signOut({scope:'local'});}catch(_){}
+    cloudMessage('Acesso local bloqueado. Confira sua conexão e entre novamente.',true);
+   }finally{$('#cloudLogin').disabled=false;}
+  });
  };
  $('#cloudDownload').onclick=()=>action(async()=>{
   if(!confirm('Recarregar a cópia da nuvem? Alterações locais não sincronizadas podem ser perdidas.'))return;
