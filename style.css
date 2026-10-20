@@ -51,3 +51,17 @@
 .topbar #companySelect{text-overflow:ellipsis}
 @media(max-width:1200px){.topbar{padding:15px 22px}.topbar .select-row{flex-basis:100%;max-width:none}}
 @media(max-width:720px){.topbar{padding:14px;gap:10px}.topbar-heading{flex-basis:100%}.topbar-title{font-size:18px}.topbar .select-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}.topbar .company-search-label{grid-column:1/-1}.topbar .company-select-label,.topbar .period-select-label{min-width:0}.topbar .tag{font-size:9px}}
+
+/* Login e estado de sincronização no painel lateral */
+.cloud-panel{border:1px solid #335875;border-radius:13px;background:#19384e;padding:15px 12px;color:#eaf7ff}
+.cloud-panel>strong{display:block;font-size:13px;margin-bottom:11px;color:#effaff}
+.cloud-panel label{font-size:11px;color:#c5dce9}
+.cloud-panel input{min-height:35px;padding:7px 9px;font-size:12px;border:1px solid #4b6679;background:#fff}
+.cloud-panel .cloud-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.cloud-panel button{background:#166d8d;color:white;border:1px solid #318daa;padding:8px 10px;border-radius:7px;font-size:11px;font-weight:700}
+.cloud-panel button:hover{background:#2589aa}
+.cloud-panel .cloud-status{color:#b7d6e3;font-size:11px;line-height:1.5;margin:10px 0 0;overflow-wrap:anywhere}
+.cloud-panel .cloud-error{color:#ffd6b4}
+.cloud-panel .cloud-identity{font-size:11px;color:#d3f9ea;overflow-wrap:anywhere}
+.cloud-panel [hidden]{display:none!important}
+@media(max-width:720px){.cloud-panel{margin-top:12px}.cloud-panel label{max-width:500px}}
