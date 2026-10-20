@@ -448,7 +448,19 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  });
  $('#undoRemove').onclick=()=>action(async()=>{if(!ultimoExcluido)throw Error('Nenhuma exclusão para desfazer');if(!confirm('Restaurar a última exclusão?'))return;state=ultimoExcluido;ultimoExcluido=null;await saveDB();renderSelection();render();say('Última exclusão desfeita.');});
  $('#backup').onclick=()=>action(()=>{const payload=JSON.stringify({format:'concilia-plus-demo-backup-v1',exported:new Date().toISOString(),state},null,2);putFile(null,'ConciliaMais_backup_'+new Date().toISOString().slice(0,10)+'.json',payload);say('Backup exportado. Guarde o arquivo com segurança.')});
- $('#restore').onchange=e=>{action(async()=>{const f=e.currentTarget.files[0];if(!f)return;const {txt}=await asText(f);const obj=JSON.parse(txt);if(obj.format!=='concilia-plus-demo-backup-v1'||!Array.isArray(obj.state?.companies))throw Error('Arquivo de backup inválido');if(!confirm('Restaurar este backup SUBSTITUIRÁ os dados deste navegador. Prosseguir?'))return;state=obj.state;companyId=state.companies[0]?.id||'';await saveDB();renderSelection();render();say('Backup restaurado com sucesso.');e.currentTarget.value=''})};
+ $('#restore').onchange=e=>{action(async()=>{
+  const field=e.currentTarget,file=field.files[0];if(!file)return;
+  try{
+   if(!cloudSyncEnabled||!window.ConciliaCloud?.authenticated())throw Error('Entre na sua conta e carregue a nuvem antes de restaurar um backup.');
+   const {txt}=await asText(file),obj=JSON.parse(txt);
+   if(obj.format!=='concilia-plus-demo-backup-v1'||!Array.isArray(obj.state?.companies))throw Error('Arquivo de backup inválido');
+   if(!confirm('ATENÇÃO: restaurar o JSON substituirá os dados atuais desta conta também na nuvem. Faça antes um backup JSON dos dados atuais. Deseja continuar?'))return;
+   await window.ConciliaCloud.waitWrites();
+   await window.ConciliaCloud.serializedSave(JSON.parse(JSON.stringify(obj.state)));
+   state=obj.state;companyId='';ultimoExcluido=null;renderSelection();showPage('empresas');
+   cloudMessage('Backup recuperado na nuvem. Selecione a empresa para continuar.');
+  }finally{field.value='';}
+ })};
  document.addEventListener('click',e=>{const b=e.target.closest('button[data-classify],button[data-transfer]');if(!b)return;
  if(b.dataset.classify){action(async()=>{const c=getCompany(),m=c.movements.find(m=>m.id===b.dataset.classify);if(!m)throw Error('Movimento não encontrado');if(m.status==='PENDENTE_DUPLICIDADE')throw Error('Resolva suspeita de duplicidade antes de classificar');const cp=$('#cp_'+CSS.escape(m.id))?.value||m.suggested;if(!c.plan.some(p=>p.code===cp&&p.analytic))throw Error('Escolha uma contrapartida analítica válida.');if(!confirm(`Confirma que o código ${cp} é a contrapartida correta deste lançamento?`))return;m.counterpart=cp;m.status='CONFIRMADO';await store('CLASSIFICACAO_CONFIRMADA',`${m.date}, ${m.cents}, ${cp}`);say('Classificação confirmada.')})}
  if(b.dataset.transfer){action(async()=>{const c=getCompany(),[outId,inId]=b.dataset.transfer.split('|'),decision=b.dataset.decision;const mv=new Map(c.movements.map(m=>[m.id,m])),out=mv.get(outId),inn=mv.get(inId);if(!out||!inn)throw Error('Movimentação não encontrada');const src=c.accounts.find(a=>a.id===out.accountId),dst=c.accounts.find(a=>a.id===inn.accountId);if(!src||!dst||src.id===dst.id)throw Error('Contas de origem/destino inválidas');if(decision==='CONFIRMADA'){
