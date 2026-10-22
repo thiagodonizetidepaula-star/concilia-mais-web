@@ -255,7 +255,12 @@ function renderAuditoria(){
   if(ev.type==='AMBIGUIDADE')missing.push('Histórico e beneficiário não permitem identificar unicamente qual registro corresponde ao Razão.');
   if(!ev.guidance?.debit)missing.push('Código de débito não confirmado: consultar plano de contas e comprovante.');
   if(!ev.guidance?.credit)missing.push('Código de crédito não confirmado: consultar plano de contas e comprovante.');
-  panel.innerHTML='<p style="font-weight:700;color:#9a3412">'+safe(names[ev.type]||ev.type)+'</p>'+
+  const pending=analysis.events.filter(item=>item.type==='EXTRATO_SEM_RAZAO'&&item.bankCode===ev.bankCode);
+  const explains=ev.type==='SALDO_DIVERGENTE'&&pending.length===1&&Math.abs(pending[0].cents)===Math.abs(ev.cents);
+  const evidence=ev.type==='SALDO_DIVERGENTE'?pending:(ev.type==='EXTRATO_SEM_RAZAO'?[ev]:[]);
+  const summary=explains?'Possível causa: uma movimentação bancária sem par explica numericamente a diferença de saldo. Validar também saldo inicial e ausência em outro lançamento.':ev.type==='SALDO_DIVERGENTE'?'Causa ainda não comprovada: comparar saldo inicial e todas as movimentações não conciliadas.':'Verifique a ocorrência individual e seu documento antes de alterar lançamentos no Domínio.';
+  const findings='<h3>Diagnóstico da causa</h3><p>'+safe(summary)+'</p><h3>Provas identificadas</h3>'+(evidence.length?'<ul>'+evidence.map(item=>'<li>'+safe((item.date?api.dateBR(item.date):'Sem data')+' | '+currency(item.cents)+' | '+(item.history||'Sem histórico'))+'</li>').join('')+'</ul>':'<p>Não há lançamento individual comprovado para explicar esta diferença.</p>');
+  panel.innerHTML=findings+'<p style="font-weight:700;color:#9a3412">'+safe(names[ev.type]||ev.type)+'</p>'+
    info('Banco / código',ev.bank+' / '+(ev.bankCode||'A confirmar'))+
    info('Data do lançamento',ev.date?api.dateBR(ev.date):'Não informada')+
    info('Valor',currency(ev.cents))+
