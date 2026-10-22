@@ -28,7 +28,7 @@ function report(core,company,period){
    const bankCode=bank&&plan.get(String(bank.chartCode))?.analytic?String(bank.chartCode):'';
    const cp=String(m.counterpart||'');
    const suggestedCode=String(m.suggested||'');
-   const approved=!!(m.status==='CONFIRMADO'&&plan.get(cp)?.analytic);
+   const approved=!!(m.status==='CONFIRMADO'&&plan.get(cp)?.analytic&&cp!==bankCode);
    const proposed=!!(!approved&&m.status!=='PENDENTE_DUPLICIDADE'&&plan.get(suggestedCode)?.analytic);
    const tr=transferPairs.get(m.id);
    const journal=journalBySource.get(m.id);
@@ -47,11 +47,13 @@ function report(core,company,period){
  for(const m of moves){
   const bank=accounts.get(m.accountId),bankCode=bank&&plan.get(String(bank.chartCode))?.analytic?String(bank.chartCode):'';
   const cp=String(m.counterpart||''),valid=!!plan.get(cp)?.analytic;
-  const confirmed=m.status==='CONFIRMADO'&&valid&&!!bankCode&&m.status!=='PENDENTE_DUPLICIDADE';
+  const confirmed=m.status==='CONFIRMADO'&&valid&&!!bankCode&&cp!==bankCode&&m.status!=='PENDENTE_DUPLICIDADE';
+  const proposedCode=String(m.suggested||'');const proposed=!confirmed&&m.status!=='PENDENTE_DUPLICIDADE'&&!!bankCode&&proposedCode!==bankCode&&!!plan.get(proposedCode)?.analytic;
   const duplicate=m.status==='PENDENTE_DUPLICIDADE';
-  const situation=duplicate?'REVISAR DUPLICIDADE':!bankCode?'VINCULAR CONTA DO BANCO':confirmed?'CLASSIFICAÇÃO CONFIRMADA':'PENDENTE — CONFERIR CONTRAPARTIDA';
-  const debit=confirmed?(m.cents>0?bankCode:cp):(m.cents>0?bankCode:'');
-  const credit=confirmed?(m.cents>0?cp:bankCode):(m.cents<0?bankCode:'');
+  const situation=duplicate?'REVISAR DUPLICIDADE':!bankCode?'VINCULAR CONTA DO BANCO':confirmed?'CLASSIFICAÇÃO CONFIRMADA':proposed?'SUGESTÃO — REVISAR E CONFIRMAR':'PENDENTE — CONFERIR CONTRAPARTIDA';
+  const effectiveCp=confirmed?cp:proposed?proposedCode:'';
+  const debit=effectiveCp?(m.cents>0?bankCode:effectiveCp):(m.cents>0?bankCode:'');
+  const credit=effectiveCp?(m.cents>0?effectiveCp:bankCode):(m.cents<0?bankCode:'');
   bankOnly.push([dateBR(m.date),duplicate?'':debit,duplicate?'':credit,number(m.cents/100),formulaText(m.history),situation]);
  }
  const ready=[['Data','Cód. Conta Débito','Cód. Conta Crédito','Valor','Complemento Histórico']];
