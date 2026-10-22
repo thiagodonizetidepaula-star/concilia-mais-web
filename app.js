@@ -221,59 +221,20 @@ function renderRecon(){const c=current();if(!c){$('#previewTable').innerHTML=emp
 function renderAuditoria(){
  const main=$('#auditTable'),stats=$('#auditStats'),c=current(),api=window.ConciliaAuditoria;
  if(!main||!stats||!api)return;
- if(!c||!Core.periodMovements(c,period).length){main.innerHTML=empty('Importe os extratos desta competência para comparar lançamento por lançamento.');stats.innerHTML='';return;}
+ if(!c||!Core.periodMovements(c,period).length){main.innerHTML=empty('Importe o extrato e o Razão definitivo para identificar os lançamentos faltantes.');stats.innerHTML='';return;}
  const analysis=api.audit(Core,c,period);
- const count=analysis.counts||{};
- stats.innerHTML='<div class="pills">'+
- badge((count.RAZAO_SEM_EXTRATO||0)+' Razão sem extrato')+
- badge((count.EXTRATO_SEM_RAZAO||0)+' extrato sem Razão')+
- badge((count.SALDO_DIVERGENTE||0)+' saldo(s) divergente(s)')+
- badge((count.TRANSFERENCIA_CANDIDATA||0)+' transferência(s) candidata(s)')+
- badge((count.AMBIGUIDADE||0)+' ambiguidade(s)')+'</div>'+
- '<p class="micro">Diferenças e sugestões são indícios a investigar. Uma data/valor iguais não comprovam a mesma operação. Os arquivos de origem ficam registrados no Excel.</p>';
- const names={SALDO_DIVERGENTE:'Saldo divergente',RAZAO_SEM_EXTRATO:'No Razão, não no extrato',EXTRATO_SEM_RAZAO:'No extrato, não no Razão',TRANSFERENCIA_CANDIDATA:'Transferência possível',TRANSFERENCIA_AMBIGUA:'Transferência ambígua',AMBIGUIDADE:'Correspondência ambígua',RAZAO_AUSENTE:'Razão não importado'};
- const display=analysis.events.slice(0,250),rows=display.map(e=>[
-   safe(e.date?api.dateBR(e.date):'—'),
-   '<b>'+safe(e.bank||'—')+'</b><div class="subtle">Código '+safe(e.bankCode||'—')+'</div>',
-   safe([e.sourceBank,e.targetBank].filter(Boolean).join(' → ')||'A confirmar'),
-   '<span class="fiscal">'+safe(e.debit||'—')+' / '+safe(e.credit||'—')+'</span>',
-   currency(e.cents),
-   '<b>'+safe(names[e.type]||e.type)+'</b><div class="subtle">'+safe(e.evidence||'')+'</div>',
-   safe(e.action||''),
-   '<button class="secondary" type="button" data-audit-detail="'+display.indexOf(e)+'">Investigar detalhes</button><div class="subtle">'+safe(e.guidance?.status||'REVISAR')+'</div>' ]);
- main.innerHTML=rows.length?table(['Data','Banco / Conta','Origem → Destino','Débito / Crédito','Valor','Ocorrência / Evidência','O que fazer','Como corrigir no Domínio'],rows):empty('Nenhuma diferença identificada pelos critérios exatos. Ainda confira saldos, completude e titularidade.');
- main.querySelectorAll('tbody tr').forEach((tr,i)=>tr.classList.add(display[i].tone==='red'?'row-red':'row-yellow'));
- main.querySelectorAll('[data-audit-detail]').forEach(button=>button.onclick=()=>{
-  const ev=display[Number(button.dataset.auditDetail)],dialog=$('#auditDetailDialog'),panel=$('#auditDetailContent');
-  if(!ev||!dialog||!panel)return;
-  const info=(name,value)=>'<div style="padding:8px 0;border-bottom:1px solid #e2e8f0"><b>'+safe(name)+':</b> '+safe(value||'Não informado')+'</div>';
-  const missing=[];
-  if(ev.type==='EXTRATO_SEM_RAZAO')missing.push('Não foi encontrado lançamento correspondente no Razão importado. Conferir se está em outro dia, conta ou lote.');
-  if(ev.type==='RAZAO_SEM_EXTRATO')missing.push('Há lançamento no Razão que não foi associado ao extrato. Investigar lançamento a mais ou banco incorreto.');
-  if(ev.type==='SALDO_DIVERGENTE')missing.push('Saldo do Razão e saldo bancário são diferentes. Confira primeiro os lançamentos individuais apontados e o saldo inicial.');
-  if(ev.type==='AMBIGUIDADE')missing.push('Histórico e beneficiário não permitem identificar unicamente qual registro corresponde ao Razão.');
-  if(!ev.guidance?.debit)missing.push('Código de débito não confirmado: consultar plano de contas e comprovante.');
-  if(!ev.guidance?.credit)missing.push('Código de crédito não confirmado: consultar plano de contas e comprovante.');
-  const pending=analysis.events.filter(item=>item.type==='EXTRATO_SEM_RAZAO'&&item.bankCode===ev.bankCode);
-  const explains=ev.type==='SALDO_DIVERGENTE'&&pending.length===1&&Math.abs(pending[0].cents)===Math.abs(ev.cents);
-  const evidence=ev.type==='SALDO_DIVERGENTE'?pending:(ev.type==='EXTRATO_SEM_RAZAO'?[ev]:[]);
-  const summary=explains?'Possível causa: uma movimentação bancária sem par explica numericamente a diferença de saldo. Validar também saldo inicial e ausência em outro lançamento.':ev.type==='SALDO_DIVERGENTE'?'Causa ainda não comprovada: comparar saldo inicial e todas as movimentações não conciliadas.':'Verifique a ocorrência individual e seu documento antes de alterar lançamentos no Domínio.';
-  const findings='<h3>Diagnóstico da causa</h3><p>'+safe(summary)+'</p><h3>Provas identificadas</h3>'+(evidence.length?'<ul>'+evidence.map(item=>'<li>'+safe((item.date?api.dateBR(item.date):'Sem data')+' | '+currency(item.cents)+' | '+(item.history||'Sem histórico'))+'</li>').join('')+'</ul>':'<p>Não há lançamento individual comprovado para explicar esta diferença.</p>');
-  panel.innerHTML=findings+'<p style="font-weight:700;color:#9a3412">'+safe(names[ev.type]||ev.type)+'</p>'+
-   info('Banco / código',ev.bank+' / '+(ev.bankCode||'A confirmar'))+
-   info('Data do lançamento',ev.date?api.dateBR(ev.date):'Não informada')+
-   info('Valor',currency(ev.cents))+
-   info('Histórico / favorecido',ev.history||'Histórico não disponível; consultar documento original')+
-   info('Documento / origem',ev.document)+
-   info('Débito sugerido',ev.guidance?.debit||'A confirmar')+
-   info('Crédito sugerido',ev.guidance?.credit||'A confirmar')+
-   '<h3 style="margin-top:16px">O que falta investigar</h3><ul>'+missing.map(x=>'<li>'+safe(x)+'</li>').join('')+'</ul>'+
-   '<h3>Como proceder no Domínio</h3><p>'+safe(ev.guidance?.description||ev.action)+'</p>'+
-   '<p><b>Próxima ação:</b> '+safe(ev.action)+'</p>'+
-   '<p style="font-weight:600">Situação: '+safe(ev.guidance?.status||'REVISÃO OBRIGATÓRIA')+'</p>';
-  dialog.showModal();
- });
- if(analysis.events.length>250)main.innerHTML+='<p class="flag">Mostrando as primeiras 250 ocorrências. Exporte para Excel para ver todas as '+analysis.events.length+' linhas de auditoria.</p>';
+ const missing=analysis.events.filter(e=>e.type==='EXTRATO_SEM_RAZAO');
+ const uncertain=analysis.events.filter(e=>e.type==='AMBIGUIDADE');
+ stats.innerHTML='<div class="pills">'+badge(missing.length+' lançamento(s) do extrato sem Razão')+(uncertain.length?badge(uncertain.length+' ocorrência(s) ainda sem identificação segura'):'')+'</div>';
+ const rows=missing.map(e=>[
+  safe(e.date?api.dateBR(e.date):'—'),
+  safe(e.bank||'—'),
+  '<b>'+safe(e.history||'Histórico não informado')+'</b>',
+  currency(e.cents),
+  e.cents<0?'Saída do banco (crédito na conta bancária)':'Entrada no banco (débito na conta bancária)',
+  '<b>Débito:</b> '+safe(e.guidance?.debit||'A confirmar')+'<div><b>Crédito:</b> '+safe(e.guidance?.credit||'A confirmar')+'</div>'
+ ]);
+ main.innerHTML=rows.length?table(['Data','Banco','Nome / histórico do extrato','Valor','Movimento','Débito e crédito no Domínio'],rows):empty(uncertain.length?'Não há lançamento individual comprovadamente faltante. Existem correspondências ambíguas; confira os favorecidos no Razão.':'Nenhum lançamento do extrato sem correspondência identificado no Razão importado.');
 }
 function renderReviews(){const c=current();$('#reviewTable').innerHTML=c?table(['Arquivo','Linha','Conteúdo original','Motivo'],state.reviews.filter(r=>r.companyId===companyId).slice(-300).reverse().map(r=>[safe(r.origin),safe(r.line),`<div class="fiscal">${safe(r.content)}</div>`,safe(r.reason)])):empty('Selecione uma empresa.');}
 async function afterImport(type,c,file,result,sha,importId=''){const rr=result.reviews||[];state.reviews.push(...rr.map(r=>({...r,companyId:c.id,importId})));return {reviewCount:rr.length}}
