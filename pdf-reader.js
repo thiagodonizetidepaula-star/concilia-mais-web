@@ -79,7 +79,7 @@ function parseItauStatementPdf(pdf,origin,accountId,Core){
   if(row.mergedContinuation)continue;
   if(!date){reviews.push({origin,line,content:row.rawDate,reason:'Data inválida'});continue;}
   if(!amount||!moneyExact.test(amount)){if(/\d{2}\/\d{2}\/\d{4}/.test(row.rawDate))reviews.push({origin,line,content:[history,party,document,amount,balance].filter(Boolean).join(' | '),reason:'Valor bancário ausente ou ambíguo'});continue;}
-  try{const cents=Core.money(amount);if(!cents||!history)throw Error('Valor zero ou histórico vazio');movements.push({id:Core.id(),date,cents,history,party,document,accountId,origin,line,page,status:'PENDENTE',counterpart:'',method:'PDF_ITAU_COLUNAS',pdfPage:page});}
+  try{const cents=Core.money(amount);if(!cents||!history)throw Error('Valor zero ou histórico vazio');movements.push({id:Core.id(),date,cents,history,party,document,statementBalance:balance||'',accountId,origin,line,page,status:'PENDENTE',counterpart:'',method:'PDF_ITAU_COLUNAS',pdfPage:page});}
   catch(e){reviews.push({origin,line,content:[history,party,document,amount].join(' | '),reason:e.message});}
  }
  const previous=balances.filter(x=>/SALDO ANTERIOR/.test(x.history)).sort((a,b)=>a.date.localeCompare(b.date)).at(-1);
