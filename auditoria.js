@@ -41,7 +41,35 @@ function audit(Core,company,period){
    for(const key of keys){
     const ms=mg.get(key)||[],ls=lg.get(key)||[];
     if(ms.length===1&&ls.length===1){matched++;mappedLedger.add(ls[0].id);continue;}
-    if(ms.length&&ls.length){ambiguous+=ms.length+ls.length;add({type:'AMBIGUIDADE',tone:'red',bank,bankCode:codeSafe,date:ms[0].date,cents:ms[0].cents,document:(ms[0].origin||'')+' / '+(ledgerData.source||''),evidence:ms.length+' movimento(s) do extrato e '+ls.length+' do Razão com a mesma data, valor e natureza; par não identificado com segurança.',action:'Conferir comprovantes e números de documento, sem confirmar automaticamente.'});continue;}
+    if(ms.length&&ls.length){
+     const simplify=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+     const nameTokens=m=>simplify(m.party||'').split(' ').filter(t=>t.length>=4);
+     const pendingM=[...ms],pendingL=[...ls];
+     const matchedPairs=[];
+     for(const m of ms){
+      const tokens=nameTokens(m);
+      if(tokens.length<2)continue;
+      const possible=pendingL.filter(l=>tokens.every(t=>simplify(l.history).split(' ').includes(t)));
+      if(possible.length!==1)continue;
+      const ledger=possible[0];
+      const competing=pendingM.filter(other=>other!==m&&nameTokens(other).length>=2&&nameTokens(other).every(t=>simplify(ledger.history).split(' ').includes(t)));
+      if(competing.length)continue;
+      pendingM.splice(pendingM.indexOf(m),1);pendingL.splice(pendingL.indexOf(ledger),1);matchedPairs.push([m,ledger]);matched++;mappedLedger.add(ledger.id);
+     }
+     if(pendingM.length===1&&pendingL.length===0){
+      const m=pendingM[0],codes=candidateOf(m);missingLedger++;
+      add({type:'EXTRATO_SEM_RAZAO',tone:'red',bank,bankCode:codeSafe,date:m.date,cents:m.cents,history:detail(m),document:m.origin||'',debit:codes.debit,credit:codes.credit,movementId:identifier(m),evidence:'Movimento individual não localizado no Razão após '+matchedPairs.length+' correspondência(s) identificada(s) pelo nome. Conferir histórico original.',action:'Verificar o favorecido e confirmar que este Pix não foi contabilizado em outro lançamento antes de incluir no Domínio.'});
+     }else if(pendingM.length===0&&pendingL.length===1){
+      const l=pendingL[0];missingBank++;
+      add({type:'RAZAO_SEM_EXTRATO',tone:'red',bank,bankCode:codeSafe,date:l.date,cents:l.cents,history:l.history||'',document:ledgerData.source||'',debit:knownCode(l.debit),credit:knownCode(l.credit),evidence:'Lançamento individual do Razão sem par após comparar os favorecidos.',action:'Conferir possível contabilização adicional antes de corrigir.'});
+     }else if(pendingM.length||pendingL.length){
+      ambiguous+=pendingM.length+pendingL.length;
+      const extratos=pendingM.map(m=>[m.date,m.party||m.history,m.origin].filter(Boolean).join(' • ')).join(' | ');
+      const razoes=pendingL.map(l=>[l.date,l.history||'Sem histórico'].join(' • ')).join(' | ');
+      add({type:'AMBIGUIDADE',tone:'red',bank,bankCode:codeSafe,date:pendingM[0]?.date||pendingL[0]?.date||'',cents:pendingM[0]?.cents||pendingL[0]?.cents||0,history:extratos,document:ledgerData.source||'',evidence:'Comparação individual inconclusiva. EXTRATO: '+extratos+'. RAZÃO: '+razoes+'.',action:'Comparar nome do destinatário e identificação de cada lançamento no Domínio; data/valor iguais não comprovam correspondência.'});
+     }
+     continue;
+    }
     for(const m of ms){
      missingLedger++;const codes=candidateOf(m);
      add({type:'EXTRATO_SEM_RAZAO',tone:'red',bank,bankCode:codeSafe,sourceBank:m.cents<0?bank:'',targetBank:m.cents>0?bank:'',debit:codes.debit,credit:codes.credit,date:m.date,cents:m.cents,history:detail(m),document:m.origin||'',movementId:identifier(m),evidence:'Movimento do extrato sem correspondência exata por data, valor e natureza no Razão '+code+'.',action:'Localizar lançamento contábil correspondente; conferir data, agrupamentos e contrapartida. Não criar lançamento duplicado.'});
