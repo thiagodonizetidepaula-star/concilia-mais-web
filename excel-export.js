@@ -36,11 +36,23 @@ function report(core,company,period){
    if(!bankCode){situation='BLOQUEADO — BANCO SEM CÓDIGO VÁLIDO';notes='Vincule uma conta analítica do plano desta empresa.';blocked++;}
    else if(m.status==='PENDENTE_DUPLICIDADE'){situation='PENDENTE — POSSÍVEL DUPLICIDADE';notes='Nenhuma contrapartida aprovada até resolver a duplicidade.';blocked++;}
    else if(tr&&journal){debit=String(journal.debit);credit=String(journal.credit);situation='TRANSFERÊNCIA CONFIRMADA';reconStatus=hasLedger?journal.recon.replaceAll('_',' '):'RAZÃO NÃO IMPORTADO';notes=tr.type==='ORIGEM'?'Par bancário vinculado; lançamento único na aba Prontos.':'Movimento correspondente da transferência; não contabilizar novamente.';confirmed++;}
-   else if(approved&&journal){debit=String(journal.debit);credit=String(journal.credit);situation='CLASSIFICAÇÃO CONFIRMADA';reconStatus=hasLedger?journal.recon.replaceAll('_',' '):'RAZÃO NÃO IMPORTADO';confirmed++;}
+   else if(approved){debit=m.cents>0?bankCode:cp;credit=m.cents>0?cp:bankCode;situation='CLASSIFICAÇÃO CONFIRMADA';reconStatus=journal&&hasLedger?journal.recon.replaceAll('_',' '):'SEM CONFERÊNCIA COM RAZÃO';notes=journal?'':'Contrapartida confirmada manualmente; não comparada ao Razão.';confirmed++;}
    else if(proposed){debit=m.cents>0?bankCode:suggestedCode;credit=m.cents>0?suggestedCode:bankCode;situation='SUGERIDA — CONFIRMAR CONTRAPARTIDA';notes='Códigos são sugestão, não lançamento confirmado.';suggested++;}
    else{debit=m.cents>0?bankCode:'';credit=m.cents<0?bankCode:'';situation='PENDENTE — CONTRAPARTIDA NÃO IDENTIFICADA';notes='Campo de contrapartida não preenchido para evitar código fictício.';blocked++;}
    if(journal&&!tr&&journal.recon==='AMBIGUO')notes=(notes?notes+' ':'')+'Correspondência duplicada/ambígua no Razão.';
    confer.push([dateBR(m.date),debit,credit,number(m.cents/100),formulaText(m.history),situation,reconStatus,bank?.bank||'',bankCode,formulaText(m.party||''),formulaText(m.origin||''),notes]);
+ }
+ // Extrato independente do Razão: códigos só são preenchidos para classificações confirmadas.
+ const bankOnly=[['Data','Cód. Conta Débito','Cód. Conta Crédito','Valor Extrato (R$)','Complemento Histórico','Situação']];
+ for(const m of moves){
+  const bank=accounts.get(m.accountId),bankCode=bank&&plan.get(String(bank.chartCode))?.analytic?String(bank.chartCode):'';
+  const cp=String(m.counterpart||''),valid=!!plan.get(cp)?.analytic;
+  const confirmed=m.status==='CONFIRMADO'&&valid&&!!bankCode&&m.status!=='PENDENTE_DUPLICIDADE';
+  const duplicate=m.status==='PENDENTE_DUPLICIDADE';
+  const situation=duplicate?'REVISAR DUPLICIDADE':!bankCode?'VINCULAR CONTA DO BANCO':confirmed?'CLASSIFICAÇÃO CONFIRMADA':'PENDENTE — CONFERIR CONTRAPARTIDA';
+  const debit=confirmed?(m.cents>0?bankCode:cp):(m.cents>0?bankCode:'');
+  const credit=confirmed?(m.cents>0?cp:bankCode):(m.cents<0?bankCode:'');
+  bankOnly.push([dateBR(m.date),duplicate?'':debit,duplicate?'':credit,number(m.cents/100),formulaText(m.history),situation]);
  }
  const ready=[['Data','Cód. Conta Débito','Cód. Conta Crédito','Valor','Complemento Histórico']];
  const periodImports=(company.imports||[]).filter(i=>i.type==='EXTRATO'&&Array.isArray(i.periods)&&i.periods.includes(period));
@@ -70,8 +82,9 @@ function report(core,company,period){
  for(const a of company.plan)source.push([text(a.code),text(a.classification),formulaText(a.description),a.analytic?'SIM':'NÃO']);
  const imports=[['Arquivo','Banco','Formato','Movimentos','Verificação de Saldos','Diferença (R$)']];
  for(const i of periodImports)imports.push([text(i.name),text(i.bank||accounts.get(i.accountId)?.bank||''),text(i.format),number(i.movementCount||0),text(i.balanceCheck?.status||'NÃO CONFERIDO'),typeof i.balanceCheck?.difference==='number'?number(i.balanceCheck.difference/100):'']);
- return {sheets:[{name:'Resumo',rows:summary,widths:[48,82]},{name:'Conferencia',rows:confer,widths:[15,20,20,20,72,46,35,21,19,43,43,66]},{name:'Lancamentos_Prontos',rows:ready,widths:[16,24,24,20,82]},{name:'Plano_de_Contas',rows:source,widths:[18,32,62,16]},{name:'Extratos_Importados',rows:imports,widths:[53,24,16,18,29,22]},{name:'Divergencias',rows:auditRows,widths:[16,29,22,21,21,17,17,19,45,78,83,45,27]}],counts:{movements:moves.length,ready:ready.length-1,suggested,blocked,confirmed,hasLedger,codeErrors:rec.errors.length,divergentBalance,unverifiedBalance,unreviewedReadings,unmatchedBankLedger,missingBankLedger,ledgerBalanceDifferences,blockedReadiness,auditEvents:auditData?.events.length||0}};
+ return {sheets:[{name:'Extrato_Classificado',rows:bankOnly,widths:[16,24,24,22,78,40]},{name:'Resumo',rows:summary,widths:[48,82]},{name:'Conferencia',rows:confer,widths:[15,20,20,20,72,46,35,21,19,43,43,66]},{name:'Lancamentos_Prontos',rows:ready,widths:[16,24,24,20,82]},{name:'Plano_de_Contas',rows:source,widths:[18,32,62,16]},{name:'Extratos_Importados',rows:imports,widths:[53,24,16,18,29,22]},{name:'Divergencias',rows:auditRows,widths:[16,29,22,21,21,17,17,19,45,78,83,45,27]}],counts:{movements:moves.length,ready:ready.length-1,suggested,blocked,confirmed,hasLedger,codeErrors:rec.errors.length,divergentBalance,unverifiedBalance,unreviewedReadings,unmatchedBankLedger,missingBankLedger,ledgerBalanceDifferences,blockedReadiness,auditEvents:auditData?.events.length||0}};
 }
+function reportStatement(core,company,period){const result=report(core,company,period);return {sheets:result.sheets.filter(s=>s.name==='Extrato_Classificado'),counts:result.counts};}
 const colName=n=>{let s='';for(;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s};
 function sheetXml(sheet){const columns=sheet.widths||[];const out=['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>','<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">','<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>','<sheetFormatPr defaultRowHeight="18"/>','<cols>'+columns.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${Math.min(w,100)}" customWidth="1"/>`).join('')+'</cols>','<sheetData>'];
  for(let i=0;i<sheet.rows.length;i++){
@@ -114,5 +127,5 @@ function xlsx(reportData){const sheets=reportData.sheets;if(!sheets?.length)thro
  const files=[['[Content_Types].xml',contentTypes(sheets)],['_rels/.rels','<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],['xl/workbook.xml','<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+sheets.map((s,i)=>`<sheet name="${asXml(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')+'</sheets></workbook>'],['xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')+`<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`+'</Relationships>'],['xl/styles.xml',styles],...sheets.map((s,i)=>[`xl/worksheets/sheet${i+1}.xml`,sheetXml(s)])];return packBytes(files);
 }
 function download(data,name){const blob=new Blob([xlsx(data)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);}
-return {report,xlsx,download};
+return {report,reportStatement,xlsx,download};
 });
