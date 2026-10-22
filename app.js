@@ -446,7 +446,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  const message=redo?'Refazer '+item.name+'? O processamento anterior será removido. Depois selecione o mesmo arquivo novamente. Salve backup se necessário.':'Excluir '+item.name+' e seus movimentos associados? Os outros extratos serão mantidos. Antes de excluir, recomenda-se baixar o backup.';
  if(!confirm(message))return;
  ultimoExcluido=JSON.parse(JSON.stringify(state));
- const result=window.ConciliaAssistente.remover(c,item,state.reviews);state.reviews=result.reviews;
+ let result;if(item.type==='RAZAO_REFERENCIA'){c.referenceLedgers=(c.referenceLedgers||[]).filter(r=>r.importId!==item.id);c.imports=c.imports.filter(i=>i.id!==item.id);state.reviews=state.reviews.filter(r=>r.importId!==item.id);result={removed:0};}else{result=window.ConciliaAssistente.remover(c,item,state.reviews);state.reviews=result.reviews;}
  await store(redo?'EXTRATO_REFAZER':'IMPORTACAO_EXCLUIDA',item.type+': '+item.name+'; '+result.removed+' movimentos removidos');
  showPage('importar');say((redo?'Pronto para refazer. Selecione novamente o arquivo.':'Importação excluída. ')+result.removed+' movimento(s) removido(s); os demais extratos foram preservados.');
  });});
