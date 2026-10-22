@@ -241,9 +241,34 @@ function renderAuditoria(){
    currency(e.cents),
    '<b>'+safe(names[e.type]||e.type)+'</b><div class="subtle">'+safe(e.evidence||'')+'</div>',
    safe(e.action||''),
-   '<div><b>Débito:</b> '+safe(e.guidance?.debit||'A confirmar')+' <b>Crédito:</b> '+safe(e.guidance?.credit||'A confirmar')+'</div><div class="subtle">'+safe(e.guidance?.description||'Conferir documentos.')+'</div><small>'+safe(e.guidance?.status||'REVISAR')+'</small>' ]);
+   '<button class="secondary" type="button" data-audit-detail="'+display.indexOf(e)+'">Investigar detalhes</button><div class="subtle">'+safe(e.guidance?.status||'REVISAR')+'</div>' ]);
  main.innerHTML=rows.length?table(['Data','Banco / Conta','Origem → Destino','Débito / Crédito','Valor','Ocorrência / Evidência','O que fazer','Como corrigir no Domínio'],rows):empty('Nenhuma diferença identificada pelos critérios exatos. Ainda confira saldos, completude e titularidade.');
  main.querySelectorAll('tbody tr').forEach((tr,i)=>tr.classList.add(display[i].tone==='red'?'row-red':'row-yellow'));
+ main.querySelectorAll('[data-audit-detail]').forEach(button=>button.onclick=()=>{
+  const ev=display[Number(button.dataset.auditDetail)],dialog=$('#auditDetailDialog'),panel=$('#auditDetailContent');
+  if(!ev||!dialog||!panel)return;
+  const info=(name,value)=>'<div style="padding:8px 0;border-bottom:1px solid #e2e8f0"><b>'+safe(name)+':</b> '+safe(value||'Não informado')+'</div>';
+  const missing=[];
+  if(ev.type==='EXTRATO_SEM_RAZAO')missing.push('Não foi encontrado lançamento correspondente no Razão importado. Conferir se está em outro dia, conta ou lote.');
+  if(ev.type==='RAZAO_SEM_EXTRATO')missing.push('Há lançamento no Razão que não foi associado ao extrato. Investigar lançamento a mais ou banco incorreto.');
+  if(ev.type==='SALDO_DIVERGENTE')missing.push('Saldo do Razão e saldo bancário são diferentes. Confira primeiro os lançamentos individuais apontados e o saldo inicial.');
+  if(ev.type==='AMBIGUIDADE')missing.push('Histórico e beneficiário não permitem identificar unicamente qual registro corresponde ao Razão.');
+  if(!ev.guidance?.debit)missing.push('Código de débito não confirmado: consultar plano de contas e comprovante.');
+  if(!ev.guidance?.credit)missing.push('Código de crédito não confirmado: consultar plano de contas e comprovante.');
+  panel.innerHTML='<p style="font-weight:700;color:#9a3412">'+safe(names[ev.type]||ev.type)+'</p>'+
+   info('Banco / código',ev.bank+' / '+(ev.bankCode||'A confirmar'))+
+   info('Data do lançamento',ev.date?api.dateBR(ev.date):'Não informada')+
+   info('Valor',currency(ev.cents))+
+   info('Histórico / favorecido',ev.history||'Histórico não disponível; consultar documento original')+
+   info('Documento / origem',ev.document)+
+   info('Débito sugerido',ev.guidance?.debit||'A confirmar')+
+   info('Crédito sugerido',ev.guidance?.credit||'A confirmar')+
+   '<h3 style="margin-top:16px">O que falta investigar</h3><ul>'+missing.map(x=>'<li>'+safe(x)+'</li>').join('')+'</ul>'+
+   '<h3>Como proceder no Domínio</h3><p>'+safe(ev.guidance?.description||ev.action)+'</p>'+
+   '<p><b>Próxima ação:</b> '+safe(ev.action)+'</p>'+
+   '<p style="font-weight:600">Situação: '+safe(ev.guidance?.status||'REVISÃO OBRIGATÓRIA')+'</p>';
+  dialog.showModal();
+ });
  if(analysis.events.length>250)main.innerHTML+='<p class="flag">Mostrando as primeiras 250 ocorrências. Exporte para Excel para ver todas as '+analysis.events.length+' linhas de auditoria.</p>';
 }
 function renderReviews(){const c=current();$('#reviewTable').innerHTML=c?table(['Arquivo','Linha','Conteúdo original','Motivo'],state.reviews.filter(r=>r.companyId===companyId).slice(-300).reverse().map(r=>[safe(r.origin),safe(r.line),`<div class="fiscal">${safe(r.content)}</div>`,safe(r.reason)])):empty('Selecione uma empresa.');}
