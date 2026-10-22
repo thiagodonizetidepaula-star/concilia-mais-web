@@ -251,7 +251,17 @@ function putFile(file,name,content){const blob=new Blob([content],{type:'text/pl
 
 function planSource(text){const rows=String(text).replace(/^\uFEFF/,'').split(/\r?\n/);const index=rows.findIndex(x=>/(?:codigo|c[oó]digo|classificacao|classifica[cç][aã]o)/i.test(x)&&/(?:descricao|descri[cç][aã]o|nome)/i.test(x));if(index<0)throw Error('O plano precisa de colunas Código e Descrição. Exporte para CSV/TXT pelo Domínio.');return {table:rows.slice(index).join('\n'),metadata:rows.slice(0,Math.max(index,1)).join('\n')}}
 function guessBankAccount(c,bank){if(!bank)return '';const n=Core.norm(bank);const candidates=c.plan.filter(a=>a.analytic).filter(a=>{const desc=Core.norm(a.description);const found=n.includes('itau')?desc.includes('itau'):n.includes('caixa')?desc.includes('caixaeconomica')||desc.includes('caixafederal'):n.includes('bancodobrasil')?desc.includes('bancodobrasil'):desc.includes(n);return found&&!/(emprestimo|financiamento|cartao|credito|aplicacao|rendimento|tarifa|despesa)/.test(desc)});return candidates.length===1?candidates[0].code:''}
-function autoSuggest(c,m){const h=Core.norm(m.history);let term='';if(/^tarplanoitauemp/.test(h))term='tarifabancaria';else if(/^rendimentosrendpagoaplic/.test(h))term='rendimentodeaplicacao';else if(/tarifa|taxabancaria|pacoteservico/.test(h))term='tarif';else if(/darf|imposto|tributo/.test(h))term='tribut';else if(/emprestimo|parcelaemprestimo/.test(h))term='emprestim';else if(/recebidocliente|pagamentocliente/.test(h))term='cliente';else if(/pagamentofornecedor|enviadofornecedor/.test(h))term='fornecedor';if(!term)return;const candidates=c.plan.filter(x=>x.analytic&&Core.norm(x.description).includes(term));if(candidates.length===1){m.suggested=candidates[0].code;m.confidence='sugestão a conferir'}}
+function autoSuggest(c,m){
+ if(m.status==='PENDENTE_DUPLICIDADE'||m.status==='CONFIRMADO')return;
+ const h=Core.norm(m.history);
+ const matches=(terms)=>c.plan.filter(x=>x.analytic&&terms.some(term=>Core.norm(x.description).includes(term))&&!c.accounts.some(a=>String(a.chartCode)===String(x.code)));
+ // Só indica conta se houver UM candidato inequívoco dentro do plano da própria empresa.
+ // Boleto e PIX genéricos nunca determinam automaticamente a contrapartida.
+ let candidates=[];
+ if(/tarifa|tarif|pacoteservico|tarliq/.test(h))candidates=matches(['tarifabancaria','despesasbancarias','tarifasbancarias']);
+ else if(/rendimentosrendpagoaplic|rendimentodeaplicacao|rendimentosaplic/.test(h))candidates=matches(['receitafinanceira','rendimentodeaplicacao','rendimentosdeaplicacoes']);
+ if(candidates.length===1){m.suggested=String(candidates[0].code);m.confidence='Sugestão por histórico e plano de contas — exige confirmação';}
+}
 function suggestFromLedger(c,ym){
  const analysis=Core.ledgerSuggestions(c,ym);let applied=0,conflicts=0;
  if(!analysis.hasLedger)return {applied,conflicts,ambiguous:0};
