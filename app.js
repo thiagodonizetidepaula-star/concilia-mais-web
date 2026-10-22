@@ -263,17 +263,29 @@ function autoSuggest(c,m){
  if(candidates.length===1){m.suggested=String(candidates[0].code);m.confidence='Sugestão por histórico e plano de contas — exige confirmação';}
 }
 function suggestFromHistoricalLedger(c,ym){
- const refs=c.referenceLedgers||[],moves=Core.periodMovements(c,ym),valid=new Set(c.plan.filter(p=>p.analytic).map(p=>String(p.code))),banks=new Set(c.accounts.map(a=>String(a.chartCode))),bankById=new Map(c.accounts.map(a=>[a.id,String(a.chartCode)]));
- const index=new Map();
- for(const ref of refs)for(const e of ref.entries||[]){const h=Core.norm(e.history||'');if(h.length<12)continue;
-  for(const [bank,cp,direction] of [[String(e.debit),String(e.credit),1],[String(e.credit),String(e.debit),-1]]){
-   if(!banks.has(bank)||!valid.has(cp)||cp===bank||banks.has(cp))continue;
-   const key=bank+'|'+direction+'|'+h;const found=index.get(key)||new Set();found.add(cp);index.set(key,found);
-  }
+ // Apenas referências de meses ANTERIORES. Nunca interfere no motor de conciliação/saldos.
+ const refs=(c.referenceLedgers||[]).filter(r=>(r.periods||[]).some(p=>p<ym));
+ const moves=Core.periodMovements(c,ym),valid=new Set(c.plan.filter(p=>p.analytic).map(p=>String(p.code)));
+ const banks=new Set(c.accounts.map(a=>String(a.chartCode))),bankById=new Map(c.accounts.map(a=>[a.id,String(a.chartCode)]));
+ const signature=value=>String(value||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toUpperCase().replace(/\\b(?:CD|DOC|NSU|AUT|ID)\\s*[0-9A-Z]{5,}\\b/g,' ').replace(/\\b\\d{3,}\\b/g,' ').replace(/[^A-Z ]/g,' ').replace(/\\s+/g,' ').trim();
+ const generic=/^(?:BOLETO PAGO|PIX ENVIADO|PIX RECEBIDO|PIX QRS|PAGAMENTO|TRANSFERENCIA|DEBITO|CREDITO)$/;
+ const patterns=new Map();
+ for(const ref of refs)for(const e of ref.entries||[]){
+   const sig=signature(e.history);if(sig.length<11||generic.test(sig))continue;
+   for(const [bank,cp,dir] of [[String(e.debit),String(e.credit),1],[String(e.credit),String(e.debit),-1]]){
+    if(!banks.has(bank)||!valid.has(cp)||cp===bank||banks.has(cp))continue;
+    const key=bank+'|'+dir+'|'+sig;const candidates=patterns.get(key)||new Set();candidates.add(cp);patterns.set(key,candidates);
+   }
  }
  let applied=0,ambiguous=0;
- for(const m of moves){if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||m.suggested)continue;const h=Core.norm(m.history||'');if(h.length<12)continue;const bank=bankById.get(m.accountId);const codes=index.get(bank+'|'+(m.cents>0?1:-1)+'|'+h);if(!codes)continue;
- if(codes.size!==1){ambiguous++;continue;}const code=[...codes][0];m.suggested=code;m.confidence='Referência histórica: mesmo histórico, banco e sentido — confirmar';applied++;
+ for(const m of moves){
+  if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||m.suggested)continue;
+  const sig=signature(m.history),bank=bankById.get(m.accountId);
+  if(!bank||sig.length<11||generic.test(sig))continue;
+  const candidates=patterns.get(bank+'|'+(m.cents>0?1:-1)+'|'+sig);
+  if(!candidates)continue;
+  if(candidates.size!==1){ambiguous++;continue;}
+  m.suggested=[...candidates][0];m.confidence='Razão anterior: mesmo padrão de lançamento e conta bancária — revisar';applied++;
  }
  return {applied,ambiguous};
 }

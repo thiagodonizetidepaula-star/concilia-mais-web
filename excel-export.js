@@ -43,7 +43,7 @@ function report(core,company,period){
    confer.push([dateBR(m.date),debit,credit,number(m.cents/100),formulaText(m.history),situation,reconStatus,bank?.bank||'',bankCode,formulaText(m.party||''),formulaText(m.origin||''),notes]);
  }
  // Extrato independente do Razão: códigos só são preenchidos para classificações confirmadas.
- const bankOnly=[['Data','Cód. Conta Débito','Cód. Conta Crédito','Valor Extrato (R$)','Lançamento','Razão Social / Favorecido','CNPJ/CPF','Saldo informado (R$)','Situação']];
+ const bankOnly=[['Data','Cód. Conta Débito','Cód. Conta Crédito','Valor Extrato (R$)','Complemento Histórico']];
  for(const m of moves){
   const bank=accounts.get(m.accountId),bankCode=bank&&plan.get(String(bank.chartCode))?.analytic?String(bank.chartCode):'';
   const cp=String(m.counterpart||''),valid=!!plan.get(cp)?.analytic;
@@ -54,7 +54,7 @@ function report(core,company,period){
   const effectiveCp=confirmed?cp:proposed?proposedCode:'';
   const debit=effectiveCp?(m.cents>0?bankCode:effectiveCp):(m.cents>0?bankCode:'');
   const credit=effectiveCp?(m.cents>0?effectiveCp:bankCode):(m.cents<0?bankCode:'');
-  bankOnly.push([dateBR(m.date),duplicate?'':debit,duplicate?'':credit,number(m.cents/100),formulaText(m.history),formulaText(m.party||''),formulaText(m.document||''),formulaText(m.statementBalance||''),situation]);
+  bankOnly.push([dateBR(m.date),duplicate?'':debit,duplicate?'':credit,number(m.cents/100),formulaText([m.history,m.party].filter(Boolean).join(' — '))]);
  }
  const ready=[['Data','Cód. Conta Débito','Cód. Conta Crédito','Valor','Complemento Histórico']];
  const periodImports=(company.imports||[]).filter(i=>i.type==='EXTRATO'&&Array.isArray(i.periods)&&i.periods.includes(period));
@@ -84,13 +84,13 @@ function report(core,company,period){
  for(const a of company.plan)source.push([text(a.code),text(a.classification),formulaText(a.description),a.analytic?'SIM':'NÃO']);
  const imports=[['Arquivo','Banco','Formato','Movimentos','Verificação de Saldos','Diferença (R$)']];
  for(const i of periodImports)imports.push([text(i.name),text(i.bank||accounts.get(i.accountId)?.bank||''),text(i.format),number(i.movementCount||0),text(i.balanceCheck?.status||'NÃO CONFERIDO'),typeof i.balanceCheck?.difference==='number'?number(i.balanceCheck.difference/100):'']);
- return {sheets:[{name:'Extrato_Classificado',rows:bankOnly,widths:[16,24,24,22,65,58,23,21,40]},{name:'Resumo',rows:summary,widths:[48,82]},{name:'Conferencia',rows:confer,widths:[15,20,20,20,72,46,35,21,19,43,43,66]},{name:'Lancamentos_Prontos',rows:ready,widths:[16,24,24,20,82]},{name:'Plano_de_Contas',rows:source,widths:[18,32,62,16]},{name:'Extratos_Importados',rows:imports,widths:[53,24,16,18,29,22]},{name:'Divergencias',rows:auditRows,widths:[16,29,22,21,21,17,17,19,45,78,83,45,27]}],counts:{movements:moves.length,ready:ready.length-1,suggested,blocked,confirmed,hasLedger,codeErrors:rec.errors.length,divergentBalance,unverifiedBalance,unreviewedReadings,unmatchedBankLedger,missingBankLedger,ledgerBalanceDifferences,blockedReadiness,auditEvents:auditData?.events.length||0}};
+ return {sheets:[{name:'Extrato_Classificado',rows:bankOnly,widths:[16,24,24,22,100]},{name:'Resumo',rows:summary,widths:[48,82]},{name:'Conferencia',rows:confer,widths:[15,20,20,20,72,46,35,21,19,43,43,66]},{name:'Lancamentos_Prontos',rows:ready,widths:[16,24,24,20,82]},{name:'Plano_de_Contas',rows:source,widths:[18,32,62,16]},{name:'Extratos_Importados',rows:imports,widths:[53,24,16,18,29,22]},{name:'Divergencias',rows:auditRows,widths:[16,29,22,21,21,17,17,19,45,78,83,45,27]}],counts:{movements:moves.length,ready:ready.length-1,suggested,blocked,confirmed,hasLedger,codeErrors:rec.errors.length,divergentBalance,unverifiedBalance,unreviewedReadings,unmatchedBankLedger,missingBankLedger,ledgerBalanceDifferences,blockedReadiness,auditEvents:auditData?.events.length||0}};
 }
 function reportStatement(core,company,period){const result=report(core,company,period);return {sheets:result.sheets.filter(s=>s.name==='Extrato_Classificado'),counts:result.counts};}
 const colName=n=>{let s='';for(;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s};
 function sheetXml(sheet){const columns=sheet.widths||[];const out=['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>','<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">','<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>','<sheetFormatPr defaultRowHeight="18"/>','<cols>'+columns.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${Math.min(w,100)}" customWidth="1"/>`).join('')+'</cols>','<sheetData>'];
  for(let i=0;i<sheet.rows.length;i++){
-  const row=sheet.rows[i];const status=i>0?(sheet.name==='Conferencia'?String(row[5]||''):sheet.name==='Extrato_Classificado'?String(row[8]||''):sheet.name==='Divergencias'?String(row[12]||''):''):'';const rowTone=/DIVERG|DUPLIC|INVÁLIDO|INVALIDO/.test(status)?'red':/PENDENTE|SUGERIDA|CONFIRMAR/.test(status)?'yellow':/CONFIRMAD|VALIDAD|TRANSFERÊNCIA/.test(status)?'green':'';
+  const row=sheet.rows[i];const status=i>0?(sheet.name==='Conferencia'?String(row[5]||''):sheet.name==='Extrato_Classificado'?String(row[4]||''):sheet.name==='Divergencias'?String(row[12]||''):''):'';const rowTone=/DIVERG|DUPLIC|INVÁLIDO|INVALIDO/.test(status)?'red':/PENDENTE|SUGERIDA|CONFIRMAR/.test(status)?'yellow':/CONFIRMAD|VALIDAD|TRANSFERÊNCIA/.test(status)?'green':'';
   const cellStyle=rowTone==='red'?5:rowTone==='yellow'?3:rowTone==='green'?7:0;
   const numberStyle=rowTone==='red'?6:rowTone==='yellow'?4:rowTone==='green'?8:2;
   out.push(`<row r="${i+1}"${i===0?' ht="38" customHeight="1"':''}>`);
