@@ -90,7 +90,7 @@ function reportStatement(core,company,period){const result=report(core,company,p
 const colName=n=>{let s='';for(;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s};
 function sheetXml(sheet){const columns=sheet.widths||[];const out=['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>','<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">','<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>','<sheetFormatPr defaultRowHeight="18"/>','<cols>'+columns.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${Math.min(w,100)}" customWidth="1"/>`).join('')+'</cols>','<sheetData>'];
  for(let i=0;i<sheet.rows.length;i++){
-  const row=sheet.rows[i];const status=i>0?((sheet.name==='Conferencia'?String(row[5]||''):sheet.name==='Extrato_Classificado'?String(row[8]||''):sheet.name==='Divergencias'?String(row[12]||''):''):'';const rowTone=/DIVERG|DUPLIC|INVÁLIDO|INVALIDO/.test(status)?'red':/PENDENTE|SUGERIDA|CONFIRMAR/.test(status)?'yellow':/CONFIRMAD|VALIDAD|TRANSFERÊNCIA/.test(status)?'green':'';
+  const row=sheet.rows[i];const status=i>0?(sheet.name==='Conferencia'?String(row[5]||''):sheet.name==='Extrato_Classificado'?String(row[8]||''):sheet.name==='Divergencias'?String(row[12]||''):''):'';const rowTone=/DIVERG|DUPLIC|INVÁLIDO|INVALIDO/.test(status)?'red':/PENDENTE|SUGERIDA|CONFIRMAR/.test(status)?'yellow':/CONFIRMAD|VALIDAD|TRANSFERÊNCIA/.test(status)?'green':'';
   const cellStyle=rowTone==='red'?5:rowTone==='yellow'?3:rowTone==='green'?7:0;
   const numberStyle=rowTone==='red'?6:rowTone==='yellow'?4:rowTone==='green'?8:2;
   out.push(`<row r="${i+1}"${i===0?' ht="38" customHeight="1"':''}>`);
