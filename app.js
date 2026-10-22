@@ -168,7 +168,7 @@ function renderImport(){const c=current();$('#allImports').innerHTML=c?table(['A
  safe(i.name),badge(i.type),safe((i.periods||[]).join(', ')),i.movementCount??i.count??0,
  i.balanceCheck?.status==='DIVERGENTE'?'<span class="status-red">DIVERGENTE</span>':['OK','MANUAL_OK'].includes(i.balanceCheck?.status)?badge((i.balanceCheck?.status==='MANUAL_OK'?'CONFERIDO MANUALMENTE':'OK')+' · diferença '+currency(i.balanceCheck.difference)):badge(i.balanceCheck?.status||'NÃO CONFERIDO'),
  badge(i.reviewCount?'COM REVISÕES':'IMPORTADO'),
- ['EXTRATO','RAZAO'].includes(i.type)?'<div class="inline-actions">'+(i.type==='EXTRATO'&&!['OK','MANUAL_OK'].includes(i.balanceCheck?.status)?'<button type="button" data-balance-check="'+safe(i.id)+'">Conferir saldo</button>':'')+'<button type="button" data-delete-import="'+safe(i.id)+'">Excluir</button><button type="button" data-redo-import="'+safe(i.id)+'">Refazer</button></div>':'—'
+ ['EXTRATO','RAZAO','RAZAO_REFERENCIA'].includes(i.type)?'<div class="inline-actions">'+(i.type==='EXTRATO'&&!['OK','MANUAL_OK'].includes(i.balanceCheck?.status)?'<button type="button" data-balance-check="'+safe(i.id)+'">Conferir saldo</button>':'')+'<button type="button" data-delete-import="'+safe(i.id)+'">Excluir</button><button type="button" data-redo-import="'+safe(i.id)+'">Refazer</button></div>':'—'
  ])):empty('Importe o plano de contas para iniciar.');
 }
 
@@ -262,6 +262,21 @@ function autoSuggest(c,m){
  else if(/rendimentosrendpagoaplic|rendimentodeaplicacao|rendimentosaplic/.test(h))candidates=matches(['receitafinanceira','rendimentodeaplicacao','rendimentosdeaplicacoes']);
  if(candidates.length===1){m.suggested=String(candidates[0].code);m.confidence='Sugestão por histórico e plano de contas — exige confirmação';}
 }
+function suggestFromHistoricalLedger(c,ym){
+ const refs=c.referenceLedgers||[],moves=Core.periodMovements(c,ym),valid=new Set(c.plan.filter(p=>p.analytic).map(p=>String(p.code))),banks=new Set(c.accounts.map(a=>String(a.chartCode))),bankById=new Map(c.accounts.map(a=>[a.id,String(a.chartCode)]));
+ const index=new Map();
+ for(const ref of refs)for(const e of ref.entries||[]){const h=Core.norm(e.history||'');if(h.length<12)continue;
+  for(const [bank,cp,direction] of [[String(e.debit),String(e.credit),1],[String(e.credit),String(e.debit),-1]]){
+   if(!banks.has(bank)||!valid.has(cp)||cp===bank||banks.has(cp))continue;
+   const key=bank+'|'+direction+'|'+h;const found=index.get(key)||new Set();found.add(cp);index.set(key,found);
+  }
+ }
+ let applied=0,ambiguous=0;
+ for(const m of moves){if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||m.suggested)continue;const h=Core.norm(m.history||'');if(h.length<12)continue;const bank=bankById.get(m.accountId);const codes=index.get(bank+'|'+(m.cents>0?1:-1)+'|'+h);if(!codes)continue;
+ if(codes.size!==1){ambiguous++;continue;}const code=[...codes][0];m.suggested=code;m.confidence='Referência histórica: mesmo histórico, banco e sentido — confirmar';applied++;
+ }
+ return {applied,ambiguous};
+}
 function suggestFromLedger(c,ym){
  const analysis=Core.ledgerSuggestions(c,ym);let applied=0,conflicts=0;
  if(!analysis.hasLedger)return {applied,conflicts,ambiguous:0};
@@ -338,7 +353,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  else say(`${ok.length} novo(s), ${skipped.length} já importado(s), ${bad.length} falha(s). ${total} novas movimentações.`,!!bad.length);
  }catch(err){setStatementStatus('error','IMPORTAÇÃO NÃO CONCLUÍDA: '+(err.message||String(err))+'. Confira o arquivo ou a empresa e tente novamente.');throw err;}})};
  $('#importLedger').onsubmit=e=>{e.preventDefault();const form=e.currentTarget;action(async()=>{
- const c=getCompany(),files=Array.from(form.elements.file.files||[]),button=$('#ledgerButton'),status=$('#ledgerStatus');
+ const c=getCompany(),files=Array.from(form.elements.file.files||[]),button=$('#ledgerButton'),status=$('#ledgerStatus'),historic=$('#ledgerMode').value==='reference';
  if(!files.length)throw Error('Selecione um ou mais Razões para importar.');
  if(files.length>20)throw Error('Escolha até 20 Razões por lote para evitar sobrecarga no celular.');
  const results=[];button.disabled=true;
@@ -350,7 +365,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
     const ext=fileExt(file.name);
     if(!['pdf','csv','txt'].includes(ext))throw Error('Formato incompatível. Envie PDF digital, CSV ou TXT.');
     const bytes=await file.arrayBuffer(),sha=await hash(bytes);
-    const previous=c.imports.find(i=>i.type==='RAZAO'&&i.sha===sha);
+    const previous=c.imports.find(i=>i.type===(historic?'RAZAO_REFERENCIA':'RAZAO')&&i.sha===sha);
     if(previous){results.push({name:file.name,type:'existing',count:previous.count||0,accountCode:previous.accountCode||'',periods:previous.periods||[]});continue;}
     let parsed,accountCode='';
     if(ext==='pdf'){
@@ -366,13 +381,14 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
     }
     if(!parsed.entries?.length)throw Error('Nenhum lançamento reconhecido. Confira se é um Razão legível.');
     const periods=[...new Set(parsed.entries.map(l=>month(l.date)))];
-    if(accountCode){
+    if(!historic&&accountCode){
      const overlapping=periods.filter(p=>(c.ledger||[]).some(l=>l.period===p&&String(l.accountCode||'')===accountCode));
      if(overlapping.length)throw Error('Já existe Razão para a conta '+accountCode+' na(s) competência(s) '+overlapping.join(', ')+'. Use Refazer no arquivo anterior para atualizar, evitando substituir lançamentos sem aviso.');
     }
     const importId=Core.id(),at=new Date().toISOString();
-    for(const p of periods)c.ledger.push({id:Core.id(),importId,period:p,accountCode,openingBalance:parsed.openingBalance??null,at,entries:parsed.entries.filter(l=>month(l.date)===p),file:file.name});
-    c.imports.push({id:importId,type:'RAZAO',name:file.name,sha,periods,accountCode,format:parsed.format||ext.toUpperCase(),count:parsed.entries.length,reviewCount:(parsed.reviews||[]).length,at});
+    if(historic){c.referenceLedgers=c.referenceLedgers||[];c.referenceLedgers.push({importId,accountCode,periods,entries:parsed.entries,file:file.name,at});}
+    else for(const p of periods)c.ledger.push({id:Core.id(),importId,period:p,accountCode,openingBalance:parsed.openingBalance??null,at,entries:parsed.entries.filter(l=>month(l.date)===p),file:file.name});
+    c.imports.push({id:importId,type:historic?'RAZAO_REFERENCIA':'RAZAO',name:file.name,sha,periods,accountCode,format:parsed.format||ext.toUpperCase(),count:parsed.entries.length,reviewCount:(parsed.reviews||[]).length,at});
     await afterImport('RAZAO',c,file,parsed,sha,importId);
     results.push({name:file.name,type:'success',count:parsed.entries.length,accountCode,periods,reviews:(parsed.reviews||[]).length});
    }catch(err){console.warn('Razão não importado:',file.name,err);results.push({name:file.name,type:'error',reason:err.message||String(err)});}
@@ -381,10 +397,10 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
   let matched=0;
   if(success.length){
    const periods=[...new Set(success.flatMap(x=>x.periods))];
-   for(const p of periods){try{matched+=suggestFromLedger(c,p).applied;}catch(err){console.warn('Sugestões do Razão:',err);}}
+   if(historic){try{matched+=suggestFromHistoricalLedger(c,period).applied;}catch(err){console.warn('Referência histórica:',err);}}else for(const p of periods){try{matched+=suggestFromLedger(c,p).applied;}catch(err){console.warn('Sugestões do Razão:',err);}}
    await store('RAZOES_IMPORTADOS_EM_LOTE',success.length+' novo(s), '+existing.length+' repetido(s), '+errors.length+' erro(s). '+success.reduce((n,x)=>n+x.count,0)+' lançamentos contábeis; '+matched+' sugestões.');
   }else render();
-  const header='RAZÕES: '+success.length+' importado(s), '+existing.length+' já existente(s), '+errors.length+' com erro. '+success.reduce((n,x)=>n+x.count,0)+' lançamentos novos; '+matched+' sugestões a revisar.';
+  const header=(historic?'REFERÊNCIAS HISTÓRICAS: ':'RAZÕES: ')+success.length+' importado(s), '+existing.length+' já existente(s), '+errors.length+' com erro. '+success.reduce((n,x)=>n+x.count,0)+' lançamentos novos; '+matched+' sugestões a revisar.';
   const detail=results.map(x=>x.type==='success'?'✓ '+x.name+': '+x.count+' lançamento(s), conta '+(x.accountCode||'múltiplas')+', '+x.periods.join(', ')+(x.reviews?' • '+x.reviews+' linha(s) em revisão':''):x.type==='existing'?'↷ '+x.name+': já cadastrado, preservado':'✕ '+x.name+': '+x.reason).join('\n');
   show(errors.length?'error':'success',header+'\n'+detail+'\nOs Razões de outros bancos não foram apagados.');
   if(success.length||existing.length)form.reset();
@@ -394,8 +410,9 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  })};
  $('#suggest').onclick=()=>action(async()=>{const c=getCompany();let changed=0;for(const m of Core.periodMovements(c,period)){if(m.status==='PENDENTE_DUPLICIDADE'||m.status==='CONFIRMADO'||transferIds(c).has(m.id))continue;const rules=c.rules.filter(r=>Core.norm(m.history).includes(Core.norm(r.term)));const codes=[...new Set(rules.map(r=>r.counterpart))];if(codes.length===1){m.suggested=codes[0];m.confidence='regra própria';changed++;}else if(!codes.length){autoSuggest(c,m);if(m.suggested)changed++;}}await store('SUGESTOES_GERADAS',`${changed} sugestões para ${period}`);say(`${changed} sugestões de contrapartida geradas. Confirme cada uma.`)});
  $('#autoAnalyze').onclick=()=>action(async()=>{const c=getCompany(),moves=Core.periodMovements(c,period);if(!moves.length)throw Error('Importe os extratos da competência antes de analisar.');let rules=0;for(const m of moves){if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||transferIds(c).has(m.id))continue;if(!m.suggested){autoSuggest(c,m);if(m.suggested)rules++;}}
+ const history=suggestFromHistoricalLedger(c,period);
  const ledger=suggestFromLedger(c,period),pairs=Core.transferSuggestions(c,period);const totalSuggested=moves.filter(m=>!!m.suggested&&!m.counterpart).length;await store('TRIAGEM_AUTOMATICA',`Competência ${period}: ${moves.length} movimentos; ${rules} novas regras; ${totalSuggested} sugestões presentes; ${ledger.applied} novas sugestões Razão; ${pairs.proposals.length} transferências possíveis`);
- setStatementStatus('success',`TRIAGEM AUTOMÁTICA ${period}: ${moves.length} movimentos já importados; ${totalSuggested} sugestões de contrapartida no total (${rules} novas por regras e ${ledger.applied} novas pelo Razão); ${ledger.ambiguous} registros do Razão ambíguos; ${pairs.proposals.length} transferências candidatas e ${pairs.ambiguous.length} ambiguidades. Sugestões não são confirmações: confira Classificações.`);
+ setStatementStatus('success',`TRIAGEM AUTOMÁTICA ${period}: ${moves.length} movimentos já importados; ${totalSuggested} sugestões de contrapartida no total (${rules} por regras, ${history.applied} pelo histórico e ${ledger.applied} pelo Razão atual); ${ledger.ambiguous} registros do Razão ambíguos; ${pairs.proposals.length} transferências candidatas e ${pairs.ambiguous.length} ambiguidades. Sugestões não são confirmações: confira Classificações.`);
  say('Triagem concluída. Confira Classificações e Transferências antes de exportar.');});
  $('#findTransfers').onclick=()=>action(async()=>{const c=getCompany(),s=Core.transferSuggestions(c,period);say(`${s.proposals.length} par(es) com correspondência única; ${s.ambiguous.length} ambíguos. Nenhuma transferência foi confirmada automaticamente.`);renderTransfers()});
  $('#runRecon').onclick=()=>action(()=>{const c=getCompany();renderRecon();renderAuditoria();const rec=Core.reconcile(c,period);say(`${rec.checked.filter(x=>x.recon==='CONCILIADO').length} lançamento(s) conciliados; ${rec.missingLedger.length} registros do Razão sem vínculo.`)});
