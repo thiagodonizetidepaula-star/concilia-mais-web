@@ -18,7 +18,15 @@ function audit(Core,company,period){
  const latestFor=(code)=>{const targeted=versions.filter(v=>String(v.accountCode||'')===String(code)).at(-1);if(targeted)return{entries:(targeted.entries||[]).filter(e=>String(e.debit)===code||String(e.credit)===code),source:targeted.file,version:targeted};
   const general=versions.filter(v=>!v.accountCode).at(-1);return general?{entries:(general.entries||[]).filter(e=>String(e.debit)===code||String(e.credit)===code),source:general.file,version:general}:null;
  };
- const add=e=>events.push({bank:'',bankCode:'',sourceBank:'',targetBank:'',debit:'',credit:'',date:'',cents:0,document:'',evidence:'',action:'Conferir documentos antes de lançar.',tone:'yellow',...e});
+ const guidance=e=>{
+  const bank=knownCode(e.bankCode),debit=knownCode(e.debit),credit=knownCode(e.credit);
+  const both=!!debit&&!!credit&&debit!==credit;
+  if(e.type==='EXTRATO_SEM_RAZAO')return {debit,credit,description:both?'Possível lançamento a conferir no Domínio: débito '+debit+' ('+(plan.get(debit)?.description||'')+'), crédito '+credit+' ('+(plan.get(credit)?.description||'')+'). Confirmar primeiro que não existe em outra data, conta ou lote.':'Movimento bancário identificado, mas falta contrapartida validada. Confira plano, documento e classificação antes de indicar débito e crédito.',status:both?'PROPOSTA — REVISAR':'INCOMPLETO — NÃO LANÇAR'};
+  if(e.type==='RAZAO_SEM_EXTRATO')return {debit,credit,description:'O Razão já contém este lançamento. Não relançar. Investigue duplicidade, data ou conta incorreta. Se confirmado erro, planeje estorno ou reclassificação após validar o lançamento original.',status:'INVESTIGAR — NÃO RELANÇAR'};
+  if(e.type==='SALDO_DIVERGENTE')return {debit:'',credit:'',description:'Diferença de saldo não determina lançamento. Verifique saldo inicial e diferenças item a item; não faça ajuste para forçar fechamento.',status:'INVESTIGAR SALDOS'};
+  return {debit:debit||'',credit:credit||'',description:'Correspondência não comprovada. Conferir documento original, banco, datas, valores e contas antes de qualquer lançamento ou estorno.',status:'REVISÃO OBRIGATÓRIA'};
+ };
+ const add=e=>{const ev={bank:'',bankCode:'',sourceBank:'',targetBank:'',debit:'',credit:'',date:'',cents:0,document:'',evidence:'',action:'Conferir documentos antes de lançar.',tone:'yellow',...e};ev.guidance=guidance(ev);events.push(ev);};
  const periodAccounts=accounts.filter(a=>movements.some(m=>m.accountId===a.id)||versions.some(v=>String(v.accountCode)===String(a.chartCode)));
  for(const account of periodAccounts){
   const code=String(account.chartCode||''),codeSafe=knownCode(code),bank=account.bank||account.label||'Banco',statement=movements.filter(m=>m.accountId===account.id).sort(byDate),ledgerData=latestFor(code);
@@ -74,7 +82,7 @@ function audit(Core,company,period){
 }
 function moneyBR(c){return new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((Number(c)||0)/100)}
 function dateBR(d){return/^\d{4}-\d{2}-\d{2}$/.test(d||'')?d.split('-').reverse().join('/'):(d||'')}
-const header=['Data','Tipo de ocorrência','Banco','Origem provável','Destino provável','Cód. Débito','Cód. Crédito','Valor (R$)','Histórico / Referência','Evidência','Ação necessária','Arquivos de origem','Situação'];
-function excelRows(Core,company,period){const r=audit(Core,company,period);return[header,...r.events.map(e=>[dateBR(e.date),e.type.replaceAll('_',' '),e.bank,e.sourceBank,e.targetBank,e.debit,e.credit,{n:e.cents/100},e.history||e.documentNo||'',e.evidence,e.action,e.document,e.tone==='red'?'DIVERGÊNCIA — REVISAR':'PENDENTE — CONFERIR'])]}
+const header=['Data','Tipo de ocorrência','Banco','Origem provável','Destino provável','Cód. Débito','Cód. Crédito','Valor (R$)','Histórico / Referência','Evidência','Ação necessária','Arquivos de origem','Situação','Como corrigir no Domínio','Condição da orientação'];
+function excelRows(Core,company,period){const r=audit(Core,company,period);return[header,...r.events.map(e=>[dateBR(e.date),e.type.replaceAll('_',' '),e.bank,e.sourceBank,e.targetBank,e.debit,e.credit,{n:e.cents/100},e.history||e.documentNo||'',e.evidence,e.action,e.document,e.tone==='red'?'DIVERGÊNCIA — REVISAR':'PENDENTE — CONFERIR',e.guidance.description,e.guidance.status])]}
 return {audit,excelRows,header,moneyBR,dateBR};
 });

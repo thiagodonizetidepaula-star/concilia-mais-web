@@ -240,8 +240,9 @@ function renderAuditoria(){
    '<span class="fiscal">'+safe(e.debit||'—')+' / '+safe(e.credit||'—')+'</span>',
    currency(e.cents),
    '<b>'+safe(names[e.type]||e.type)+'</b><div class="subtle">'+safe(e.evidence||'')+'</div>',
-   safe(e.action||'') ]);
- main.innerHTML=rows.length?table(['Data','Banco / Conta','Origem → Destino','Débito / Crédito','Valor','Ocorrência / Evidência','O que fazer'],rows):empty('Nenhuma diferença identificada pelos critérios exatos. Ainda confira saldos, completude e titularidade.');
+   safe(e.action||''),
+   '<div><b>Débito:</b> '+safe(e.guidance?.debit||'A confirmar')+' <b>Crédito:</b> '+safe(e.guidance?.credit||'A confirmar')+'</div><div class="subtle">'+safe(e.guidance?.description||'Conferir documentos.')+'</div><small>'+safe(e.guidance?.status||'REVISAR')+'</small>' ]);
+ main.innerHTML=rows.length?table(['Data','Banco / Conta','Origem → Destino','Débito / Crédito','Valor','Ocorrência / Evidência','O que fazer','Como corrigir no Domínio'],rows):empty('Nenhuma diferença identificada pelos critérios exatos. Ainda confira saldos, completude e titularidade.');
  main.querySelectorAll('tbody tr').forEach((tr,i)=>tr.classList.add(display[i].tone==='red'?'row-red':'row-yellow'));
  if(analysis.events.length>250)main.innerHTML+='<p class="flag">Mostrando as primeiras 250 ocorrências. Exporte para Excel para ver todas as '+analysis.events.length+' linhas de auditoria.</p>';
 }
