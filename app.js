@@ -254,29 +254,36 @@ function autoSuggest(c,m){
  if(candidates.length===1){m.suggested=String(candidates[0].code);m.confidence='Sugestão por histórico e plano de contas — exige confirmação';}
 }
 function suggestFromHistoricalLedger(c,ym){
- // Apenas referências de meses ANTERIORES. Nunca interfere no motor de conciliação/saldos.
  const refs=(c.referenceLedgers||[]).filter(r=>(r.periods||[]).some(p=>p<ym));
  const moves=Core.periodMovements(c,ym),valid=new Set(c.plan.filter(p=>p.analytic).map(p=>String(p.code)));
- const banks=new Set(c.accounts.map(a=>String(a.chartCode))),bankById=new Map(c.accounts.map(a=>[a.id,String(a.chartCode)]));
- const signature=value=>String(value||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toUpperCase().replace(/\\b(?:CD|DOC|NSU|AUT|ID)\\s*[0-9A-Z]{5,}\\b/g,' ').replace(/\\b\\d{3,}\\b/g,' ').replace(/[^A-Z ]/g,' ').replace(/\\s+/g,' ').trim();
- const generic=/^(?:BOLETO PAGO|PIX ENVIADO|PIX RECEBIDO|PIX QRS|PAGAMENTO|TRANSFERENCIA|DEBITO|CREDITO)$/;
- const patterns=new Map();
+ const banks=new Set(c.accounts.map(a=>String(a.chartCode))),byId=new Map(c.accounts.map(a=>[a.id,String(a.chartCode)]));
+ const normalize=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\b(?:CD|DOC|NSU|AUT|ID)\s*[0-9A-Z]{5,}\b/g,' ').replace(/\b\d{3,}\b/g,' ').replace(/[^A-Z ]/g,' ').replace(/\s+/g,' ').trim();
+ const generic=/^(BOLETO PAGO|PIX ENVIADO|PIX RECEBIDO|PIX QRS|PAGAMENTO|TRANSFERENCIA|DEBITO|CREDITO)$/;
+ const index=new Map();
  for(const ref of refs)for(const e of ref.entries||[]){
-   const sig=signature(e.history);if(sig.length<11||generic.test(sig))continue;
-   for(const [bank,cp,dir] of [[String(e.debit),String(e.credit),1],[String(e.credit),String(e.debit),-1]]){
-    if(!banks.has(bank)||!valid.has(cp)||cp===bank||banks.has(cp))continue;
-    const key=bank+'|'+dir+'|'+sig;const candidates=patterns.get(key)||new Set();candidates.add(cp);patterns.set(key,candidates);
-   }
+  const h=normalize(e.history);if(h.length<8||generic.test(h))continue;
+  for(const [bank,cp,dir] of [[String(e.debit),String(e.credit),1],[String(e.credit),String(e.debit),-1]]){
+   if(!banks.has(bank)||!valid.has(cp)||cp===bank||banks.has(cp))continue;
+   const key=bank+'|'+dir;const list=index.get(key)||[];list.push({h,cp});index.set(key,list);
+  }
  }
  let applied=0,ambiguous=0;
  for(const m of moves){
   if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||m.suggested)continue;
-  const sig=signature(m.history),bank=bankById.get(m.accountId);
-  if(!bank||sig.length<11||generic.test(sig))continue;
-  const candidates=patterns.get(bank+'|'+(m.cents>0?1:-1)+'|'+sig);
-  if(!candidates)continue;
-  if(candidates.size!==1){ambiguous++;continue;}
-  m.suggested=[...candidates][0];m.confidence='Razão anterior: mesmo padrão de lançamento e conta bancária — revisar';applied++;
+  const bank=byId.get(m.accountId),h=normalize(m.history),party=normalize(m.party);
+  if(!bank||!h||generic.test(h)&&!party)continue;
+  const list=index.get(bank+'|'+(m.cents>0?1:-1))||[];
+  const score=entry=>{
+   if(entry.h===h&&h.length>=8)return 4;
+   if(party.length>=8&&entry.h.includes(party))return 3;
+   if(h.length>=12&&(entry.h.includes(h)||h.includes(entry.h)))return 2;
+   return 0;
+  };
+  const candidates=list.map(x=>({cp:x.cp,score:score(x)})).filter(x=>x.score>0);
+  if(!candidates.length)continue;
+  const best=Math.max(...candidates.map(x=>x.score)),codes=[...new Set(candidates.filter(x=>x.score===best).map(x=>x.cp))];
+  if(codes.length!==1){ambiguous++;continue;}
+  m.suggested=codes[0];m.confidence='Razão anterior: histórico ou favorecido correspondente — confirmar classificação';applied++;
  }
  return {applied,ambiguous};
 }
@@ -412,7 +419,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  }catch(err){show('error','Falha ao salvar o lote: '+(err.message||String(err))+'. Verifique o histórico antes de tentar novamente.');throw err;}
  finally{button.disabled=false;}
  })};
- $('#suggest').onclick=()=>action(async()=>{const c=getCompany();let changed=0;for(const m of Core.periodMovements(c,period)){if(m.status==='PENDENTE_DUPLICIDADE'||m.status==='CONFIRMADO'||transferIds(c).has(m.id))continue;const rules=c.rules.filter(r=>Core.norm(m.history).includes(Core.norm(r.term)));const codes=[...new Set(rules.map(r=>r.counterpart))];if(codes.length===1){m.suggested=codes[0];m.confidence='regra própria';changed++;}else if(!codes.length){autoSuggest(c,m);if(m.suggested)changed++;}}await store('SUGESTOES_GERADAS',`${changed} sugestões para ${period}`);say(`${changed} sugestões de contrapartida geradas. Confirme cada uma.`)});
+ $('#suggest').onclick=()=>action(async()=>{const c=getCompany();let changed=0;for(const m of Core.periodMovements(c,period)){if(m.status==='PENDENTE_DUPLICIDADE'||m.status==='CONFIRMADO'||transferIds(c).has(m.id))continue;const rules=c.rules.filter(r=>Core.norm(m.history).includes(Core.norm(r.term)));const codes=[...new Set(rules.map(r=>r.counterpart))];if(codes.length===1){m.suggested=codes[0];m.confidence='regra própria';changed++;}else if(!codes.length){autoSuggest(c,m);if(m.suggested)changed++;}}const hist=suggestFromHistoricalLedger(c,period);changed+=hist.applied;await store('SUGESTOES_GERADAS',`${changed} sugestões para ${period}; ${hist.applied} do Razão anterior; ${hist.ambiguous} ambíguas`);say(`${changed} sugestões de contrapartida geradas. Confirme cada uma.`)});
  $('#autoAnalyze').onclick=()=>action(async()=>{const c=getCompany(),moves=Core.periodMovements(c,period);if(!moves.length)throw Error('Importe os extratos da competência antes de analisar.');let rules=0;for(const m of moves){if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||transferIds(c).has(m.id))continue;if(!m.suggested){autoSuggest(c,m);if(m.suggested)rules++;}}
  const history=suggestFromHistoricalLedger(c,period);
  const ledger=suggestFromLedger(c,period),pairs=Core.transferSuggestions(c,period);const totalSuggested=moves.filter(m=>!!m.suggested&&!m.counterpart).length;await store('TRIAGEM_AUTOMATICA',`Competência ${period}: ${moves.length} movimentos; ${rules} novas regras; ${totalSuggested} sugestões presentes; ${ledger.applied} novas sugestões Razão; ${pairs.proposals.length} transferências possíveis`);
