@@ -7,6 +7,8 @@ const amount=/[+-]?\s*(?:R\$\s*)?(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2}/g;
 const dateIso=s=>{let m=String(s).match(/^(\d{2})\/(\d{2})\/(\d{2,4})$/);if(!m)return '';let y=m[3].length===2?'20'+m[3]:m[3];return y+'-'+m[2]+'-'+m[1]};
 function bankOf(pdf,name=''){const start=(pdf.lines||[]).filter(x=>x.page===1).slice(0,28).map(x=>x.content).join(' '),all=pdf.text||'',n=norm(start),f=norm(name);
  if(n.includes('GERENCIADOR CAIXA')||n.includes('EXTRATO POR PERIODO')&&n.includes('CLIENTE')||f.includes('EXTRATO CAIXA'))return 'Caixa';
+ if(n.includes('SICREDI')||f.includes('SICREDI'))return 'Sicredi';
+ if(n.includes('STONE')||f.includes('STONE'))return 'Stone';
  if(n.includes('STONE INSTITUICAO DE PAGAMENTO')||n.includes('STONE INSTITUICAO'))return 'Stone';
  if(n.includes('PAGSEGURO INTERNET')||n.includes('EXTRATO DA CONTA')&&n.includes('PAGSEGURO'))return 'PagBank';
  if(n.includes('TOTAL DE ENTRADAS')&&n.includes('TOTAL DE SAIDAS')&&/SETEMBRO|AGOSTO|OUTUBRO|JANEIRO|FEVEREIRO|MARCO|ABRIL|MAIO|JUNHO|JULHO|NOVEMBRO|DEZEMBRO/.test(n))return 'Nubank';
