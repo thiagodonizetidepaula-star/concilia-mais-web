@@ -348,28 +348,37 @@ c.name=info.name||c.name;c.cnpj=info.cnpj||c.cnpj;c.dominio=info.dominio||c.domi
  $('#importStatement').onsubmit=e=>{e.preventDefault();action(async()=>{try{setStatementStatus('working','Lendo o extrato. Aguarde a confirmação da quantidade de movimentações.');const c=getCompany(),f=e.currentTarget;if(!canImport(c))throw Error('Importe primeiro o plano de contas.');const files=Array.from(f.elements.file.files);if(!files.length)throw Error('Selecione pelo menos um extrato.');if(files.length>20)throw Error('Importe até 20 extratos por lote para evitar lentidão no celular.');const selectedAccount=f.elements.accountId.value;const batchResults=[];for(const file of files){try{setStatementStatus('working',`Processando ${batchResults.length+1} de ${files.length}: ${file.name}...`);const ext=fileExt(file.name);if(!['pdf','csv','txt','ofx'].includes(ext))throw Error('Use PDF digital, CSV, TXT ou OFX.');const bytes=await file.arrayBuffer(),sha=await hash(bytes);const previous=c.imports.find(x=>x.type==='EXTRATO'&&x.sha===sha);if(previous){batchResults.push({ok:false,skipped:true,name:file.name,periods:previous.periods||[],count:previous.movementCount||0});continue;}
 let txt='',pdf=null;if(ext==='pdf'){say('Extraindo movimentações do PDF digital...');try{pdf=await Pdf.extractPdf(file);txt=pdf.text}catch(err){throw Error('PDF não interpretado: '+err.message+'; tente CSV ou OFX.')}}else txt=(await asText(file)).txt;
 const bank=ext==='pdf'?(window.ConciliaLayouts.bankOf(pdf,file.name)||Pdf.detectBank(txt,file.name)):Pdf.detectBank(txt,file.name);
-let matchedAccountId='';if(ext==='pdf'){const header=Pdf.identity(pdf.lines.slice(0,18).map(x=>x.content).join('\n'));header.cnpj=header.cnpj||window.ConciliaLayouts.documentCnpj(pdf);if(!header.cnpj){
- const label=(pdf.text||'').match(/(?:^|\n)\s*Cliente\s*:\s*([^\n]{4,120})/i);
- const clean=t=>Core.norm(String(t||'').replace(/\b(LTDA|LIMITADA|ME|EPP)\b/gi,'').replace(/[^\p{L}\p{N} ]/gu,' ').replace(/\s+/g,' ').trim());
- const printed=label?.[1]?.trim()||header.name||'';
- const matching=printed?state.companies.filter(x=>clean(x.name)===clean(printed)):[];
- if(matching.length!==1||matching[0].id!==c.id)throw Error('Extrato sem CNPJ: titular '+(printed||'não identificado')+' não corresponde de forma única à empresa selecionada. Confira o cliente antes de importar.');
- const possible=c.accounts.filter(x=>!bank||Core.norm(x.bank)===Core.norm(bank));
- const chosen=c.accounts.find(x=>x.id===selectedAccount)||(possible.length===1?possible[0]:null);
- if(chosen&&bank&&Core.norm(chosen.bank)!==Core.norm(bank))throw Error('Banco informado não confere com a conta selecionada.');
- const inferredCode=chosen?'':guessBankAccount(c,bank);
- if(!chosen&&!inferredCode)throw Error('Titular reconhecido, mas não foi possível identificar uma conta bancária analítica única no plano. Vincule a conta da Caixa em Plano de contas e empresa.');
- if(!confirm('Titular identificado: '+printed+'. Banco: '+(bank||'não identificado')+'. Código contábil: '+(chosen?.chartCode||inferredCode)+'. Confirma que a agência e conta no PDF pertencem à empresa '+c.name+'?'))throw Error('Confirmação cancelada; extrato não importado.');
- matchedAccountId=chosen?.id||'';
- }if(c.cnpj&&header.cnpj&&c.cnpj!==header.cnpj)throw Error('CNPJ do extrato diferente do CNPJ do plano. Importação bloqueada.');if(!c.cnpj&&header.cnpj){if(!confirm('Plano sem CNPJ. O extrato indica '+header.cnpj+'. Confirma que pertencem à mesma empresa?'))return;c.cnpj=header.cnpj;c.identityVerified=true;}}
-let account=c.accounts.find(a=>a.id===(selectedAccount||matchedAccountId));
-if(account&&bank&&Core.norm(account.bank)!==Core.norm(bank))throw Error('Banco selecionado difere do banco encontrado no extrato.');
-if(!account){const possible=c.accounts.filter(a=>a.bank===bank&&c.plan.some(p=>p.code===a.chartCode&&p.analytic));if(possible.length>1)throw Error('Há mais de uma conta do mesmo banco. Selecione a conta correta para evitar mistura.');account=possible[0];}
-if(!account){const code=guessBankAccount(c,bank);if(bank&&code){account={id:Core.id(),bank,label:'Identificação automática do extrato',chartCode:code};c.accounts.push(account)}}
-if(!account)throw Error('Código do banco não identificado com segurança. Abra Plano de contas e empresa, vincule o banco a uma conta analítica e reimporte.');
+// A empresa selecionada e seu plano definem o destino da importação.
+// Identificadores de PDFs podem faltar: nesses casos, registrar alerta, não bloquear a leitura.
+let identityWarning='';
+if(ext==='pdf'){
+ const header=Pdf.identity(pdf.lines.slice(0,18).map(x=>x.content).join('\n'));
+ header.cnpj=header.cnpj||window.ConciliaLayouts.documentCnpj(pdf);
+ if(c.cnpj&&header.cnpj&&c.cnpj!==header.cnpj)
+   throw Error('O PDF contém CNPJ diferente do cliente selecionado. Selecione a empresa correta.');
+ if(!header.cnpj)identityWarning='PDF sem CNPJ identificável. Confira titular e conta bancária da empresa selecionada.';
+}
+let account=c.accounts.find(a=>a.id===selectedAccount);
+if(account&&bank&&Core.norm(account.bank)!==Core.norm(bank))
+ throw Error('Banco selecionado difere do encontrado no extrato.');
+if(!account){
+ const possible=c.accounts.filter(x=>Core.norm(x.bank)===Core.norm(bank)&&c.plan.some(p=>String(p.code)===String(x.chartCode)&&p.analytic));
+ if(possible.length===1)account=possible[0];
+}
+if(!account){
+ const code=guessBankAccount(c,bank);
+ if(bank&&code){account={id:Core.id(),bank,label:'Identificação automática do extrato',chartCode:code};c.accounts.push(account);}
+}
+if(!account){
+ // Conta não classificada: permitir leitura e revisão, sem associar código contábil falso.
+ account={id:Core.id(),bank:bank||'Banco não identificado',label:'Conta pendente de identificação contábil',chartCode:''};
+ c.accounts.push(account);
+ identityWarning=[identityWarning,'Conta bancária ainda sem código validado no plano. Revise antes de exportar para contabilização.'].filter(Boolean).join(' ');
+}
 const parsed=ext==='pdf'?window.ConciliaLayouts.parseStatement(pdf,file.name,account.id,period,Core,bank,()=>Pdf.parseStatementPdf(pdf,file.name,account.id,period,Core,bank)):ext==='ofx'?Core.parseOfx(txt,account.id,file.name):Core.parseStatementCsv(Core.parseCsv(txt),account.id,file.name);
 if(!parsed.movements.length){await afterImport('EXTRATO',c,file,parsed,sha);await store('ARQUIVO_REVISAO',file.name+' • nenhuma movimentação reconhecida');throw Error('Nenhum movimento reconhecido. Confira Revisão; PDFs digitalizados exigem OCR ainda indisponível.')}
 let overlaps=0;const fingerprint=m=>m.accountId+'|'+m.date+'|'+m.cents+'|'+Core.norm(m.history),seen=new Set(c.movements.map(fingerprint));for(const m of parsed.movements){const key=fingerprint(m);if(seen.has(key)){m.status='PENDENTE_DUPLICIDADE';overlaps++}seen.add(key);if(m.status!=='PENDENTE_DUPLICIDADE')autoSuggest(c,m)}
+if(identityWarning)parsed.reviews.push({origin:file.name,line:'cabeçalho',content:identityWarning,reason:'Conferir identificação bancária antes da contabilização'});
 const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core.id();for(const m of parsed.movements)m.importId=importId;c.movements.push(...parsed.movements);c.imports.push({id:importId,type:'EXTRATO',name:file.name,sha,accountId:account.id,bank:account.bank,periods,movementCount:parsed.movements.length,reviewCount:parsed.reviews.length,balanceCheck:parsed.balanceCheck||null,at:new Date().toISOString(),format:parsed.format||ext.toUpperCase(),identityConfirmation:ext==='pdf'&&!Pdf.identity(pdf.lines.slice(0,18).map(x=>x.content).join('\n')).cnpj&&!window.ConciliaLayouts.documentCnpj(pdf)?'CONFIRMADA_MANUALMENTE':'DOCUMENTO_COM_CNPJ'});await afterImport('EXTRATO',c,file,parsed,sha,importId);if(periods.length===1){period=periods[0];$('#period').value=period}await store('EXTRATO_IMPORTADO',file.name+': '+parsed.movements.length+' movimentos, '+parsed.reviews.length+' revisões; saldos '+(parsed.balanceCheck?.status||'indeterminado'));batchResults.push({ok:true,name:file.name,count:parsed.movements.length,review:parsed.reviews.length,duplicate:overlaps,periods});
  }catch(fileError){console.warn('Extrato não importado',file.name,fileError);batchResults.push({ok:false,name:file.name,error:fileError.message||String(fileError)});} }
 
