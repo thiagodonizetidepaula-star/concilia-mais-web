@@ -292,7 +292,7 @@ function suggestFromHistoricalLedger(c,ym){
  };
  const examples=new Map();
  for(const ref of refs)for(const e of ref.entries||[]){
-  const h=normalize(e.history);if(!h||generic.test(h))continue;
+  const h=normalize(e.history);if(!h||generic.test(h)||![String(e.debit),String(e.credit)].some(x=>banks.has(x)))continue;
   // Orientação vem do débito/crédito contabilizado no Razão, não da conta de origem.
   for(const [cp,dir] of [[String(e.credit),1],[String(e.debit),-1]]){
    if(!valid.has(cp)||banks.has(cp))continue;
@@ -409,7 +409,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  const allPeriods=[...new Set(batchResults.filter(r=>r.ok||r.skipped).flatMap(r=>r.periods||[]))];
  if(allPeriods.length===1){period=allPeriods[0];$('#period').value=period;}
  let totalSuggested=0,possibleTransfers=0,ambiguousTransfers=0,ledgerHits=0;
- for(const ym of allPeriods){ledgerHits+=suggestFromHistoricalLedger(c,ym).applied;ledgerHits+=suggestFromLedger(c,ym).applied;const moves=Core.periodMovements(c,ym);totalSuggested+=moves.filter(m=>m.suggested&&!m.counterpart).length;const pairs=Core.transferSuggestions(c,ym);possibleTransfers+=pairs.proposals.length;ambiguousTransfers+=pairs.ambiguous.length;}
+ for(const ym of allPeriods){ledgerHits+=suggestFromHistoricalLedger(c,ym).applied;const moves=Core.periodMovements(c,ym);totalSuggested+=moves.filter(m=>m.suggested&&!m.counterpart).length;const pairs=Core.transferSuggestions(c,ym);possibleTransfers+=pairs.proposals.length;ambiguousTransfers+=pairs.ambiguous.length;}
  if(ok.length||ledgerHits)await store('IMPORTACAO_EM_LOTE',`${ok.length} novos, ${skipped.length} já existentes, ${bad.length} falhas; ${total} novas movimentações`);else render();
  const failures=bad.map(r=>`${r.name}: ${r.error}`).join(' | ');
  const diagnostics=batchResults.map(r=>(r.ok?'IMPORTADO':r.skipped?'JÁ EXISTENTE':'FALHOU')+' — '+r.name+(r.ok?' ('+r.count+' lançamentos)':'')+(r.error?' — '+r.error:'')).join(' | ');
@@ -484,7 +484,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  $('#suggest').onclick=()=>action(async()=>{const c=getCompany();let changed=0;for(const m of Core.periodMovements(c,period)){if(m.status==='PENDENTE_DUPLICIDADE'||m.status==='CONFIRMADO'||transferIds(c).has(m.id))continue;const rules=c.rules.filter(r=>Core.norm(m.history).includes(Core.norm(r.term)));const codes=[...new Set(rules.map(r=>r.counterpart))];if(codes.length===1){m.suggested=codes[0];m.confidence='regra própria';changed++;}else if(!codes.length){autoSuggest(c,m);if(m.suggested)changed++;}}const hist=suggestFromHistoricalLedger(c,period);changed+=hist.applied;await store('SUGESTOES_GERADAS',`${changed} sugestões para ${period}; ${hist.applied} do Razão anterior; ${hist.ambiguous} ambíguas`);say(`${changed} sugestões de contrapartida geradas. Confirme cada uma.`)});
  $('#autoAnalyze').onclick=()=>action(async()=>{const c=getCompany(),moves=Core.periodMovements(c,period);if(!moves.length)throw Error('Importe os extratos da competência antes de analisar.');let rules=0;for(const m of moves){if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||transferIds(c).has(m.id))continue;if(!m.suggested){autoSuggest(c,m);if(m.suggested)rules++;}}
  const history=suggestFromHistoricalLedger(c,period);
- const ledger=suggestFromLedger(c,period),pairs=Core.transferSuggestions(c,period);const totalSuggested=moves.filter(m=>!!m.suggested&&!m.counterpart).length;await store('TRIAGEM_AUTOMATICA',`Competência ${period}: ${moves.length} movimentos; ${rules} novas regras; ${totalSuggested} sugestões presentes; ${ledger.applied} novas sugestões Razão; ${pairs.proposals.length} transferências possíveis`);
+ const ledger={applied:0,ambiguous:0},pairs=Core.transferSuggestions(c,period);const totalSuggested=moves.filter(m=>!!m.suggested&&!m.counterpart).length;await store('TRIAGEM_AUTOMATICA',`Competência ${period}: ${moves.length} movimentos; ${rules} novas regras; ${totalSuggested} sugestões presentes; ${ledger.applied} novas sugestões Razão; ${pairs.proposals.length} transferências possíveis`);
  setStatementStatus('success',`TRIAGEM AUTOMÁTICA ${period}: ${moves.length} movimentos já importados; ${totalSuggested} sugestões de contrapartida no total (${rules} por regras, ${history.applied} pelo histórico e ${ledger.applied} pelo Razão atual); ${ledger.ambiguous} registros do Razão ambíguos; ${pairs.proposals.length} transferências candidatas e ${pairs.ambiguous.length} ambiguidades. Sugestões não são confirmações: confira Classificações.`);
  say('Triagem concluída. Confira Classificações e Transferências antes de exportar.');});
  $('#findTransfers').onclick=()=>action(async()=>{const c=getCompany(),s=Core.transferSuggestions(c,period);say(`${s.proposals.length} par(es) com correspondência única; ${s.ambiguous.length} ambíguos. Nenhuma transferência foi confirmada automaticamente.`);renderTransfers()});
