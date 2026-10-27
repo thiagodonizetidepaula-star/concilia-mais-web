@@ -80,7 +80,9 @@
  const rejected=new Set((company.transfers||[]).filter(t=>t.status==='REJEITADA').map(t=>t.outId+'|'+t.inId));
  const outs=moves.filter(m=>m.cents<0&&!confirmed.has(m.id));
  const ins=moves.filter(m=>m.cents>0&&!confirmed.has(m.id));
- const eligible=(out,inn)=>out.accountId!==inn.accountId&&-out.cents===inn.cents&&dayDistance(out.date,inn.date)<=2&&!rejected.has(out.id+'|'+inn.id);
+ const codeById=new Map((company.accounts||[]).map(a=>[a.id,String(a.chartCode||'')]));
+ const allowed=new Set((company.plan||[]).filter(p=>p.analytic).map(p=>String(p.code)));
+ const eligible=(out,inn)=>out.accountId!==inn.accountId&&allowed.has(codeById.get(out.accountId))&&allowed.has(codeById.get(inn.accountId))&&codeById.get(out.accountId)!==codeById.get(inn.accountId)&&-out.cents===inn.cents&&dayDistance(out.date,inn.date)<=2&&!rejected.has(out.id+'|'+inn.id);
  const proposals=[],ambiguous=[];
  for(const out of outs){const candidates=ins.filter(inn=>eligible(out,inn));if(!candidates.length)continue;
    const unique=candidates.length===1&&outs.filter(o=>eligible(o,candidates[0])).length===1;
