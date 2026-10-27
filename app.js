@@ -276,36 +276,53 @@ function autoSuggest(c,m){
  if(candidates.length===1){m.suggested=String(candidates[0].code);m.confidence='Sugestão por histórico e plano de contas — exige confirmação';}
 }
 function suggestFromHistoricalLedger(c,ym){
+ // Razões anteriores da MESMA empresa são exemplos opcionais, independentemente do banco.
+ // Não são usados para conciliar saldos nem para confirmar lançamentos automaticamente.
  const refs=(c.referenceLedgers||[]).filter(r=>(r.periods||[]).some(p=>p<ym));
  const moves=Core.periodMovements(c,ym),valid=new Set(c.plan.filter(p=>p.analytic).map(p=>String(p.code)));
- const banks=new Set(c.accounts.map(a=>String(a.chartCode))),byId=new Map(c.accounts.map(a=>[a.id,String(a.chartCode)]));
+ const banks=new Set(c.accounts.map(a=>String(a.chartCode)).filter(x=>valid.has(x)));
+ const byId=new Map(c.accounts.map(a=>[a.id,String(a.chartCode)]));
  const normalize=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/\b(?:CD|DOC|NSU|AUT|ID)\s*[0-9A-Z]{5,}\b/g,' ').replace(/\b\d{3,}\b/g,' ').replace(/[^A-Z ]/g,' ').replace(/\s+/g,' ').trim();
- const generic=/^(BOLETO PAGO|PIX ENVIADO|PIX RECEBIDO|PIX QRS|PAGAMENTO|TRANSFERENCIA|DEBITO|CREDITO)$/;
- const index=new Map();
+ const generic=/^(BOLETO PAGO|PIX ENVIADO|PIX RECEBIDO|PIX QRS|PAGAMENTO|TRANSFERENCIA|DEBITO|CREDITO|ENVIO PIX|DEB PIX CH|CRE PIX CH|CRED PIX)$/;
+ const types=t=>{
+  if(/RECEBIMENTO VENDAS/.test(t))return 'VENDA';
+  if(/TARIFA|CESTA DE RELACIONAMENTO|MENSALIDADE CESTA/.test(t))return 'TARIFA';
+  if(/RENDIMENTO/.test(t))return 'RENDIMENTO';
+  return '';
+ };
+ const examples=new Map();
  for(const ref of refs)for(const e of ref.entries||[]){
-  const h=normalize(e.history);if(h.length<8||generic.test(h))continue;
-  for(const [bank,cp,dir] of [[String(e.debit),String(e.credit),1],[String(e.credit),String(e.debit),-1]]){
-   if(!banks.has(bank)||!valid.has(cp)||cp===bank||banks.has(cp))continue;
-   const key=bank+'|'+dir;const list=index.get(key)||[];list.push({h,cp});index.set(key,list);
+  const h=normalize(e.history);if(!h||generic.test(h))continue;
+  // Orientação vem do débito/crédito contabilizado no Razão, não da conta de origem.
+  for(const [cp,dir] of [[String(e.credit),1],[String(e.debit),-1]]){
+   if(!valid.has(cp)||banks.has(cp))continue;
+   const key=String(dir),list=examples.get(key)||[];
+   list.push({h,cp,type:types(h)});examples.set(key,list);
   }
  }
+ const transfer=Core.transferSuggestions(c,ym);
+ const likelyTransfer=new Set([...transfer.proposals.flatMap(p=>[p.outId,p.inId]),...transfer.ambiguous.flatMap(p=>[p.outId,...p.possibleInIds])]);
  let applied=0,ambiguous=0;
  for(const m of moves){
-  if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||m.suggested)continue;
+  if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||m.suggested||likelyTransfer.has(m.id))continue;
   const bank=byId.get(m.accountId),h=normalize(m.history),party=normalize(m.party);
-  if(!bank||!h||generic.test(h)&&!party)continue;
-  const list=index.get(bank+'|'+(m.cents>0?1:-1))||[];
+  if(!valid.has(bank)||!h)continue;
+  const type=types(h),list=examples.get(String(m.cents>0?1:-1))||[];
   const score=entry=>{
-   if(entry.h===h&&h.length>=8)return 4;
-   if(party.length>=8&&entry.h.includes(party))return 3;
-   if(h.length>=12&&(entry.h.includes(h)||h.includes(entry.h)))return 2;
+   if(!generic.test(h)&&h.length>=10&&entry.h===h)return 4;
+   if(party.length>=9&&entry.h.includes(party))return 3;
+   if(!generic.test(h)&&h.length>=14&&(entry.h.includes(h)||h.includes(entry.h)))return 2;
+   if(type&&entry.type===type)return 1;
    return 0;
   };
   const candidates=list.map(x=>({cp:x.cp,score:score(x)})).filter(x=>x.score>0);
   if(!candidates.length)continue;
-  const best=Math.max(...candidates.map(x=>x.score)),codes=[...new Set(candidates.filter(x=>x.score===best).map(x=>x.cp))];
+  const best=Math.max(...candidates.map(x=>x.score));
+  const codes=[...new Set(candidates.filter(x=>x.score===best).map(x=>x.cp))];
   if(codes.length!==1){ambiguous++;continue;}
-  m.suggested=codes[0];m.confidence='Razão anterior: histórico ou favorecido correspondente — confirmar classificação';applied++;
+  m.suggested=codes[0];
+  m.confidence=(best===1?'Padrão histórico da empresa':'Histórico ou favorecido do Razão anterior')+' — confirmar no plano de contas';
+  applied++;
  }
  return {applied,ambiguous};
 }
