@@ -337,11 +337,12 @@ let matchedAccountId='';if(ext==='pdf'){const header=Pdf.identity(pdf.lines.slic
  const matching=printed?state.companies.filter(x=>clean(x.name)===clean(printed)):[];
  if(matching.length!==1||matching[0].id!==c.id)throw Error('Extrato sem CNPJ: titular '+(printed||'não identificado')+' não corresponde de forma única à empresa selecionada. Confira o cliente antes de importar.');
  const possible=c.accounts.filter(x=>!bank||Core.norm(x.bank)===Core.norm(bank));
- if(possible.length!==1&& !c.accounts.some(x=>x.id===selectedAccount))throw Error('Titular reconhecido pelo nome, mas a conta bancária não é única. Selecione a conta correta e tente novamente.');
- const chosen=c.accounts.find(x=>x.id===selectedAccount)||possible[0];
- if(bank&&Core.norm(chosen.bank)!==Core.norm(bank))throw Error('Banco informado não confere com a conta selecionada.');
- if(!confirm('CNPJ ausente no PDF. Titular identificado: '+printed+'. Confirma que a conta '+(chosen.label||chosen.bank)+' pertence à empresa '+c.name+'? Verifique agência e número da conta antes de continuar.'))throw Error('Confirmação cancelada; extrato não importado.');
- matchedAccountId=chosen.id;
+ const chosen=c.accounts.find(x=>x.id===selectedAccount)||(possible.length===1?possible[0]:null);
+ if(chosen&&bank&&Core.norm(chosen.bank)!==Core.norm(bank))throw Error('Banco informado não confere com a conta selecionada.');
+ const inferredCode=chosen?'':guessBankAccount(c,bank);
+ if(!chosen&&!inferredCode)throw Error('Titular reconhecido, mas não foi possível identificar uma conta bancária analítica única no plano. Vincule a conta da Caixa em Plano de contas e empresa.');
+ if(!confirm('Titular identificado: '+printed+'. Banco: '+(bank||'não identificado')+'. Código contábil: '+(chosen?.chartCode||inferredCode)+'. Confirma que a agência e conta no PDF pertencem à empresa '+c.name+'?'))throw Error('Confirmação cancelada; extrato não importado.');
+ matchedAccountId=chosen?.id||'';
  }if(c.cnpj&&header.cnpj&&c.cnpj!==header.cnpj)throw Error('CNPJ do extrato diferente do CNPJ do plano. Importação bloqueada.');if(!c.cnpj&&header.cnpj){if(!confirm('Plano sem CNPJ. O extrato indica '+header.cnpj+'. Confirma que pertencem à mesma empresa?'))return;c.cnpj=header.cnpj;c.identityVerified=true;}}
 let account=c.accounts.find(a=>a.id===(selectedAccount||matchedAccountId));
 if(account&&bank&&Core.norm(account.bank)!==Core.norm(bank))throw Error('Banco selecionado difere do banco encontrado no extrato.');
