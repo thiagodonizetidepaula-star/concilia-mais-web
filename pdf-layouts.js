@@ -110,6 +110,31 @@ function parseDominioLedgerPdf(pdf,origin,Core){const all=pdf.items||[],pages=pd
  if(openMatch){openingBalance=money(openMatch[1]+','+openMatch[2],Core)*(openMatch[3].toUpperCase()==='C'?-1:1)}
  return{entries,reviews,format:'RAZAO_PDF_DOMINIO',accountCode:bankCode,openingBalance};
 }
-function parseStatement(pdf,origin,accountId,period,Core,bank,fallback){switch(bank){case'PagBank':return parsePagBank(pdf,origin,accountId,Core);case'Stone':return parseStone(pdf,origin,accountId,Core);case'Nubank':return parseNubank(pdf,origin,accountId,Core);default:return fallback();}}
-return{bankOf,documentCnpj,parseStatement,parsePagBank,parseStone,parseNubank,parseDominioLedgerPdf};
+function parseCaixa(pdf,origin,accountId,Core){
+ const movements=[],reviews=[],dailyBalances=[];
+ const moneyBR=t=>Math.round(Number(String(t).replace(/\./g,'').replace(',','.'))*100);
+ const rx=/^(\d{2}\/\d{2}\/\d{4})\s+(\d{5,8})\s+(.+?)\s+([\d.]+,\d{2})\s*([CD])\s+([\d.]+,\d{2})\s*([CD])\s*$/i;
+ let previousBalance=null,firstBalance=null;
+ for(const row of linesOf(pdf)){
+  const line=row.s;
+  const m=line.match(rx);
+  if(!m){if(/^\d{2}\/\d{2}\/\d{4}\s/.test(line))reviews.push({origin,line:row.line,content:line,reason:'Linha Caixa não reconhecida'});continue;}
+  const [,rawDate,documentNo,history,amount,side,balance,balanceSide]=m;
+  const date=dateIso(rawDate),cents=moneyBR(amount)*(side.toUpperCase()==='D'?-1:1),running=moneyBR(balance)*(balanceSide.toUpperCase()==='D'?-1:1);
+  if(!date||!Number.isFinite(cents)||!Number.isFinite(running)){reviews.push({origin,line:row.line,content:line,reason:'Data ou valor inválido'});continue;}
+  if(/^(SALDO DIA|SALDO ANTERIOR|SALDO FINAL)/i.test(history)){dailyBalances.push({date,cents:running});if(firstBalance===null&&/SALDO ANTERIOR/i.test(history))firstBalance=running;continue;}
+  movements.push({id:Core.id(),date,cents,history:history.trim()+' • Doc. '+documentNo,documentNo,party:'',accountId,origin,line:row.line,status:'PENDENTE',counterpart:'',method:'PDF_CAIXA_GERENCIADOR',statementBalance:running});
+  previousBalance=running;
+ }
+ const totals=(pdf.lines||[]).filter(x=>/SALDO ANTERIOR/i.test(x.content||''));
+ for(const row of totals){const m=String(row.content).match(/SALDO ANTERIOR\s+([\d.]+,\d{2})\s+([\d.]+,\d{2})\s*([CD])/i);if(m){firstBalance=moneyBR(m[2])*(m[3].toUpperCase()==='D'?-1:1);break;}}
+ const final=previousBalance;
+ const net=movements.reduce((sum,m)=>sum+m.cents,0);
+ const difference=firstBalance===null||final===null?null:firstBalance+net-final;
+ const balanceCheck=difference===null?{status:'INDETERMINADO',reason:'Saldo inicial ou final não reconhecido'}:{status:Math.abs(difference)<=1?'OK':'DIVERGENTE',initial:firstBalance,final,net,difference,count:movements.length,reason:'Movimentos e saldo do extrato Caixa'};
+ if(!movements.length)reviews.push({origin,line:'?',content:'Extrato Caixa sem movimentos interpretáveis',reason:'Verifique texto digital ou exporte em OFX'});
+ return {movements,reviews,balanceCheck,format:'PDF_CAIXA_GERENCIADOR',parsedCount:movements.length};
+}
+function parseStatement(pdf,origin,accountId,period,Core,bank,fallback){switch(bank){case'PagBank':return parsePagBank(pdf,origin,accountId,Core);case'Stone':return parseStone(pdf,origin,accountId,Core);case'Nubank':return parseNubank(pdf,origin,accountId,Core);case'Caixa':return parseCaixa(pdf,origin,accountId,Core);default:return fallback();}}
+return{bankOf,documentCnpj,parseStatement,parsePagBank,parseStone,parseNubank,parseCaixa,parseDominioLedgerPdf};
 });
