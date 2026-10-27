@@ -241,7 +241,25 @@ async function afterImport(type,c,file,result,sha,importId=''){const rr=result.r
 function putFile(file,name,content){const blob=new Blob([content],{type:'text/plain;charset=utf-8'});const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)}
 
 function planSource(text){const rows=String(text).replace(/^\uFEFF/,'').split(/\r?\n/);const index=rows.findIndex(x=>/(?:codigo|c[oó]digo|classificacao|classifica[cç][aã]o)/i.test(x)&&/(?:descricao|descri[cç][aã]o|nome)/i.test(x));if(index<0)throw Error('O plano precisa de colunas Código e Descrição. Exporte para CSV/TXT pelo Domínio.');return {table:rows.slice(index).join('\n'),metadata:rows.slice(0,Math.max(index,1)).join('\n')}}
-function guessBankAccount(c,bank){if(!bank)return '';const n=Core.norm(bank);const candidates=c.plan.filter(a=>a.analytic).filter(a=>{const desc=Core.norm(a.description);const found=n.includes('itau')?desc.includes('itau'):n.includes('caixa')?desc.includes('caixaeconomica')||desc.includes('caixafederal'):n.includes('bancodobrasil')?desc.includes('bancodobrasil'):desc.includes(n);return found&&!/(emprestimo|financiamento|cartao|credito|aplicacao|rendimento|tarifa|despesa)/.test(desc)});return candidates.length===1?candidates[0].code:''}
+function guessBankAccount(c,bank){
+ if(!bank)return '';
+ const n=Core.norm(bank);
+ const isBankAccount=a=>{
+  if(!a.analytic)return false;
+  const classification=String(a.classification||'');
+  const desc=Core.norm(a.description);
+  if(classification&& !classification.startsWith('1.1.1.02.'))return false;
+  return !/(emprestimo|financiamento|cartao|credito|aplicacao|rendimento|tarifa|despesa|caixageral|fundofixo)/.test(desc);
+ };
+ const candidates=c.plan.filter(isBankAccount).filter(a=>{
+  const desc=Core.norm(a.description);
+  if(n.includes('caixa'))return desc==='caixaeconomicafederal'||desc==='bancocaixaeconomicafederal'||desc==='caixaeconomica'||desc==='bancocaixa';
+  if(n.includes('itau'))return desc.includes('itau');
+  if(n.includes('bancodobrasil'))return desc==='bancodobrasil';
+  return desc.includes(n);
+ });
+ return candidates.length===1?String(candidates[0].code):'';
+}
 function autoSuggest(c,m){
  if(m.status==='PENDENTE_DUPLICIDADE'||m.status==='CONFIRMADO')return;
  const h=Core.norm(m.history);
