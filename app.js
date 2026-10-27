@@ -297,30 +297,6 @@ function suggestFromLedger(c,ym){
  }
  return {applied,conflicts,ambiguous:analysis.ambiguous};
 }
-function requestClientRegistration(selected,detectedName){
- return new Promise(resolve=>{
-  const dialog=$('#clientImportDialog'),form=$('#clientImportForm'),notice=$('#clientImportNotice');
-  if(!dialog||!form)return resolve(null);
-  form.reset();$('#clientImportName').value=detectedName||selected.name||'';
-  $('#clientImportCnpj').value=selected.cnpj||'';
-  notice.textContent='O cadastro será vinculado à empresa atualmente selecionada. Para outra empresa, selecione o plano dela primeiro.';
-  const finish=data=>{form.onsubmit=null;$('#clientImportCancel').onclick=null;dialog.close();resolve(data);};
-  $('#clientImportCancel').onclick=()=>finish(null);
-  dialog.oncancel=e=>{e.preventDefault();finish(null);};
-  form.onsubmit=e=>{
-   e.preventDefault();
-   const name=$('#clientImportName').value.trim(),cnpj=$('#clientImportCnpj').value.replace(/\D/g,'');
-   if(cnpj.length!==14){notice.textContent='Informe os 14 dígitos do CNPJ.';return;}
-   if(selected.cnpj&&selected.cnpj!==cnpj){notice.textContent='O CNPJ é diferente do plano selecionado. Selecione a empresa correta; não é permitido trocar o titular do plano.';return;}
-   if(state.companies.some(x=>x.id!==selected.id&&x.cnpj===cnpj)){notice.textContent='Esse CNPJ já pertence a outra empresa cadastrada. Selecione-a antes de importar.';return;}
-   const normalize=t=>Core.norm(String(t||'').replace(/\b(LTDA|LIMITADA|ME|EPP)\b/gi,'').replace(/[^\p{L}\p{N} ]/gu,' ').replace(/\s+/g,' ').trim());
-   if(selected.name&&normalize(selected.name)!==normalize(name)){notice.textContent='O nome é diferente da empresa selecionada. Selecione o plano do cliente correto antes de importar.';return;}
-   if(detectedName&&normalize(detectedName)!==normalize(name)){notice.textContent='O nome informado não confere com o titular indicado no PDF.';return;}
-   finish({name,cnpj});
-  };
-  dialog.showModal();
- });
-}
 function binds(){
  bindCloud();
  $('#companySearch').oninput=()=>renderSelection();
@@ -356,15 +332,15 @@ let txt='',pdf=null;if(ext==='pdf'){say('Extraindo movimentações do PDF digita
 const bank=ext==='pdf'?(window.ConciliaLayouts.bankOf(pdf,file.name)||Pdf.detectBank(txt,file.name)):Pdf.detectBank(txt,file.name);
 let matchedAccountId='';if(ext==='pdf'){const header=Pdf.identity(pdf.lines.slice(0,18).map(x=>x.content).join('\n'));header.cnpj=header.cnpj||window.ConciliaLayouts.documentCnpj(pdf);if(!header.cnpj){
  const label=(pdf.text||'').match(/(?:^|\n)\s*Cliente\s*:\s*([^\n]{4,120})/i);
+ const clean=t=>Core.norm(String(t||'').replace(/\b(LTDA|LIMITADA|ME|EPP)\b/gi,'').replace(/[^\p{L}\p{N} ]/gu,' ').replace(/\s+/g,' ').trim());
  const printed=label?.[1]?.trim()||header.name||'';
- const confirmed=await requestClientRegistration(c,printed);
- if(!confirmed)throw Error('Cadastro não confirmado. Selecione o cliente para continuar.');
- if(!c.cnpj){c.cnpj=confirmed.cnpj;c.identityVerified=true;await store('CNPJ_CLIENTE_CONFIRMADO','Cadastro da empresa '+c.name+' conferido durante importação');}
- const choices=c.accounts.filter(x=>!bank||Core.norm(x.bank)===Core.norm(bank));
- const chosen=c.accounts.find(x=>x.id===selectedAccount)|| (choices.length===1?choices[0]:null);
- if(!chosen)throw Error('Cliente confirmado. Cadastre ou selecione a conta bancária do cliente antes de importar este PDF.');
- if(bank&&Core.norm(chosen.bank)!==Core.norm(bank))throw Error('O banco do extrato é diferente da conta escolhida.');
- if(!confirm('Cliente identificado: '+confirmed.name+'. Confira agência e conta no PDF e confirme vínculo com '+(chosen.label||chosen.bank)+'.'))throw Error('Vínculo da conta não confirmado.');
+ const matching=printed?state.companies.filter(x=>clean(x.name)===clean(printed)):[];
+ if(matching.length!==1||matching[0].id!==c.id)throw Error('Extrato sem CNPJ: titular '+(printed||'não identificado')+' não corresponde de forma única à empresa selecionada. Confira o cliente antes de importar.');
+ const possible=c.accounts.filter(x=>!bank||Core.norm(x.bank)===Core.norm(bank));
+ if(possible.length!==1&& !c.accounts.some(x=>x.id===selectedAccount))throw Error('Titular reconhecido pelo nome, mas a conta bancária não é única. Selecione a conta correta e tente novamente.');
+ const chosen=c.accounts.find(x=>x.id===selectedAccount)||possible[0];
+ if(bank&&Core.norm(chosen.bank)!==Core.norm(bank))throw Error('Banco informado não confere com a conta selecionada.');
+ if(!confirm('CNPJ ausente no PDF. Titular identificado: '+printed+'. Confirma que a conta '+(chosen.label||chosen.bank)+' pertence à empresa '+c.name+'? Verifique agência e número da conta antes de continuar.'))throw Error('Confirmação cancelada; extrato não importado.');
  matchedAccountId=chosen.id;
  }if(c.cnpj&&header.cnpj&&c.cnpj!==header.cnpj)throw Error('CNPJ do extrato diferente do CNPJ do plano. Importação bloqueada.');if(!c.cnpj&&header.cnpj){if(!confirm('Plano sem CNPJ. O extrato indica '+header.cnpj+'. Confirma que pertencem à mesma empresa?'))return;c.cnpj=header.cnpj;c.identityVerified=true;}}
 let account=c.accounts.find(a=>a.id===(selectedAccount||matchedAccountId));
