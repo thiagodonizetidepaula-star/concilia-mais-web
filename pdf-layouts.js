@@ -137,6 +137,38 @@ function parseCaixa(pdf,origin,accountId,Core){
  if(!movements.length)reviews.push({origin,line:'?',content:'Extrato Caixa sem movimentos interpretáveis',reason:'Verifique texto digital ou exporte em OFX'});
  return {movements,reviews,balanceCheck,format:'PDF_CAIXA_GERENCIADOR',parsedCount:movements.length};
 }
-function parseStatement(pdf,origin,accountId,period,Core,bank,fallback){switch(bank){case'PagBank':return parsePagBank(pdf,origin,accountId,Core);case'Stone':return parseStone(pdf,origin,accountId,Core);case'Nubank':return parseNubank(pdf,origin,accountId,Core);case'Caixa':return parseCaixa(pdf,origin,accountId,Core);default:return fallback();}}
-return{bankOf,documentCnpj,parseStatement,parsePagBank,parseStone,parseNubank,parseCaixa,parseDominioLedgerPdf};
+function parseSicredi(pdf,origin,accountId,Core){
+ const movements=[],reviews=[],rows=linesOf(pdf);
+ const number=/[-+]?(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2}/g;
+ const asCents=x=>Core.money(String(x).replace(/\s/g,''));
+ let initial=null,final=null;
+ for(const row of rows){
+  const raw=row.s;
+  if(/\bSALDO ANTERIOR\b/i.test(raw)){
+   const matches=[...raw.matchAll(number)];
+   if(matches.length)initial=asCents(matches[matches.length-1][0]);
+   continue;
+  }
+  const match=raw.match(/^(\d{2}\/\d{2}\/\d{4})\s+(.+)$/);
+  if(!match)continue;
+  const values=[...match[2].matchAll(number)];
+  if(values.length<2){reviews.push({origin,line:row.line,content:raw,reason:'Sicredi: colunas de valor/saldo não identificadas'});continue;}
+  const amountMatch=values[values.length-2],balanceMatch=values[values.length-1];
+  const description=match[2].slice(0,amountMatch.index).trim();
+  const cents=asCents(amountMatch[0]),running=asCents(balanceMatch[0]);
+  if(!description||!Number.isFinite(cents)||!Number.isFinite(running)){
+   reviews.push({origin,line:row.line,content:raw,reason:'Sicredi: lançamento incompleto'});continue;
+  }
+  const date=dateIso(match[1]);
+  movements.push({id:Core.id(),date,cents,history:description,party:'',accountId,origin,line:row.line,status:'PENDENTE',counterpart:'',method:'PDF_SICREDI',statementBalance:running});
+  final=running;
+ }
+ const net=movements.reduce((sum,m)=>sum+m.cents,0);
+ const difference=(initial!==null&&final!==null)?initial+net-final:null;
+ const balanceCheck=difference===null?{status:'INDETERMINADO',reason:'Saldo inicial ou final não identificado'}:{status:Math.abs(difference)<=1?'OK':'DIVERGENTE',initial,final,net,difference,count:movements.length,reason:'Saldo inicial mais lançamentos Sicredi'};
+ if(!movements.length)reviews.push({origin,line:'?',content:'Sicredi',reason:'Nenhum movimento identificado; verificar layout'});
+ return {movements,reviews,balanceCheck,format:'PDF_SICREDI',parsedCount:movements.length};
+}
+function parseStatement(pdf,origin,accountId,period,Core,bank,fallback){switch(bank){case'PagBank':return parsePagBank(pdf,origin,accountId,Core);case'Stone':return parseStone(pdf,origin,accountId,Core);case'Nubank':return parseNubank(pdf,origin,accountId,Core);case'Caixa':return parseCaixa(pdf,origin,accountId,Core);case'Sicredi':return parseSicredi(pdf,origin,accountId,Core);default:return fallback();}}
+return{bankOf,documentCnpj,parseStatement,parsePagBank,parseStone,parseNubank,parseCaixa,parseSicredi,parseDominioLedgerPdf};
 });
