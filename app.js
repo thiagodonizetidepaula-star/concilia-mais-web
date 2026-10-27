@@ -254,7 +254,11 @@ function guessBankAccount(c,bank){
  const candidates=c.plan.filter(isBankAccount).filter(a=>{
   const desc=Core.norm(a.description);
   if(n.includes('caixa'))return desc==='caixaeconomicafederal'||desc==='bancocaixaeconomicafederal'||desc==='caixaeconomica'||desc==='bancocaixa';
-  if(n.includes('itau'))return desc.includes('itau');
+  if(n.includes('itau'))return desc==='bancoitau'||desc==='itau'||desc==='itauunibanco'||desc==='bancoitauunibanco';
+  if(n.includes('sicredi'))return desc==='bancosicredi'||desc==='sicredi'||desc==='cooperativasicredi';
+  if(n.includes('stone'))return desc==='bancostone'||desc==='stone'||desc==='stoneinstituicaodepagamento';
+  if(n.includes('santander'))return desc==='bancosantander'||desc==='santander';
+  if(n.includes('inter'))return desc==='bancointer'||desc==='inter';
   if(n.includes('bancodobrasil'))return desc==='bancodobrasil';
   return desc.includes(n);
  });
