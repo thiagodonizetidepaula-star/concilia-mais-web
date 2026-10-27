@@ -254,7 +254,11 @@ function guessBankAccount(c,bank){
  const candidates=c.plan.filter(isBankAccount).filter(a=>{
   const desc=Core.norm(a.description);
   if(n.includes('caixa'))return desc==='caixaeconomicafederal'||desc==='bancocaixaeconomicafederal'||desc==='caixaeconomica'||desc==='bancocaixa';
-  if(n.includes('itau'))return desc.includes('itau');
+  if(n.includes('itau'))return desc==='bancoitau'||desc==='itau'||desc==='itauunibanco'||desc==='bancoitauunibanco';
+  if(n.includes('sicredi'))return desc==='bancosicredi'||desc==='sicredi'||desc==='cooperativasicredi';
+  if(n.includes('stone'))return desc==='bancostone'||desc==='stone'||desc==='stoneinstituicaodepagamento';
+  if(n.includes('santander'))return desc==='bancosantander'||desc==='santander';
+  if(n.includes('inter'))return desc==='bancointer'||desc==='inter';
   if(n.includes('bancodobrasil'))return desc==='bancodobrasil';
   return desc.includes(n);
  });
@@ -388,9 +392,10 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  const allPeriods=[...new Set(batchResults.filter(r=>r.ok||r.skipped).flatMap(r=>r.periods||[]))];
  if(allPeriods.length===1){period=allPeriods[0];$('#period').value=period;}
  let totalSuggested=0,possibleTransfers=0,ambiguousTransfers=0,ledgerHits=0;
- for(const ym of allPeriods){ledgerHits+=suggestFromLedger(c,ym).applied;const moves=Core.periodMovements(c,ym);totalSuggested+=moves.filter(m=>m.suggested&&!m.counterpart).length;const pairs=Core.transferSuggestions(c,ym);possibleTransfers+=pairs.proposals.length;ambiguousTransfers+=pairs.ambiguous.length;}
+ for(const ym of allPeriods){ledgerHits+=suggestFromHistoricalLedger(c,ym).applied;ledgerHits+=suggestFromLedger(c,ym).applied;const moves=Core.periodMovements(c,ym);totalSuggested+=moves.filter(m=>m.suggested&&!m.counterpart).length;const pairs=Core.transferSuggestions(c,ym);possibleTransfers+=pairs.proposals.length;ambiguousTransfers+=pairs.ambiguous.length;}
  if(ok.length||ledgerHits)await store('IMPORTACAO_EM_LOTE',`${ok.length} novos, ${skipped.length} já existentes, ${bad.length} falhas; ${total} novas movimentações`);else render();
  const failures=bad.map(r=>`${r.name}: ${r.error}`).join(' | ');
+ const diagnostics=batchResults.map(r=>(r.ok?'IMPORTADO':r.skipped?'JÁ EXISTENTE':'FALHOU')+' — '+r.name+(r.ok?' ('+r.count+' lançamentos)':'')+(r.error?' — '+r.error:'')).join(' | ');
  const existingTotal=allPeriods.reduce((n,ym)=>n+Core.periodMovements(c,ym).length,0);
  let summary;
  if(!ok.length&&skipped.length&&!bad.length){
@@ -398,7 +403,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  }else{
    summary=`LOTE PROCESSADO: ${ok.length} novo(s), ${skipped.length} já importado(s), ${bad.length} com falha(s). ${total} novas movimentações, ${existingTotal} no(s) período(s) analisado(s), ${pending} linha(s) em revisão e ${duplicate} possível(is) duplicidade(s). ${totalSuggested} sugestão(ões) de contrapartida existente(s) (${ledgerHits} nova(s) do Razão); ${possibleTransfers} transferência(s) candidata(s), ${ambiguousTransfers} ambígua(s). Nenhuma contrapartida incerta foi confirmada.`;
  }
- setStatementStatus(bad.length?'error':'success',summary+(bad.length?' NÃO IMPORTADOS: '+failures:''));
+ setStatementStatus(bad.length?'error':'success',summary+' DETALHES POR ARQUIVO: '+diagnostics);
  if(skipped.length&&!ok.length&&!bad.length)say(`Extrato já importado: ${existingTotal} movimentações preservadas. Abra Classificações.`);
  else say(`${ok.length} novo(s), ${skipped.length} já importado(s), ${bad.length} falha(s). ${total} novas movimentações.`,!!bad.length);
  }catch(err){setStatementStatus('error','IMPORTAÇÃO NÃO CONCLUÍDA: '+(err.message||String(err))+'. Confira o arquivo ou a empresa e tente novamente.');throw err;}})};
