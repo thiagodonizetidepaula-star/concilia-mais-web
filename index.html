@@ -55,6 +55,15 @@
 <section class="page" id="p-revisao"><article class="panel"><h2>Linhas que exigem revisão</h2><p>Nenhum registro ilegível é descartado silenciosamente. Conteúdo e arquivo de origem aparecem nesta lista.</p><div id="reviewTable"></div></article></section>
 </main><footer>Concilia+ Web • Ambiente de demonstração • Nenhum código contábil é presumido entre empresas.</footer></div></div>
 <dialog id="auditDetailDialog" aria-labelledby="auditDetailTitle" style="width:min(92vw,650px);max-height:85vh;overflow:auto;border:1px solid #cbd5e1;border-radius:18px;padding:24px;box-shadow:0 20px 60px #0005"><h2 id="auditDetailTitle">Investigação da divergência</h2><div id="auditDetailContent"></div><form method="dialog" style="margin-top:20px;text-align:right"><button type="submit" class="secondary">Fechar</button></form></dialog>
+<dialog id="clientImportDialog" aria-labelledby="clientImportTitle" style="width:min(92vw,480px);border-radius:16px;padding:22px;max-height:85vh;overflow:auto">
+ <h2 id="clientImportTitle">Cliente não cadastrado ou não identificado</h2>
+ <p>Cadastre ou confirme o cliente para continuar. Confira os dados com o documento original.</p>
+ <form id="clientImportForm">
+ <label>Nome / razão social<input id="clientImportName" name="name" required maxlength="120" style="display:block;width:100%;margin:6px 0 14px"></label>
+ <label>CNPJ (14 dígitos)<input id="clientImportCnpj" name="cnpj" required inputmode="numeric" maxlength="18" style="display:block;width:100%;margin:6px 0 14px"></label>
+ <p id="clientImportNotice" class="micro"></p>
+ <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap"><button type="button" class="secondary" id="clientImportCancel">Cancelar</button><button type="submit" class="primary">Salvar cadastro</button></div>
+ </form></dialog>
 <dialog id="restartDialog" class="restart-dialog" aria-labelledby="restartTitle">
   <form method="dialog">
     <h2 id="restartTitle"><i data-lucide="rotate-ccw"></i> Refazer / Reiniciar</h2>
@@ -65,4 +74,4 @@
     <div class="restart-dialog-actions"><button type="submit" value="cancel" class="secondary">Cancelar</button><button id="confirmRestart" type="submit" value="confirm" class="primary">Continuar</button></div>
   </form>
 </dialog>
-<div id="toast" class="toast" role="status"></div><script src="./core.js?v=20261020-login07"></script><script src="./pdf-reader.js?v=20261022-detalhes01"></script><script src="./excel-export.js?v=20261022-fivecols07"></script><script src="./assistente.js?v=20261020-login07"></script><script src="./pdf-layouts.js?v=20261020-login07"></script><script src="./auditoria.js?v=20261022-pix-individual02"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script><script src="./cloud.js?v=20261020-authredirect08"></script><script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script><script src="./app.js?v=20261027-caixa-nome02"></script><script src="./robot.js?v=1"></script></body></html>
+<div id="toast" class="toast" role="status"></div><script src="./core.js?v=20261020-login07"></script><script src="./pdf-reader.js?v=20261022-detalhes01"></script><script src="./excel-export.js?v=20261022-fivecols07"></script><script src="./assistente.js?v=20261020-login07"></script><script src="./pdf-layouts.js?v=20261020-login07"></script><script src="./auditoria.js?v=20261022-pix-individual02"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script><script src="./cloud.js?v=20261020-authredirect08"></script><script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script><script src="./app.js?v=20261027-client-register02"></script><script src="./robot.js?v=1"></script></body></html>
