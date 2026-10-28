@@ -43,8 +43,25 @@ def search():
   rad=6000
   filt=CATEGORIES[category]
   q=f'[out:json][timeout:24];(nwr{filt}(around:{rad},{lat},{lon}););out center 65;'
-  data=cached("osm:"+category+":"+str(round(lat,3))+":"+str(round(lon,3)),
-    lambda:get_json("https://overpass.kumi.systems/api/interpreter",{"data":q}),900)
+  def buscar_osm():
+   endpoints=[
+    "https://overpass.private.coffee/api/interpreter",
+    "https://overpass.nchc.org.tw/api/interpreter",
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+   ]
+   last=None
+   for endpoint in endpoints:
+    try:
+     resp=requests.post(endpoint,data={"data":q},headers=HEADERS,timeout=18)
+     resp.raise_for_status()
+     result=resp.json()
+     if isinstance(result,dict) and isinstance(result.get("elements"),list):return result
+    except (requests.RequestException,ValueError) as exc:
+     last=exc
+   raise requests.RequestException("Não foi possível acessar os servidores públicos de estabelecimentos.") from last
+  data=cached("osm-v2:"+category+":"+str(round(lat,3))+":"+str(round(lon,3)),
+    buscar_osm,900)
   found=[]
   for el in data.get("elements",[]):
    t=el.get("tags",{})
