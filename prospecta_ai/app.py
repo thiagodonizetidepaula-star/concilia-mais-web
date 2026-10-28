@@ -127,4 +127,8 @@ renderPipe();
 @app.get("/")
 def home():return render_template_string(PAGE)
 if __name__=="__main__":
+ import subprocess,sys
+ check=subprocess.run([sys.executable,"-m","unittest","discover","-s","prospecta_ai","-p","test_categories.py","-v"],timeout=30)
+ if check.returncode:raise SystemExit("Erro nos testes de categorias: implantação interrompida")
+ print("TESTES DE CATEGORIAS OK: Mauá e Santo André, nove segmentos.",flush=True)
  app.run(host="0.0.0.0",port=int(os.environ.get("PORT","10000")))
