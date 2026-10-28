@@ -1,7 +1,7 @@
 import os, re, time, threading
 from flask import Flask, jsonify, request, render_template_string
 import requests
-from known_businesses import known
+from catalog_v2 import catalog
 
 app=Flask(__name__)
 cache={}
@@ -35,9 +35,9 @@ def search():
  city=request.args.get("cidade","Santo André").strip()[:90]
  category=request.args.get("segmento","Oficinas mecânicas")
  if category not in CATEGORIES or len(city)<3:return jsonify(error="Informe uma cidade válida e um segmento."),400
- pre=known(city,category)
+ pre=catalog(city,category)
  if pre is not None:
-  return jsonify(resultados=pre,cidade=city+", SP",fonte="Diretórios comerciais públicos; dados de referência",nota="Confira contatos antes de abordar. Esta lista não é em tempo real.")
+  return jsonify(resultados=pre,cidade=city+", SP",fonte="Fontes comerciais públicas — lista de referência",nota="Confira contatos antes de abordar. Esta lista não é em tempo real.")
  try:
   place=cached("city:"+city.lower(),lambda:get_json("https://nominatim.openstreetmap.org/search",{"q":city+", Brasil","format":"json","limit":1,"addressdetails":1}),86400)
   if not place:return jsonify(error="Não foi possível localizar a cidade."),404
@@ -101,15 +101,15 @@ PAGE=r"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta nam
 <section class="panel"><div class="grid">
 <div><label>Cidade</label><input id="cidade" placeholder="Ex.: Santo André" value="Santo André"></div>
 <div><label>Segmento</label><select id="segmento"></select></div>
-<div><label>Origem</label><input value="OpenStreetMap" disabled></div>
+<div><label>Origem</label><input value="Fontes públicas" disabled></div>
 <button class="wide" id="buscar" onclick="buscar()">🔎 Encontrar clientes</button>
-</div><p class="muted">A busca usa dados públicos cadastrados no OpenStreetMap. Nem toda empresa terá telefone, site ou WhatsApp. A busca cobre aproximadamente 6 km do centro localizado.</p></section>
+</div><p class="muted">Mauá e Santo André: lista de referência com empresas reais por segmento. Outras cidades: consulta pública OpenStreetMap, sujeita a indisponibilidade. Telefones e WhatsApp só quando há confirmação.</p></section>
 <div class="stat"><span id="quant">0 empresas encontradas</span><span id="cont">0 com telefone publicado</span><span id="whats">0 com WhatsApp explícito</span></div>
 <div id="status">Escolha a cidade e clique em Encontrar clientes.</div><div id="resultados" class="results"></div>
 <section class="panel"><h2>✍️ Proposta comercial</h2><label>Selecione uma empresa nos resultados para preparar uma mensagem</label><textarea id="mensagem">Olá! Trabalho com soluções de presença digital para negócios locais. Posso enviar uma análise gratuita com algumas oportunidades de melhoria?</textarea>
 <div class="actions"><button class="ghost" onclick="navigator.clipboard.writeText(document.getElementById('mensagem').value).then(()=>alert('Mensagem copiada'))">Copiar mensagem</button></div><p class="muted">A mensagem é apenas uma sugestão. Nenhum contato é enviado automaticamente. Só faça afirmações sobre marketing após conferir os perfis da empresa.</p></section>
 <section class="panel"><h2>📋 Acompanhamento local</h2><p class="muted">Salvo apenas neste navegador. Não é sincronizado com outros aparelhos.</p><div id="pipeline"></div><button class="ghost" onclick="limpar()">Limpar acompanhamento</button></section>
-<footer>Prospecta AI • Protótipo em produção para testes • Não promete vendas, não inventa contatos e não envia mensagens em massa. Fonte: OpenStreetMap, contribuição de voluntários (ODbL).</footer></div>
+<footer>Prospecta AI • Protótipo em produção para testes • Não promete vendas, não inventa contatos e não envia mensagens em massa. Fontes: diretórios públicos identificados em cada cartão; outras cidades: OpenStreetMap (ODbL).</footer></div>
 <script>
 const segmentos=["Oficinas mecânicas","Salões de beleza","Barbearias","Restaurantes","Cafeterias","Padarias","Lojas de roupas","Pet shops","Dentistas"];
 const s=document.getElementById('segmento'); segmentos.forEach(n=>{let o=document.createElement('option');o.value=n;o.textContent=n;s.appendChild(o)});
