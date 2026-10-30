@@ -40,7 +40,7 @@ function report(core,company,period){
    else if(proposed){debit=m.cents>0?bankCode:suggestedCode;credit=m.cents>0?suggestedCode:bankCode;situation='SUGERIDA — CONFIRMAR CONTRAPARTIDA';notes='Códigos são sugestão, não lançamento confirmado.';suggested++;}
    else{debit=m.cents>0?bankCode:'';credit=m.cents<0?bankCode:'';situation='PENDENTE — CONTRAPARTIDA NÃO IDENTIFICADA';notes='Campo de contrapartida não preenchido para evitar código fictício.';blocked++;}
    if(journal&&!tr&&journal.recon==='AMBIGUO')notes=(notes?notes+' ':'')+'Correspondência duplicada/ambígua no Razão.';
-   confer.push([dateBR(m.date),debit,credit,number(m.cents/100),formulaText(m.history),situation,reconStatus,bank?.bank||'',bankCode,formulaText(m.party||''),formulaText(m.origin||''),notes]);
+   confer.push([dateBR(m.date),debit,credit,number(m.cents/100),formulaText([m.history,m.financialDescription?('Controle: '+m.financialDescription):'',m.financialCategory?('Categoria: '+m.financialCategory):''].filter(Boolean).join(' — ')),situation,reconStatus,bank?.bank||'',bankCode,formulaText(m.party||''),formulaText(m.origin||''),notes]);
  }
  // Extrato independente do Razão: códigos só são preenchidos para classificações confirmadas.
  const bankOnly=[['Data','Cód. Conta Débito','Cód. Conta Crédito','Valor Extrato (R$)','Complemento Histórico']];
@@ -54,7 +54,7 @@ function report(core,company,period){
   const effectiveCp=confirmed?cp:proposed?proposedCode:'';
   const debit=effectiveCp?(m.cents>0?bankCode:effectiveCp):(m.cents>0?bankCode:'');
   const credit=effectiveCp?(m.cents>0?effectiveCp:bankCode):(m.cents<0?bankCode:'');
-  bankOnly.push([dateBR(m.date),duplicate?'':debit,duplicate?'':credit,number(m.cents/100),formulaText([m.history,m.party].filter(Boolean).join(' — '))]);
+  bankOnly.push([dateBR(m.date),duplicate?'':debit,duplicate?'':credit,number(m.cents/100),formulaText([m.history,m.financialDescription?('Controle: '+m.financialDescription):m.party,m.financialCategory?('Categoria: '+m.financialCategory):''].filter(Boolean).join(' — '))]);
  }
  const ready=[['Data','Cód. Conta Débito','Cód. Conta Crédito','Valor','Complemento Histórico']];
  const periodImports=(company.imports||[]).filter(i=>i.type==='EXTRATO'&&Array.isArray(i.periods)&&i.periods.includes(period));
