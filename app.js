@@ -424,13 +424,14 @@ function suggestFromHistoricalLedger(c,ym){
  let applied=0,ambiguous=0;
  for(const m of moves){
   if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||m.suggested||likelyTransfer.has(m.id))continue;
-  const bank=byId.get(m.accountId),h=normalize(m.financialMatch==='SUGERIDA'&&m.financialDescription?m.financialDescription:m.history),party=normalize(m.party);
+  const bank=byId.get(m.accountId),h=normalize(m.financialMatch==='SUGERIDA'&&m.financialDescription?m.financialDescription:m.history),category=normalize(m.financialMatch==='SUGERIDA'?m.financialCategory:''),party=normalize(m.party);
   if(!valid.has(bank)||!h)continue;
   const type=types(h),list=examples.get(String(m.cents>0?1:-1))||[];
   const score=entry=>{
    if(!generic.test(h)&&h.length>=10&&entry.h===h)return 4;
    if(party.length>=9&&entry.h.includes(party))return 3;
-   if(!generic.test(h)&&h.length>=14&&(entry.h.includes(h)||h.includes(entry.h)))return 2;
+   if(category.length>=9&&(entry.h.includes(category)||category.includes(entry.h)))return 3;
+   if(!generic.test(h)&&h.length>=9&&(entry.h.includes(h)||h.includes(entry.h)))return 2;
    if(type&&entry.type===type)return 1;
    return 0;
   };
@@ -630,7 +631,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  $('#runRecon').onclick=()=>action(()=>{const c=getCompany();renderRecon();renderAuditoria();showPage('conciliacao');$('#auditTable')?.scrollIntoView({behavior:'smooth',block:'start'});const rec=Core.reconcile(c,period);say(`${rec.checked.filter(x=>x.recon==='CONCILIADO').length} lançamento(s) conciliados; ${rec.missingLedger.length} registros do Razão sem vínculo.`)});
  $('#downloadStatement').onclick=()=>action(()=>{const c=getCompany();const data=window.ConciliaExcel.reportStatement(Core,c,period);const filename='EXTRATO_CODIFICADO_'+(c.cnpj||Core.norm(c.name)).replace(/[^A-Za-z0-9]/g,'')+'_'+period+'.xlsx';window.ConciliaExcel.download(data,filename);say('Extrato gerado sem Razão. Confira os códigos pendentes antes de lançar no Domínio.');});
  $('#downloadExcel').onclick=()=>action(()=>{const c=getCompany();const data=window.ConciliaExcel.report(Core,c,period);const filename='CONFERENCIA_'+(c.cnpj||Core.norm(c.name)).replace(/[^A-Za-z0-9]/g,'')+'_'+period+'.xlsx';window.ConciliaExcel.download(data,filename);say(`Excel gerado: ${data.counts.movements} movimentações, ${data.counts.ready} lançamentos prontos, ${data.counts.suggested} sugestões a confirmar.`);});
- $('#downloadPdf').onclick=()=>{try{const c=getCompany();const html=window.ConciliaAssistente.relatorioHtml(Core,c,period);const w=window.open('','_blank');if(!w)throw Error('O navegador bloqueou a janela do PDF. Permita pop-ups para este site e tente novamente.');w.document.open();w.document.write(html);w.document.close();say('Relatório aberto. Escolha Imprimir → Salvar como PDF.');}catch(e){say(e.message,true)}};
+ $('#downloadPdf').onclick=()=>{try{const c=getCompany();const html=window.ConciliaAssistente.relatorioHtml(Core,c,period);const file=new Blob([html],{type:'text/html;charset=utf-8'});const url=URL.createObjectURL(file);const w=window.open(url,'_blank');if(!w){URL.revokeObjectURL(url);throw Error('O navegador bloqueou a janela do PDF. Permita pop-ups para este site e tente novamente.');}setTimeout(()=>URL.revokeObjectURL(url),60000);say('Relatório aberto. Escolha Imprimir → Salvar como PDF.');}catch(e){say(e.message,true)}};
  $('#downloadCsv').onclick=()=>action(()=>{const c=getCompany(),audit=window.ConciliaAssistente.analisar(Core,c,period);if(!audit.exportable)throw Error('Prévia de lançamentos bloqueada: confira contrapartidas, extratos, saldos, duplicidades, transferências e Razão antes de exportar. Excel de conferência e PDF seguem disponíveis.');const out=Core.previewExport(c,period);if(c.imports.some(i=>i.type==='EXTRATO'&&i.periods.includes(period)&&i.balanceCheck?.status==='DIVERGENTE'))throw Error('Extrato com diferença de saldos: resolva a divergência antes de exportar.');if(out.errors.length)throw Error(`Há ${out.errors.length} erro(s) de código contábil. Corrija antes de exportar.`);if(!c.ledger.some(l=>l.period===period))throw Error('Importe ou atualize o Razão desta competência antes de liberar a exportação.');if(!out.rows.length)throw Error('Não há lançamentos confirmados e não encontrados no Razão para exportar.');if(!confirm(`Exportar ${out.rows.length} lançamento(s) em prévia CSV? Valide o arquivo antes de importar no Domínio.`))return;putFile(null,`PREVIA_${c.dominio}_${period}.csv`,'\uFEFF'+Core.exportCsv(out.rows));say('Prévia CSV exportada. Ainda não homologada no Domínio.')});
  document.addEventListener('click',e=>{const button=e.target.closest('[data-balance-check]');if(!button)return;action(async()=>{
   const c=getCompany(),item=c.imports.find(i=>i.id===button.dataset.balanceCheck);
