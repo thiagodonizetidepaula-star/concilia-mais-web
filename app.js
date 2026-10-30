@@ -298,22 +298,31 @@ function financialBank(t){
 function financialRows(workbook){
  const sheet=workbook.Sheets['Livro Diário FC']||workbook.Sheets[workbook.SheetNames.find(n=>Core.norm(n).includes('livrodiario'))];
  if(!sheet)throw Error('Aba Livro Diário FC não encontrada no Excel do cliente.');
- const rows=window.XLSX.utils.sheet_to_json(sheet,{header:'A',defval:'',raw:true});
- const header=rows.findIndex(r=>Core.norm(r.C)==='data'&&Core.norm(r.E).includes('descricao')&&Core.norm(r.K).includes('origdest'));
- if(header<0)throw Error('Colunas Data, Descrição e Orig/Dest não localizadas na aba Livro Diário FC.');
+ // Este modelo usa formatação em mais de 1 milhão de linhas vazias.
+ // Percorrer !ref diretamente consome memória e interrompe a leitura no navegador.
+ const indexes=Object.keys(sheet).filter(k=>/^(?:C|E|K)\d+$/.test(k)&&sheet[k]&&sheet[k].v!==undefined&&sheet[k].v!=='').map(k=>Number(k.match(/\d+$/)[0]));
+ const maxRow=Math.min(150000,indexes.reduce((n,v)=>Math.max(n,v),10));
+ const range={s:{r:0,c:2},e:{r:maxRow-1,c:10}};
+ const rows=window.XLSX.utils.sheet_to_json(sheet,{header:'A',defval:'',raw:true,range,blankrows:false});
  const out=[];
- for(let i=header+1;i<rows.length;i++){
-  const r=rows[i],date=financialDate(r.C);
+ let headerFound=false;
+ for(const [idx,r] of rows.entries()){
+  if(!headerFound){
+   if(Core.norm(r.C)==='data'&&Core.norm(r.E).includes('descricao')&&Core.norm(r.K).includes('origdest'))headerFound=true;
+   continue;
+  }
+  const date=financialDate(r.C);
   if(!date)continue;
   const bank=financialBank(r.K),description=String(r.E||'').trim(),category=String(r.D||'').trim();
   if(!bank||!description)continue;
-  const readAmount=(v)=>{if(v===''||v===null||v===undefined)return 0;try{return Math.abs(Core.money(v))}catch{return 0}};
+  const readAmount=v=>{if(v===''||v===null||v===undefined)return 0;try{return Math.abs(Core.money(v))}catch{return 0}};
   const income=readAmount(r.I)||readAmount(r.G),expense=readAmount(r.J)||readAmount(r.H);
   if(income>0&&expense>0)continue;
   const cents=income>0?income:-expense;
   if(!cents)continue;
-  out.push({id:Core.id(),date,bank,description,category,cents,sourceRow:i+1});
+  out.push({id:Core.id(),date,bank,description,category,cents,sourceRow:Number(r.__rowNum__??idx)+1});
  }
+ if(!headerFound)throw Error('Cabeçalho Data / Descrição / Orig/Dest não encontrado na aba Livro Diário FC.');
  return out;
 }
 function financialCodeSuggestions(c,m){
@@ -483,7 +492,7 @@ c.name=info.name||c.name;c.cnpj=info.cnpj||c.cnpj;c.dominio=info.dominio||c.domi
   $('#financialStatus').textContent='Controle '+file.name+': '+rows.length+' lançamentos de '+period+'; '+result.matched+' descrições sugeridas, '+result.coded+' novos códigos sugeridos e '+result.ambiguous+' correspondências ambíguas. Confira as contrapartidas antes de contabilizar.';
   say('Controle financeiro importado. Confira as descrições sugeridas em Movimentações.');
  })};
- $('#matchFinancial').onclick=()=>action(async()=>{const c=getCompany(),result=financialMatches(c,period);await store('CRUZAMENTO_FINANCEIRO',result.matched+' correspondências sugeridas; '+result.coded+' novos códigos; '+result.ambiguous+' ambíguas');$('#financialStatus').textContent='Descrições: '+result.matched+'; novos códigos sugeridos: '+result.coded+'; ambíguas: '+result.ambiguous+'. Confira as movimentações.';say('Cruzamento atualizado.')});
+ $('#matchFinancial').onclick=()=>action(async()=>{const c=getCompany();if(!(c.financialControls||[]).some(x=>x.period===period))throw Error('Nenhum controle financeiro importado para '+period+'. Primeiro clique em Importar controle financeiro; escolher o arquivo não realiza a importação.');const result=financialMatches(c,period);await store('CRUZAMENTO_FINANCEIRO',result.matched+' correspondências sugeridas; '+result.coded+' novos códigos; '+result.ambiguous+' ambíguas');$('#financialStatus').textContent='Descrições: '+result.matched+'; novos códigos sugeridos: '+result.coded+'; ambíguas: '+result.ambiguous+'. Confira as movimentações.';say('Cruzamento atualizado.')});
  $('#importStatement').onsubmit=e=>{e.preventDefault();action(async()=>{try{setStatementStatus('working','Lendo o extrato. Aguarde a confirmação da quantidade de movimentações.');const c=getCompany(),f=e.currentTarget;if(!canImport(c))throw Error('Importe primeiro o plano de contas.');const files=Array.from(f.elements.file.files);if(!files.length)throw Error('Selecione pelo menos um extrato.');if(files.length>20)throw Error('Importe até 20 extratos por lote para evitar lentidão no celular.');const selectedAccount=f.elements.accountId.value;const batchResults=[];for(const file of files){try{setStatementStatus('working',`Processando ${batchResults.length+1} de ${files.length}: ${file.name}...`);const ext=fileExt(file.name);if(!['pdf','csv','txt','ofx'].includes(ext))throw Error('Use PDF digital, CSV, TXT ou OFX.');const bytes=await file.arrayBuffer(),sha=await hash(bytes);const previous=c.imports.find(x=>x.type==='EXTRATO'&&x.sha===sha);if(previous){batchResults.push({ok:false,skipped:true,name:file.name,periods:previous.periods||[],count:previous.movementCount||0});continue;}
 let txt='',pdf=null;if(ext==='pdf'){say('Extraindo movimentações do PDF digital...');try{pdf=await Pdf.extractPdf(file);txt=pdf.text}catch(err){throw Error('PDF não interpretado: '+err.message+'; tente CSV ou OFX.')}}else txt=(await asText(file)).txt;
 const bank=ext==='pdf'?(window.ConciliaLayouts.bankOf(pdf,file.name)||Pdf.detectBank(txt,file.name)):Pdf.detectBank(txt,file.name);
