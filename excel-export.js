@@ -43,6 +43,18 @@ function report(core,company,period){
    confer.push([dateBR(m.date),debit,credit,number(m.cents/100),formulaText([m.history,m.financialDescription?('Controle: '+m.financialDescription):'',m.financialCategory?('Categoria: '+m.financialCategory):''].filter(Boolean).join(' — ')),situation,reconStatus,bank?.bank||'',bankCode,formulaText(m.party||''),formulaText(m.origin||''),notes]);
  }
  // Extrato independente do Razão: códigos só são preenchidos para classificações confirmadas.
+ const detalhamento=[['Data','Banco','Código Banco','Extrato Origem','Valor (R$)','Sentido','Histórico Original','Descrição Controle Financeiro','Categoria Controle','Arquivo Controle','Linha Controle','Situação Cruzamento','Código Débito','Código Crédito','Status Contábil','Evidência do Código','Possíveis Correspondências']];
+ for(const m of moves){
+  const bank=accounts.get(m.accountId),bankCode=bank&&plan.get(String(bank.chartCode))?.analytic?String(bank.chartCode):'';
+  const cp=m.status==='CONFIRMADO'?String(m.counterpart||''):String(m.suggested||'');
+  const valid=!!cp&&!!plan.get(cp)?.analytic&&cp!==bankCode;
+  const debit=valid?(m.cents>0?bankCode:cp):m.cents>0?bankCode:'';
+  const credit=valid?(m.cents>0?cp:bankCode):m.cents<0?bankCode:'';
+  const match=m.financialMatch||'NÃO ANALISADO';
+  const status=m.status==='CONFIRMADO'?'CONFIRMADO':m.status==='PENDENTE_DUPLICIDADE'?'REVISAR DUPLICIDADE':valid?'CÓDIGO SUGERIDO — CONFERIR':'CÓDIGO PENDENTE';
+  const possible=(m.financialCandidates||[]).map(e=>(e.date||'')+' | '+(e.description||'')+' | linha '+e.sourceRow).join('; ');
+  detalhamento.push([dateBR(m.date),bank?.bank||'',bankCode,formulaText(m.origin||''),number(m.cents/100),m.cents>=0?'ENTRADA':'SAÍDA',formulaText(m.history),formulaText(m.financialDescription||''),formulaText(m.financialCategory||''),formulaText(m.financialSourceFile||''),m.financialSourceRow||'',match,debit,credit,status,formulaText(m.confidence||''),formulaText(possible)]);
+ }
  const bankOnly=[['Data','Cód. Conta Débito','Cód. Conta Crédito','Valor Extrato (R$)','Complemento Histórico']];
  for(const m of moves){
   const bank=accounts.get(m.accountId),bankCode=bank&&plan.get(String(bank.chartCode))?.analytic?String(bank.chartCode):'';
@@ -84,7 +96,7 @@ function report(core,company,period){
  for(const a of company.plan)source.push([text(a.code),text(a.classification),formulaText(a.description),a.analytic?'SIM':'NÃO']);
  const imports=[['Arquivo','Banco','Formato','Movimentos','Verificação de Saldos','Diferença (R$)']];
  for(const i of periodImports)imports.push([text(i.name),text(i.bank||accounts.get(i.accountId)?.bank||''),text(i.format),number(i.movementCount||0),text(i.balanceCheck?.status||'NÃO CONFERIDO'),typeof i.balanceCheck?.difference==='number'?number(i.balanceCheck.difference/100):'']);
- return {sheets:[{name:'Extrato_Classificado',rows:bankOnly,widths:[16,24,24,22,100]},{name:'Resumo',rows:summary,widths:[48,82]},{name:'Conferencia',rows:confer,widths:[15,20,20,20,72,46,35,21,19,43,43,66]},{name:'Lancamentos_Prontos',rows:ready,widths:[16,24,24,20,82]},{name:'Plano_de_Contas',rows:source,widths:[18,32,62,16]},{name:'Extratos_Importados',rows:imports,widths:[53,24,16,18,29,22]},{name:'Divergencias',rows:auditRows,widths:[16,29,22,21,21,17,17,19,45,78,83,45,27]}],counts:{movements:moves.length,ready:ready.length-1,suggested,blocked,confirmed,hasLedger,codeErrors:rec.errors.length,divergentBalance,unverifiedBalance,unreviewedReadings,unmatchedBankLedger,missingBankLedger,ledgerBalanceDifferences,blockedReadiness,auditEvents:auditData?.events.length||0}};
+ return {sheets:[{name:'Extrato_Classificado',rows:bankOnly,widths:[16,24,24,22,100]},{name:'Detalhamento_Financeiro',rows:detalhamento,widths:[16,22,16,43,18,14,58,66,52,43,18,26,18,18,36,58,75]},{name:'Resumo',rows:summary,widths:[48,82]},{name:'Conferencia',rows:confer,widths:[15,20,20,20,72,46,35,21,19,43,43,66]},{name:'Lancamentos_Prontos',rows:ready,widths:[16,24,24,20,82]},{name:'Plano_de_Contas',rows:source,widths:[18,32,62,16]},{name:'Extratos_Importados',rows:imports,widths:[53,24,16,18,29,22]},{name:'Divergencias',rows:auditRows,widths:[16,29,22,21,21,17,17,19,45,78,83,45,27]}],counts:{movements:moves.length,ready:ready.length-1,suggested,blocked,confirmed,hasLedger,codeErrors:rec.errors.length,divergentBalance,unverifiedBalance,unreviewedReadings,unmatchedBankLedger,missingBankLedger,ledgerBalanceDifferences,blockedReadiness,auditEvents:auditData?.events.length||0}};
 }
 function reportStatement(core,company,period){const result=report(core,company,period);return {sheets:result.sheets.filter(s=>s.name==='Extrato_Classificado'),counts:result.counts};}
 const colName=n=>{let s='';for(;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s};
