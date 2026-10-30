@@ -329,22 +329,24 @@ function financialCodeSuggestions(c,m){
  if(!m.financialDescription||m.financialMatch!=='SUGERIDA'||m.status==='CONFIRMADO')return '';
  const bankCodes=new Set(c.accounts.map(a=>String(a.chartCode)));
  const choices=c.plan.filter(p=>p.analytic&&!bankCodes.has(String(p.code)));
- // A numeração da categoria do cliente NÃO é código Domínio.
+ // Número da categoria do cliente não equivale ao código contábil Domínio.
  const clean=t=>String(t||'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.]?\s*/,'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
  const term=clean(m.financialCategory);
  if(term.length<5)return '';
  const exact=choices.filter(p=>clean(p.description)===term);
  if(exact.length===1)return String(exact[0].code);
- const stop=new Set(['de','da','do','das','dos','para','com','em','e','a','o','itens','item','receita','despesa','despesas','pagamento','gastos']);
+ const stop=new Set(['de','da','do','das','dos','para','com','em','e','a','o','itens','item','receita','receitas','despesa','despesas','pagamento','gastos','conta','contas','servicos','servico']);
  const words=t=>new Set(clean(t).split(' ').filter(w=>w.length>=4&&!stop.has(w)));
- const wanted=words(term);
- if(wanted.size<2)return '';
- const candidates=choices.filter(p=>{
+ const want=words(term);
+ if(!want.size)return '';
+ const hits=choices.map(p=>{
   const got=words(p.description);
-  const shared=[...wanted].filter(w=>got.has(w));
-  return shared.length>=2&&shared.length===wanted.size;
- });
- return candidates.length===1?String(candidates[0].code):'';
+  const same=[...want].filter(w=>got.has(w)).length;
+  return {code:String(p.code),same,ratio:same/Math.max(want.size,got.size),missing:want.size-same};
+ }).filter(x=>x.same>=1&&x.ratio>=0.75&&x.missing===0);
+ if(hits.length===1)return hits[0].code;
+ // Categorias não padronizadas não devem ser convertidas em conta contábil por suposição.
+ return '';
 }
 function financialMatches(c,ym){
  const controls=(c.financialControls||[]).filter(x=>x.period===ym);
