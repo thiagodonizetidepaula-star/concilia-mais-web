@@ -7,6 +7,15 @@ const text=x=>String(x??'');
 const dateBR=d=>String(d||'').split('-').reverse().join('/');
 const formulaText=s=>String(s??'').slice(0,32767); // Excel inlineStr: strings never formulas
 const number=n=>({n:Number(n)});
+function cleanStatementHistory(m){
+ const clean=t=>String(t||'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.]?\s*/,'').trim();
+ const category=clean(m.financialCategory||m.financialDescription);
+ const detail=String(m.financialDetail||'').trim();
+ if(m.financialMatch==='SUGERIDA'&&category){
+  return [category,detail&&detail.toLocaleLowerCase('pt-BR')!==category.toLocaleLowerCase('pt-BR')?detail:''].filter(Boolean).join(' — ');
+ }
+ return String(m.history||'').trim();
+}
 function report(core,company,period){
  if(!company||!Array.isArray(company.plan)||!company.plan.length)throw Error('Importe o plano de contas desta empresa antes de exportar.');
  if(!/^\d{4}-\d{2}$/.test(period))throw Error('Selecione uma competência válida.');
@@ -66,7 +75,7 @@ function report(core,company,period){
   const effectiveCp=confirmed?cp:proposed?proposedCode:'';
   const debit=effectiveCp?(m.cents>0?bankCode:effectiveCp):(m.cents>0?bankCode:'');
   const credit=effectiveCp?(m.cents>0?effectiveCp:bankCode):(m.cents<0?bankCode:'');
-  bankOnly.push([dateBR(m.date),duplicate?'':debit,duplicate?'':credit,number(m.cents/100),formulaText([m.history,m.financialDescription?('Controle: '+m.financialDescription):m.party,m.financialCategory?('Categoria: '+m.financialCategory):''].filter(Boolean).join(' — '))]);
+  bankOnly.push([dateBR(m.date),duplicate?'':debit,duplicate?'':credit,number(m.cents/100),formulaText(cleanStatementHistory(m))]);
  }
  const ready=[['Data','Cód. Conta Débito','Cód. Conta Crédito','Valor','Complemento Histórico']];
  const periodImports=(company.imports||[]).filter(i=>i.type==='EXTRATO'&&Array.isArray(i.periods)&&i.periods.includes(period));
