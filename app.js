@@ -128,7 +128,7 @@ function renderSelection(){
 }
 
 function showPage(page){currentPage=page;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('visible',x.id==='p-'+page));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===page));const titles={visao:['Visão geral','PAINEL OPERACIONAL','Selecione uma empresa e acompanhe o andamento da competência.'],empresas:['Empresas e plano de contas','CONFIGURAÇÃO INICIAL','Cada empresa utiliza seu próprio plano, seus bancos e suas regras.'],importar:['Importar extratos e Razão','PROCESSAMENTO DE DOCUMENTOS','O plano de contas é obrigatório antes dos extratos.'],movimentos:['Classificações','MOVIMENTAÇÕES','Conferência das contrapartidas e regras da empresa selecionada.'],transferencias:['Transferências entre contas','CRUZAMENTO DE BANCOS','Propostas que exigem confirmação da titularidade.'],conciliacao:['Conciliação e exportação','RAZÃO CONTÁBIL','Somente lançamentos confirmados e não encontrados no Razão.'],revisao:['Revisão de leitura','CONTROLE DE PENDÊNCIAS','Nenhuma linha ilegível deve desaparecer.']} ;const [title,eye,sub]=titles[page]||titles.visao;$('#pageTitle').textContent=title;$('#eyebrow').textContent=eye;$('#subtitle').textContent=sub;render()}
-function render(){const c=current();$('#statementButton').disabled=!canImport(c);$('#importPlanButton').disabled=false;$('#addBank').disabled=!c||!c.plan.length;$('#addRule').disabled=!c||!c.plan.length;$('#ledgerButton').disabled=!c;$('#downloadCsv').disabled=!c;$('#downloadExcel').disabled=!c;$('#downloadStatement').disabled=!c;const resetButton=$('#resetAll');if(resetButton)resetButton.disabled=!c;renderSetup();renderDashboard();renderImport();renderMovements();renderTransfers();renderRecon();renderAuditoria();renderReviews();renderAssistente();}
+function render(){const c=current();$('#statementButton').disabled=!canImport(c);$('#importPlanButton').disabled=false;$('#addBank').disabled=!c||!c.plan.length;$('#addRule').disabled=!c||!c.plan.length;$('#ledgerButton').disabled=!c;$('#financialButton').disabled=!c;$('#matchFinancial').disabled=!c;$('#downloadCsv').disabled=!c;$('#downloadExcel').disabled=!c;$('#downloadStatement').disabled=!c;const resetButton=$('#resetAll');if(resetButton)resetButton.disabled=!c;renderSetup();renderDashboard();renderImport();renderMovements();renderTransfers();renderRecon();renderAuditoria();renderReviews();renderAssistente();}
 function renderDashboard(){const c=current();if(!c){$('#stepBanner').innerHTML='<strong>Primeiro passo:</strong> importe o plano de contas; a empresa será criada automaticamente.';$('#metrics').innerHTML='';$('#steps').innerHTML='';$('#recentFiles').innerHTML=empty('Sem empresas cadastradas.');return}
   const mv=Core.periodMovements(c,period);const balance=Core.reconcile(c,period);const acc=new Set(mv.map(x=>x.accountId));const confirmed=balance.checked.filter(x=>x.recon==='CONCILIADO').length;
   const availablePeriods=[...new Set(c.imports.filter(x=>x.type==='EXTRATO').flatMap(x=>x.periods||[]))].sort().reverse();
@@ -200,7 +200,7 @@ function renderMovements(){
  summary.textContent=ordered.length?list.length+' lançamento(s) deste extrato · '+ordered.length+' extrato(s) na competência '+period:'Nenhuma movimentação nesta competência.';
  const rows=list.map(m=>[
   datePT(m.date),safe(accounts.get(m.accountId)?.bank||'Conta excluída'),`<span title="${safe(movementOriginLabel(m,imports,accounts))}">${safe(imports.get(m.importId)?.name||m.origin||'Origem não identificada')}</span>`,
-  `<span class="fiscal">${safe(m.history)}<div class="subtle">${safe(m.party||'Sem contraparte informada')}</div></span>`,
+  `<span class="fiscal">${safe(m.history)}<div class="subtle">${safe(m.financialDescription?('Controle financeiro: '+m.financialDescription+' · '+(m.financialCategory||'')+' ['+(m.financialMatch||'SUGERIDA')+']'):(m.financialMatch==='AMBIGUA'?'Controle financeiro: múltiplas correspondências — revisar':m.party||'Sem contraparte informada'))}</div></span>`,
   `<span class="${m.cents<0?'flag':''}">${currency(m.cents)}</span>`,badge(matched.has(m.id)?'TRANSFERÊNCIA':m.status),
   matched.has(m.id)?'<small>Vínculo confirmado</small>':`<div class="inline-actions"><select id="cp_${safe(m.id)}" ${m.status==='PENDENTE_DUPLICIDADE'?'disabled':''}>${optionsFor(c,m.counterpart||m.suggested)}</select><button data-classify="${safe(m.id)}" ${m.status==='PENDENTE_DUPLICIDADE'?'disabled':''}>Confirmar</button></div>`
  ]);
@@ -274,6 +274,78 @@ function autoSuggest(c,m){
  if(/tarifa|tarif|pacoteservico|tarliq/.test(h))candidates=matches(['tarifabancaria','despesasbancarias','tarifasbancarias']);
  else if(/rendimentosrendpagoaplic|rendimentodeaplicacao|rendimentosaplic/.test(h))candidates=matches(['receitafinanceira','rendimentodeaplicacao','rendimentosdeaplicacoes']);
  if(candidates.length===1){m.suggested=String(candidates[0].code);m.confidence='Sugestão por histórico e plano de contas — exige confirmação';}
+}
+
+function financialDate(v){
+ if(v instanceof Date&&!isNaN(v))return v.toISOString().slice(0,10);
+ if(typeof v==='number'&&v>20000&&v<90000)return new Date(Date.UTC(1899,11,30)+Math.round(v)*86400000).toISOString().slice(0,10);
+ const t=String(v||'').trim(),m=t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+ return m?m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0'): /^\d{4}-\d{2}-\d{2}/.test(t)?t.slice(0,10):'';
+}
+function financialBank(t){
+ const n=Core.norm(t);
+ if(/stone/.test(n))return 'stone';
+ if(/sicredi/.test(n))return 'sicredi';
+ if(/caixaeconomica|cef/.test(n))return 'caixa';
+ if(/itau/.test(n))return 'itau';
+ if(/santander/.test(n))return 'santander';
+ if(/nubank|nuconta/.test(n))return 'nubank';
+ if(/pagbank|pagseguro/.test(n))return 'pagbank';
+ if(/bancointer/.test(n))return 'inter';
+ if(/bancodobrasil/.test(n))return 'brasil';
+ return n||'';
+}
+function financialRows(workbook){
+ const sheet=workbook.Sheets['Livro Diário FC']||workbook.Sheets[workbook.SheetNames.find(n=>Core.norm(n).includes('livrodiario'))];
+ if(!sheet)throw Error('Aba Livro Diário FC não encontrada no Excel do cliente.');
+ const rows=window.XLSX.utils.sheet_to_json(sheet,{header:'A',defval:'',raw:true});
+ const header=rows.findIndex(r=>Core.norm(r.C)==='data'&&Core.norm(r.E).includes('descricao')&&Core.norm(r.K).includes('origdest'));
+ if(header<0)throw Error('Colunas Data, Descrição e Orig/Dest não localizadas na aba Livro Diário FC.');
+ const out=[];
+ for(let i=header+1;i<rows.length;i++){
+  const r=rows[i],date=financialDate(r.C);
+  if(!date)continue;
+  const bank=financialBank(r.K),description=String(r.E||'').trim(),category=String(r.D||'').trim();
+  if(!bank||!description)continue;
+  const readAmount=(v)=>{if(v===''||v===null||v===undefined)return 0;try{return Math.abs(Core.money(v))}catch{return 0}};
+  const income=readAmount(r.I)||readAmount(r.G),expense=readAmount(r.J)||readAmount(r.H);
+  if(income>0&&expense>0)continue;
+  const cents=income>0?income:-expense;
+  if(!cents)continue;
+  out.push({id:Core.id(),date,bank,description,category,cents,sourceRow:i+1});
+ }
+ return out;
+}
+function financialMatches(c,ym){
+ const entries=(c.financialControls||[]).filter(x=>x.period===ym).flatMap(x=>x.rows||[]);
+ const moves=Core.periodMovements(c,ym).filter(m=>m.status!=='PENDENTE_DUPLICIDADE');
+ const transfers=Core.transferSuggestions(c,ym);
+ const protectedIds=new Set([...(c.transfers||[]).filter(x=>x.status==='CONFIRMADA').flatMap(x=>[x.outId,x.inId]),...transfers.proposals.flatMap(x=>[x.outId,x.inId]),...transfers.ambiguous.flatMap(x=>[x.outId,...x.possibleInIds])]);
+ const banks=new Map(c.accounts.map(a=>[a.id,financialBank(a.bank)]));
+ const candidates=new Map();
+ for(const m of moves){
+  if(protectedIds.has(m.id))continue;
+  const options=entries.filter(e=>e.cents===m.cents&&e.bank===banks.get(m.accountId)&&Math.abs(Core.dayDistance(e.date,m.date))<=4);
+  candidates.set(m.id,options);
+ }
+ let matched=0,ambiguous=0;
+ for(const m of moves){
+  if(m.status==='CONFIRMADO'||protectedIds.has(m.id))continue;
+  const options=candidates.get(m.id)||[];
+  const unique=options.length===1&&moves.filter(o=>(candidates.get(o.id)||[]).some(x=>x.id===options[0].id)).length===1;
+  if(unique){
+   m.financialDescription=options[0].description;
+   m.financialCategory=options[0].category;
+   m.financialSourceRow=options[0].sourceRow;
+   m.financialMatch='SUGERIDA';
+   matched++;
+  }else if(options.length){
+   m.financialMatch='AMBIGUA';
+   m.financialCandidates=options.map(e=>({description:e.description,category:e.category,sourceRow:e.sourceRow,date:e.date}));
+   ambiguous++;
+  }
+ }
+ return {matched,ambiguous,total:entries.length};
 }
 function suggestFromHistoricalLedger(c,ym){
  // Razões anteriores da MESMA empresa são exemplos opcionais, independentemente do banco.
@@ -366,6 +438,23 @@ c.name=info.name||c.name;c.cnpj=info.cnpj||c.cnpj;c.dominio=info.dominio||c.domi
  $('#bankForm').onsubmit=e=>{e.preventDefault();action(async()=>{const c=getCompany(),f=e.currentTarget,v=asData(f);if(!c.plan.some(a=>a.code===v.chartCode&&a.analytic))throw Error('O código do banco deve existir como conta analítica neste plano.');if(c.accounts.some(a=>a.bank===v.bank&&a.label===v.label.trim()))throw Error('Esta conta já foi vinculada');c.accounts.push({id:Core.id(),bank:v.bank,label:v.label.trim(),chartCode:v.chartCode});await store('BANCO_VINCULADO',`${v.bank}, ${v.label}, código ${v.chartCode}`);f.reset();say('Banco vinculado. Importar extratos foi liberado.')})};
  $('#ruleForm').onsubmit=e=>{e.preventDefault();action(async()=>{const c=getCompany(),v=asData(e.currentTarget);if(!c.plan.some(a=>a.code===v.counterpart&&a.analytic))throw Error('Contrapartida deve existir no plano analítico da empresa.');if(c.rules.some(r=>Core.norm(r.term)===Core.norm(v.term)))throw Error('Regra já cadastrada.');c.rules.push({id:Core.id(),term:v.term.trim(),counterpart:v.counterpart});await store('REGRA_CRIADA',`${v.term} → ${v.counterpart}`);e.currentTarget.reset();say('Regra salva. Ela sugerirá classificações para confirmação humana.')})};
 
+ $('#importFinancial').onsubmit=e=>{e.preventDefault();action(async()=>{
+  const c=getCompany(),file=e.currentTarget.elements.file.files[0];
+  if(!file)throw Error('Selecione o Excel financeiro do cliente.');
+  if(!window.XLSX)throw Error('Biblioteca Excel não carregou. Atualize a página e tente novamente.');
+  const sha=await hash(await file.arrayBuffer());
+  if((c.financialControls||[]).some(x=>x.sha===sha)){say('Controle financeiro já importado. Nenhum registro foi duplicado.');return;}
+  const workbook=window.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
+  const rows=financialRows(workbook).filter(x=>x.date.startsWith(period));
+  if(!rows.length)throw Error('Nenhuma linha financeira válida para '+period+'. Confira a competência selecionada e a aba Livro Diário FC.');
+  c.financialControls=c.financialControls||[];
+  c.financialControls.push({id:Core.id(),sha,period,name:file.name,rows,at:new Date().toISOString()});
+  const result=financialMatches(c,period);
+  await store('CONTROLE_FINANCEIRO_IMPORTADO',file.name+': '+rows.length+' linhas, '+result.matched+' correspondências únicas, '+result.ambiguous+' ambíguas');
+  $('#financialStatus').textContent='Controle '+file.name+': '+rows.length+' lançamentos de '+period+'; '+result.matched+' descrições sugeridas e '+result.ambiguous+' correspondências ambíguas. Os códigos ainda exigem confirmação.';
+  say('Controle financeiro importado. Confira as descrições sugeridas em Movimentações.');
+ })};
+ $('#matchFinancial').onclick=()=>action(async()=>{const c=getCompany(),result=financialMatches(c,period);await store('CRUZAMENTO_FINANCEIRO',result.matched+' correspondências sugeridas; '+result.ambiguous+' ambíguas');$('#financialStatus').textContent='Correspondências sugeridas: '+result.matched+'; ambíguas: '+result.ambiguous+'. Confira as movimentações.';say('Cruzamento atualizado.')});
  $('#importStatement').onsubmit=e=>{e.preventDefault();action(async()=>{try{setStatementStatus('working','Lendo o extrato. Aguarde a confirmação da quantidade de movimentações.');const c=getCompany(),f=e.currentTarget;if(!canImport(c))throw Error('Importe primeiro o plano de contas.');const files=Array.from(f.elements.file.files);if(!files.length)throw Error('Selecione pelo menos um extrato.');if(files.length>20)throw Error('Importe até 20 extratos por lote para evitar lentidão no celular.');const selectedAccount=f.elements.accountId.value;const batchResults=[];for(const file of files){try{setStatementStatus('working',`Processando ${batchResults.length+1} de ${files.length}: ${file.name}...`);const ext=fileExt(file.name);if(!['pdf','csv','txt','ofx'].includes(ext))throw Error('Use PDF digital, CSV, TXT ou OFX.');const bytes=await file.arrayBuffer(),sha=await hash(bytes);const previous=c.imports.find(x=>x.type==='EXTRATO'&&x.sha===sha);if(previous){batchResults.push({ok:false,skipped:true,name:file.name,periods:previous.periods||[],count:previous.movementCount||0});continue;}
 let txt='',pdf=null;if(ext==='pdf'){say('Extraindo movimentações do PDF digital...');try{pdf=await Pdf.extractPdf(file);txt=pdf.text}catch(err){throw Error('PDF não interpretado: '+err.message+'; tente CSV ou OFX.')}}else txt=(await asText(file)).txt;
 const bank=ext==='pdf'?(window.ConciliaLayouts.bankOf(pdf,file.name)||Pdf.detectBank(txt,file.name)):Pdf.detectBank(txt,file.name);
