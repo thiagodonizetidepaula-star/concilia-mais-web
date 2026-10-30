@@ -298,22 +298,31 @@ function financialBank(t){
 function financialRows(workbook){
  const sheet=workbook.Sheets['Livro Diário FC']||workbook.Sheets[workbook.SheetNames.find(n=>Core.norm(n).includes('livrodiario'))];
  if(!sheet)throw Error('Aba Livro Diário FC não encontrada no Excel do cliente.');
- const rows=window.XLSX.utils.sheet_to_json(sheet,{header:'A',defval:'',raw:true});
- const header=rows.findIndex(r=>Core.norm(r.C)==='data'&&Core.norm(r.E).includes('descricao')&&Core.norm(r.K).includes('origdest'));
- if(header<0)throw Error('Colunas Data, Descrição e Orig/Dest não localizadas na aba Livro Diário FC.');
+ // Este modelo usa formatação em mais de 1 milhão de linhas vazias.
+ // Percorrer !ref diretamente consome memória e interrompe a leitura no navegador.
+ const indexes=Object.keys(sheet).filter(k=>/^[CDEGHIJK]\d+$/.test(k)).map(k=>Number(k.match(/\d+$/)[0]));
+ const maxRow=Math.min(150000,Math.max(10,...indexes));
+ const range={s:{r:0,c:2},e:{r:maxRow-1,c:10}};
+ const rows=window.XLSX.utils.sheet_to_json(sheet,{header:'A',defval:'',raw:true,range,blankrows:false});
  const out=[];
- for(let i=header+1;i<rows.length;i++){
-  const r=rows[i],date=financialDate(r.C);
+ let headerFound=false;
+ for(const [idx,r] of rows.entries()){
+  if(!headerFound){
+   if(Core.norm(r.C)==='data'&&Core.norm(r.E).includes('descricao')&&Core.norm(r.K).includes('origdest'))headerFound=true;
+   continue;
+  }
+  const date=financialDate(r.C);
   if(!date)continue;
   const bank=financialBank(r.K),description=String(r.E||'').trim(),category=String(r.D||'').trim();
   if(!bank||!description)continue;
-  const readAmount=(v)=>{if(v===''||v===null||v===undefined)return 0;try{return Math.abs(Core.money(v))}catch{return 0}};
+  const readAmount=v=>{if(v===''||v===null||v===undefined)return 0;try{return Math.abs(Core.money(v))}catch{return 0}};
   const income=readAmount(r.I)||readAmount(r.G),expense=readAmount(r.J)||readAmount(r.H);
   if(income>0&&expense>0)continue;
   const cents=income>0?income:-expense;
   if(!cents)continue;
-  out.push({id:Core.id(),date,bank,description,category,cents,sourceRow:i+1});
+  out.push({id:Core.id(),date,bank,description,category,cents,sourceRow:Number(r.__rowNum__??idx)+1});
  }
+ if(!headerFound)throw Error('Cabeçalho Data / Descrição / Orig/Dest não encontrado na aba Livro Diário FC.');
  return out;
 }
 function financialCodeSuggestions(c,m){
