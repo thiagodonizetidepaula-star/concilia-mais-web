@@ -425,15 +425,17 @@ function suggestFromHistoricalLedger(c,ym){
  const likelyTransfer=new Set([...transfer.proposals.flatMap(p=>[p.outId,p.inId]),...transfer.ambiguous.flatMap(p=>[p.outId,...p.possibleInIds])]);
  let applied=0,ambiguous=0;
  for(const m of moves){
-  if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||m.suggested||likelyTransfer.has(m.id))continue;
-  const bank=byId.get(m.accountId),h=normalize(m.financialMatch==='SUGERIDA'&&(m.financialCategory||m.financialDescription)?m.financialCategory||m.financialDescription:m.history),category=normalize(m.financialMatch==='SUGERIDA'?m.financialCategory:''),party=normalize(m.party);
+  if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||(m.suggested&&m.confidence!=='Controle financeiro + conta analítica do plano — confirmar')||likelyTransfer.has(m.id))continue;
+  const bank=byId.get(m.accountId),rawCategory=m.financialMatch==='SUGERIDA'?String(m.financialCategory||m.financialDescription||''):'';
+  const cleanCategory=rawCategory.replace(/^\s*\d+(?:\.\d+)*\s*[-–.]?\s*/,'');
+  const h=normalize(cleanCategory||m.history),category=normalize(cleanCategory),party=normalize(m.party);
   if(!valid.has(bank)||!h)continue;
   const type=types(h),list=examples.get(String(m.cents>0?1:-1))||[];
   const score=entry=>{
-   if(!generic.test(h)&&h.length>=10&&entry.h===h)return 4;
+   if(!generic.test(h)&&h.length>=7&&entry.h===h)return 5;
    if(party.length>=9&&entry.h.includes(party))return 3;
-   if(category.length>=9&&(entry.h.includes(category)||category.includes(entry.h)))return 3;
-   if(!generic.test(h)&&h.length>=9&&(entry.h.includes(h)||h.includes(entry.h)))return 2;
+   if(category.length>=7&&(entry.h.includes(category)||category.includes(entry.h)))return 4;
+   if(!generic.test(h)&&h.length>=7&&(entry.h.includes(h)||h.includes(entry.h)))return 3;
    if(type&&entry.type===type)return 1;
    return 0;
   };
