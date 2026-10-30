@@ -425,7 +425,7 @@ function suggestFromHistoricalLedger(c,ym){
  const likelyTransfer=new Set([...transfer.proposals.flatMap(p=>[p.outId,p.inId]),...transfer.ambiguous.flatMap(p=>[p.outId,...p.possibleInIds])]);
  let applied=0,ambiguous=0;
  for(const m of moves){
-  if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||m.suggested||likelyTransfer.has(m.id))continue;
+  if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||(m.suggested&&m.confidence!=='Controle financeiro + conta analítica do plano — confirmar')||likelyTransfer.has(m.id))continue;
   const bank=byId.get(m.accountId),rawCategory=m.financialMatch==='SUGERIDA'?String(m.financialCategory||m.financialDescription||''):'';
   const cleanCategory=rawCategory.replace(/^\s*\d+(?:\.\d+)*\s*[-–.]?\s*/,'');
   const h=normalize(cleanCategory||m.history),category=normalize(cleanCategory),party=normalize(m.party);
