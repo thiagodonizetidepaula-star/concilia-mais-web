@@ -327,17 +327,24 @@ function financialRows(workbook){
 }
 function financialCodeSuggestions(c,m){
  if(!m.financialDescription||m.financialMatch!=='SUGERIDA'||m.status==='CONFIRMADO')return '';
- const term=Core.norm(m.financialCategory),desc=Core.norm(m.financialDescription);
  const bankCodes=new Set(c.accounts.map(a=>String(a.chartCode)));
  const choices=c.plan.filter(p=>p.analytic&&!bankCodes.has(String(p.code)));
- // Preferir texto da categoria da empresa somente quando coincidir com UMA conta analítica.
- const normalized=p=>Core.norm(p.description);
- const exact=choices.filter(p=>term&&term.length>=7&&normalized(p)===term);
+ // A numeração da categoria do cliente NÃO é código Domínio.
+ const clean=t=>String(t||'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.]?\s*/,'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
+ const term=clean(m.financialCategory);
+ if(term.length<5)return '';
+ const exact=choices.filter(p=>clean(p.description)===term);
  if(exact.length===1)return String(exact[0].code);
- const near=choices.filter(p=>term&&term.length>=12&&(normalized(p).includes(term)||term.includes(normalized(p)))&&normalized(p).length>=8);
- if(near.length===1)return String(near[0].code);
- // Não deduzir receita/despesa nem contrapartidas de descrições genéricas ou valores.
- return '';
+ const stop=new Set(['de','da','do','das','dos','para','com','em','e','a','o','itens','item','receita','despesa','despesas','pagamento','gastos']);
+ const words=t=>new Set(clean(t).split(' ').filter(w=>w.length>=4&&!stop.has(w)));
+ const wanted=words(term);
+ if(wanted.size<2)return '';
+ const candidates=choices.filter(p=>{
+  const got=words(p.description);
+  const shared=[...wanted].filter(w=>got.has(w));
+  return shared.length>=2&&shared.length===wanted.size;
+ });
+ return candidates.length===1?String(candidates[0].code):'';
 }
 function financialMatches(c,ym){
  const controls=(c.financialControls||[]).filter(x=>x.period===ym);
@@ -366,7 +373,7 @@ function financialMatches(c,ym){
    m.financialMatch='SUGERIDA';
    delete m.financialCandidates;
    matched++;
-   if(!m.suggested){
+   if(!m.suggested||m.confidence==='Controle financeiro + conta analítica do plano — confirmar'){
     const code=financialCodeSuggestions(c,m);
     if(code){m.suggested=code;m.confidence='Controle financeiro + conta analítica do plano — confirmar';coded++;}
    }
