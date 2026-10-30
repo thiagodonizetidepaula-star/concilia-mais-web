@@ -314,9 +314,10 @@ function financialRows(workbook){
   const date=financialDate(r.C);
   if(!date)continue;
   const bank=financialBank(r.K),description=String(r.E||'').trim(),category=String(r.D||'').trim();
-  if(!bank||!description)continue;
+  if(!bank||(!description&&!category))continue;
   const readAmount=v=>{if(v===''||v===null||v===undefined)return 0;try{return Math.abs(Core.money(v))}catch{return 0}};
-  const income=readAmount(r.I)||readAmount(r.G),expense=readAmount(r.J)||readAmount(r.H);
+  // Colunas G/H são a referência principal do controle do cliente; I/J apenas quando G/H não trazem valor.
+  const income=readAmount(r.G)||readAmount(r.I),expense=readAmount(r.H)||readAmount(r.J);
   if(income>0&&expense>0)continue;
   const cents=income>0?income:-expense;
   if(!cents)continue;
@@ -368,7 +369,8 @@ function financialMatches(c,ym){
   const unique=options.length===1&&moves.filter(o=>(candidates.get(o.id)||[]).some(x=>x.uniqueKey===options[0].uniqueKey)).length===1;
   if(unique){
    const e=options[0];
-   m.financialDescription=e.description;
+   m.financialDescription=e.category||e.description;
+   m.financialDetail=e.description;
    m.financialCategory=e.category;
    m.financialSourceRow=e.sourceRow;
    m.financialSourceFile=e.sourceFile;
@@ -382,7 +384,7 @@ function financialMatches(c,ym){
   }else{
    // Limpar associação anterior quando deixa de ser única após novo arquivo.
    if(m.financialMatch==='SUGERIDA'){
-    delete m.financialDescription;delete m.financialCategory;delete m.financialSourceRow;delete m.financialSourceFile;
+    delete m.financialDescription;delete m.financialDetail;delete m.financialCategory;delete m.financialSourceRow;delete m.financialSourceFile;
     if(m.confidence==='Controle financeiro + conta analítica do plano — confirmar'){delete m.suggested;delete m.confidence;}
    }
    if(options.length){
@@ -424,7 +426,7 @@ function suggestFromHistoricalLedger(c,ym){
  let applied=0,ambiguous=0;
  for(const m of moves){
   if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||m.suggested||likelyTransfer.has(m.id))continue;
-  const bank=byId.get(m.accountId),h=normalize(m.financialMatch==='SUGERIDA'&&m.financialDescription?m.financialDescription:m.history),category=normalize(m.financialMatch==='SUGERIDA'?m.financialCategory:''),party=normalize(m.party);
+  const bank=byId.get(m.accountId),h=normalize(m.financialMatch==='SUGERIDA'&&(m.financialCategory||m.financialDescription)?m.financialCategory||m.financialDescription:m.history),category=normalize(m.financialMatch==='SUGERIDA'?m.financialCategory:''),party=normalize(m.party);
   if(!valid.has(bank)||!h)continue;
   const type=types(h),list=examples.get(String(m.cents>0?1:-1))||[];
   const score=entry=>{
