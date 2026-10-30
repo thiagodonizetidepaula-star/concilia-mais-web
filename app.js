@@ -481,15 +481,17 @@ c.name=info.name||c.name;c.cnpj=info.cnpj||c.cnpj;c.dominio=info.dominio||c.domi
   if(!file)throw Error('Selecione o Excel financeiro do cliente.');
   if(!window.XLSX)throw Error('Biblioteca Excel não carregou. Atualize a página e tente novamente.');
   const sha=await hash(await file.arrayBuffer());
-  if((c.financialControls||[]).some(x=>x.sha===sha)){say('Controle financeiro já importado. Nenhum registro foi duplicado.');return;}
+  const existing=(c.financialControls||[]).find(x=>x.sha===sha&&x.period===period);
   const workbook=window.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
-  const rows=financialRows(workbook).filter(x=>x.date.startsWith(period));
-  if(!rows.length)throw Error('Nenhuma linha financeira válida para '+period+'. Confira a competência selecionada e a aba Livro Diário FC.');
+  const allRows=financialRows(workbook);
+  const rows=allRows.filter(x=>x.date.startsWith(period));
+  if(!rows.length)throw Error('O Excel foi lido, mas nenhuma das '+allRows.length+' linhas válidas pertence à competência '+period+'. Verifique o mês, a data e a aba Livro Diário FC.');
   c.financialControls=c.financialControls||[];
-  c.financialControls.push({id:Core.id(),sha,period,name:file.name,rows,at:new Date().toISOString()});
+  if(existing){existing.rows=rows;existing.at=new Date().toISOString();existing.name=file.name;}
+  else c.financialControls.push({id:Core.id(),sha,period,name:file.name,rows,at:new Date().toISOString()});
   const result=financialMatches(c,period);
   await store('CONTROLE_FINANCEIRO_IMPORTADO',file.name+': '+rows.length+' linhas, '+result.matched+' correspondências únicas, '+result.ambiguous+' ambíguas');
-  $('#financialStatus').textContent='Controle '+file.name+': '+rows.length+' lançamentos de '+period+'; '+result.matched+' descrições sugeridas, '+result.coded+' novos códigos sugeridos e '+result.ambiguous+' correspondências ambíguas. Confira as contrapartidas antes de contabilizar.';
+  $('#financialStatus').textContent=(existing?'Controle reprocessado ':'Controle importado ')+file.name+': '+rows.length+' lançamentos de '+period+'; '+result.matched+' descrições sugeridas, '+result.coded+' novos códigos sugeridos e '+result.ambiguous+' correspondências ambíguas. Confira as contrapartidas antes de contabilizar.';
   say('Controle financeiro importado. Confira as descrições sugeridas em Movimentações.');
  })};
  $('#matchFinancial').onclick=()=>action(async()=>{const c=getCompany();if(!(c.financialControls||[]).some(x=>x.period===period))throw Error('Nenhum controle financeiro importado para '+period+'. Primeiro clique em Importar controle financeiro; escolher o arquivo não realiza a importação.');const result=financialMatches(c,period);await store('CRUZAMENTO_FINANCEIRO',result.matched+' correspondências sugeridas; '+result.coded+' novos códigos; '+result.ambiguous+' ambíguas');$('#financialStatus').textContent='Descrições: '+result.matched+'; novos códigos sugeridos: '+result.coded+'; ambíguas: '+result.ambiguous+'. Confira as movimentações.';say('Cruzamento atualizado.')});
