@@ -81,7 +81,7 @@ function contasLinhas(core,c,period){
   else if(validated||proposed){const cp=String(validated?m.counterpart:m.suggested);debit=m.cents>0?bankCode:cp;credit=m.cents>0?cp:bankCode;status=validated?'CÓDIGOS CONFIRMADOS':'SUGESTÃO A CONFERIR';tone=validated?'green':'yellow';detail=validated?'Contrapartida aprovada pelo operador':'Código sugerido; exige confirmação manual';}
   else {debit=m.cents>0?bankCode:'';credit=m.cents<0?bankCode:'';}
   if(journal?.recon==='AMBIGUO'){status='DIVERGÊNCIA NO RAZÃO';tone='red';detail='Há mais de um lançamento contábil com a mesma chave';}
-  return {date:m.date,bank:bank?.bank||'',debit,credit,cents:m.cents,history:m.history,party:m.party||'',origin:m.origin||'',status,tone,detail,recon:journal?.recon||'NÃO COMPARADO'};
+  return {date:m.date,bank:bank?.bank||'',debit,credit,cents:m.cents,history:[m.history,m.financialMatch==='SUGERIDA'&&m.financialDescription?'Controle financeiro: '+m.financialDescription:'',m.financialMatch==='SUGERIDA'&&m.financialCategory?'Categoria: '+m.financialCategory:''].filter(Boolean).join(' — '),party:m.party||'',origin:m.origin||'',status,tone,detail,recon:journal?.recon||'NÃO COMPARADO'};
  });
 }
 function relatorioHtml(core,c,period){
