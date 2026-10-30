@@ -40,7 +40,7 @@ function report(core,company,period){
    else if(proposed){debit=m.cents>0?bankCode:suggestedCode;credit=m.cents>0?suggestedCode:bankCode;situation='SUGERIDA — CONFIRMAR CONTRAPARTIDA';notes='Códigos são sugestão, não lançamento confirmado.';suggested++;}
    else{debit=m.cents>0?bankCode:'';credit=m.cents<0?bankCode:'';situation='PENDENTE — CONTRAPARTIDA NÃO IDENTIFICADA';notes='Campo de contrapartida não preenchido para evitar código fictício.';blocked++;}
    if(journal&&!tr&&journal.recon==='AMBIGUO')notes=(notes?notes+' ':'')+'Correspondência duplicada/ambígua no Razão.';
-   confer.push([dateBR(m.date),debit,credit,number(m.cents/100),formulaText([m.history,m.financialDescription?('Controle: '+m.financialDescription):'',m.financialCategory?('Categoria: '+m.financialCategory):''].filter(Boolean).join(' — ')),situation,reconStatus,bank?.bank||'',bankCode,formulaText(m.party||''),formulaText(m.origin||''),notes]);
+   confer.push([dateBR(m.date),debit,credit,number(m.cents/100),formulaText([m.history,m.financialDescription?('Controle: '+m.financialDescription):'',m.financialDetail&&m.financialDetail!==m.financialDescription?('Detalhe: '+m.financialDetail):''].filter(Boolean).join(' — ')),situation,reconStatus,bank?.bank||'',bankCode,formulaText(m.party||''),formulaText(m.origin||''),notes]);
  }
  // Extrato independente do Razão: códigos só são preenchidos para classificações confirmadas.
  const detalhamento=[['Data','Banco','Código Banco','Extrato Origem','Valor (R$)','Sentido','Histórico Original','Descrição Controle Financeiro','Categoria Controle','Arquivo Controle','Linha Controle','Situação Cruzamento','Código Débito','Código Crédito','Status Contábil','Evidência do Código','Possíveis Correspondências']];
