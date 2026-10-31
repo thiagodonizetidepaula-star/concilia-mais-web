@@ -8,12 +8,9 @@ const dateBR=d=>String(d||'').split('-').reverse().join('/');
 const formulaText=s=>String(s??'').slice(0,32767); // Excel inlineStr: strings never formulas
 const number=n=>({n:Number(n)});
 function cleanStatementHistory(m){
- const clean=t=>String(t||'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.]?\s*/,'').trim();
+ const clean=t=>String(t||'').replace(/^\s*(?:Controle\s*(?:financeiro)?\s*:\s*)?/i,'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.]?\s*/,'').trim();
  const category=clean(m.financialCategory||m.financialDescription);
- const detail=String(m.financialDetail||'').trim();
- if(m.financialMatch==='SUGERIDA'&&category){
-  return [category,detail&&detail.toLocaleLowerCase('pt-BR')!==category.toLocaleLowerCase('pt-BR')?detail:''].filter(Boolean).join(' — ');
- }
+ if(m.financialMatch==='SUGERIDA'&&category)return category;
  return String(m.history||'').trim();
 }
 function report(core,company,period){
