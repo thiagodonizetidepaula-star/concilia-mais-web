@@ -14,9 +14,25 @@ function say(msg,error=false){const t=$('#toast');t.textContent=msg;t.className=
 function action(fn){Promise.resolve().then(fn).catch(e=>{console.error(e);say(e.message||String(e),true)})}
 function openDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open('ConciliaMaisBrowserDB',1);r.onupgradeneeded=()=>r.result.createObjectStore('app');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
 function loadDB(){return new Promise((resolve,reject)=>{const tx=db.transaction('app','readonly');const req=tx.objectStore('app').get('workspace');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
-function saveDB(){return new Promise((resolve,reject)=>{const tx=db.transaction('app','readwrite');tx.objectStore('app').put(state,'workspace');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
+// Importações operacionais pertencem exclusivamente à sessão atual.
+ // Salvar somente cadastros, planos, regras e Razões históricos de referência.
+ // Não reutilizar extratos/razão definitivo/documentos financeiros de sessões anteriores.
+function durableWorkspace(workspace){
+ const copy=JSON.parse(JSON.stringify(workspace||blankState()));
+ for(const c of copy.companies||[]){
+  c.imports=[];
+  c.movements=[];
+  c.ledger=[];
+  c.transfers=[];
+  c.financialControls=[];
+ }
+ copy.reviews=(copy.reviews||[]).filter(r=>!r.importId);
+ copy.audit=(copy.audit||[]).filter(a=>!/(EXTRATO|RAZAO|RAZÕES|RAZOES|CONTROLE_FINANCEIRO|CRUZAMENTO_FINANCEIRO|TRIAGEM_AUTOMATICA|SUGESTOES_GERADAS|IMPORTACAO|RESTAURACAO)/i.test(String(a.action||'')));
+ return copy;
+}
+function saveDB(){return new Promise((resolve,reject)=>{const tx=db.transaction('app','readwrite');tx.objectStore('app').put(durableWorkspace(state),'workspace');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
 function log(type,detail){state.audit.push({at:new Date().toISOString(),companyId,action:type,detail});}
-async function store(type,detail){if(!['EXTRATO_REFAZER','IMPORTACAO_EXCLUIDA','RESTAURACAO_IMPORTACOES'].includes(type))ultimoExcluido=null;log(type,detail);await saveDB();render();if(cloudSyncEnabled&&window.ConciliaCloud?.authenticated()){try{await window.ConciliaCloud.serializedSave(JSON.parse(JSON.stringify(state)));cloudMessage('Alterações salvas na nuvem e cópia local atualizada.');}catch(err){cloudSyncEnabled=false;cloudMessage('Falha ao sincronizar: '+err.message+'. Cópia local preservada. Faça backup JSON antes de continuar.',true)}}}
+async function store(type,detail){if(!['EXTRATO_REFAZER','IMPORTACAO_EXCLUIDA','RESTAURACAO_IMPORTACOES'].includes(type))ultimoExcluido=null;log(type,detail);await saveDB();render();if(cloudSyncEnabled&&window.ConciliaCloud?.authenticated()){try{await window.ConciliaCloud.serializedSave(durableWorkspace(state));cloudMessage('Alterações salvas na nuvem e cópia local atualizada.');}catch(err){cloudSyncEnabled=false;cloudMessage('Falha ao sincronizar: '+err.message+'. Cópia local preservada. Faça backup JSON antes de continuar.',true)}}}
 function table(headers,rows){if(!rows.length)return empty('Nenhum registro para exibir.');return `<div class="tablewrap"><table><thead><tr>${headers.map(h=>`<th>${safe(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${v??''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
 function badge(s){const kind=/CONFIRM|CONCILIADO|OK/.test(s)?'ok':/PENDENTE|SUGERIDA|AMBIGU|DUPLIC/.test(s)?'warn':'';return `<span class="badge ${kind}">${safe(s)}</span>`}
 function datePT(d){return String(d||'').split('-').reverse().join('/')}
@@ -55,14 +71,22 @@ async function activateCloud(){
  const previousLocal=await loadDB();
  if(previousLocal&&Array.isArray(previousLocal.companies)&&previousLocal.companies.length){
   const tx=db.transaction('app','readwrite');
-  tx.objectStore('app').put(previousLocal,'recovery-before-cloud');
+  tx.objectStore('app').put(durableWorkspace(previousLocal),'recovery-before-cloud');
   await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});
  }
- state=remote||blankState();
+ state=durableWorkspace(remote||blankState());
  companyId='';ultimoExcluido=null;cloudSyncEnabled=true;authReady=true;
+ // Limpar automaticamente dados operacionais legados já salvos no workspace.
+ // A eventual falha de limpeza remota não traz lançamentos antigos à sessão.
+ await saveDB();
+ const hasOldImports=(remote?.companies||[]).some(c=>(c.imports||[]).length||(c.movements||[]).length||(c.ledger||[]).length||(c.financialControls||[]).length||(c.transfers||[]).length);
+ if(hasOldImports){
+  try{await cloud.serializedSave(durableWorkspace(state));}
+  catch(err){cloudSyncEnabled=false;cloudMessage('Histórico antigo ignorado nesta sessão, mas a limpeza na nuvem falhou: '+err.message+'. Confira a conexão.',true);}
+ }
  $('#companySearch').value='';renderSelection();showPage('empresas');
  cloudDisplay();
- cloudMessage(remote?'Dados da nuvem carregados. Empresa não selecionada.':'Conta conectada. Escolha uma empresa ou cadastre uma nova. Se os dados antigos estiverem neste notebook, use Configurações e backup para migrá-los.');
+ if(cloudSyncEnabled)cloudMessage(remote?'Cadastros e Razões de referência carregados. Importações anteriores não serão reutilizadas.':'Conta conectada. Nenhum extrato anterior será reutilizado. Se necessário, migre os cadastros em Configurações.');
 }
 async function initializeCloud(){
  const cloud=window.ConciliaCloud;authReady=false;cloudDisplay();
@@ -121,7 +145,7 @@ function bindCloud(){
    const remote=await cloud.fetchWorkspace();
    if(remote?.companies?.length){cloudMessage('Já existem empresas na nuvem. A migração foi bloqueada para evitar sobrescrita.',true);return;}
    if(remote&&remote.audit?.length){cloudMessage('A nuvem já contém dados. Migração bloqueada por segurança.',true);return;}
-   await cloud.saveWorkspace(JSON.parse(JSON.stringify(legacyData)));
+   await cloud.saveWorkspace(durableWorkspace(legacyData));
    await activateCloud();
    cloudMessage('Migração concluída. '+state.companies.length+' empresa(s) recebidas no Supabase.');
   }catch(err){cloudMessage('Não foi possível migrar: '+err.message,true);}
