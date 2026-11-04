@@ -208,7 +208,7 @@ function renderMovements(){
  summary.textContent=ordered.length?list.length+' lançamento(s) deste extrato · '+ordered.length+' extrato(s) na competência '+period:'Nenhuma movimentação nesta competência.';
  const rows=list.map(m=>[
   datePT(m.date),safe(accounts.get(m.accountId)?.bank||'Conta excluída'),`<span title="${safe(movementOriginLabel(m,imports,accounts))}">${safe(imports.get(m.importId)?.name||m.origin||'Origem não identificada')}</span>`,
-  `<span class="fiscal">${safe(m.history)}<div class="subtle">${safe(m.financialDescription?('Controle financeiro: '+m.financialDescription+' · '+(m.financialCategory||'')+' ['+(m.financialMatch||'SUGERIDA')+']'):(m.financialMatch==='AMBIGUA'?'Controle financeiro: múltiplas correspondências — revisar':m.party||'Sem contraparte informada'))}</div></span>`,
+  `<span class="fiscal">${safe(m.history)}<div class="subtle">${safe(m.financialDescription?('Controle financeiro: '+String(m.financialDescription||'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.]?\s*/,'').trim()+' ['+(m.financialMatch||'SUGERIDA')+']'):(m.financialMatch==='AMBIGUA'?'Controle financeiro: múltiplas correspondências — revisar':m.party||'Sem contraparte informada'))}</div></span>`,
   `<span class="${m.cents<0?'flag':''}">${currency(m.cents)}</span>`,badge(matched.has(m.id)?'TRANSFERÊNCIA':m.status),
   matched.has(m.id)?'<small>Vínculo confirmado</small>':`<div class="inline-actions"><select id="cp_${safe(m.id)}" ${m.status==='PENDENTE_DUPLICIDADE'?'disabled':''}>${optionsFor(c,m.counterpart||m.suggested)}</select><button data-classify="${safe(m.id)}" ${m.status==='PENDENTE_DUPLICIDADE'?'disabled':''}>Confirmar</button></div>`
  ]);
