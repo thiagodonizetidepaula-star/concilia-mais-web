@@ -71,14 +71,22 @@ async function activateCloud(){
  const previousLocal=await loadDB();
  if(previousLocal&&Array.isArray(previousLocal.companies)&&previousLocal.companies.length){
   const tx=db.transaction('app','readwrite');
-  tx.objectStore('app').put(previousLocal,'recovery-before-cloud');
+  tx.objectStore('app').put(durableWorkspace(previousLocal),'recovery-before-cloud');
   await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});
  }
  state=durableWorkspace(remote||blankState());
  companyId='';ultimoExcluido=null;cloudSyncEnabled=true;authReady=true;
+ // Limpar automaticamente dados operacionais legados já salvos no workspace.
+ // A eventual falha de limpeza remota não traz lançamentos antigos à sessão.
+ await saveDB();
+ const hasOldImports=(remote?.companies||[]).some(c=>(c.imports||[]).length||(c.movements||[]).length||(c.ledger||[]).length||(c.financialControls||[]).length||(c.transfers||[]).length);
+ if(hasOldImports){
+  try{await cloud.serializedSave(durableWorkspace(state));}
+  catch(err){cloudSyncEnabled=false;cloudMessage('Histórico antigo ignorado nesta sessão, mas a limpeza na nuvem falhou: '+err.message+'. Confira a conexão.',true);}
+ }
  $('#companySearch').value='';renderSelection();showPage('empresas');
  cloudDisplay();
- cloudMessage(remote?'Dados da nuvem carregados. Empresa não selecionada.':'Conta conectada. Escolha uma empresa ou cadastre uma nova. Se os dados antigos estiverem neste notebook, use Configurações e backup para migrá-los.');
+ if(cloudSyncEnabled)cloudMessage(remote?'Cadastros e Razões de referência carregados. Importações anteriores não serão reutilizadas.':'Conta conectada. Nenhum extrato anterior será reutilizado. Se necessário, migre os cadastros em Configurações.');
 }
 async function initializeCloud(){
  const cloud=window.ConciliaCloud;authReady=false;cloudDisplay();
