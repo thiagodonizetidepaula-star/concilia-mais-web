@@ -429,6 +429,8 @@ function financialMatches(c,ym){
   if(options.length&&labels.length===1){
    m.financialDescription=labels[0];m.financialCategory=options[0].category;
    m.financialMatch='CATEGORIA_COMPARTILHADA';m.financialCandidates=options.map(source);shared++;matched++;
+   // Categoria é unânime, mas a linha/cliente específico permanece indeterminado.
+   if(!m.suggested){const code=financialCodeSuggestions(c,m);if(code){m.suggested=code;m.confidence='Controle financeiro + conta analítica do plano — confirmar';coded++;}}
    continue;
   }
   if(!options.length){
@@ -471,7 +473,7 @@ function suggestFromHistoricalLedger(c,ym){
  let applied=0,ambiguous=0,notFound=0;
  for(const m of Core.periodMovements(c,ym)){
   if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||protectedIds.has(m.id))continue;
-  const bank=byId.get(m.accountId),category=m.financialMatch==='SUGERIDA'?clean(m.financialCategory||m.financialDescription):'';
+  const bank=byId.get(m.accountId),category=['SUGERIDA','CATEGORIA_COMPARTILHADA'].includes(m.financialMatch)?clean(m.financialCategory||m.financialDescription):'';
   if(!valid.has(bank)||!category){notFound++;continue;}
   const refsForDirection=examples[m.cents>0?1:0];
   const exact=refsForDirection.filter(x=>x.h===category);
