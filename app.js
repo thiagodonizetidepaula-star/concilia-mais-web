@@ -365,11 +365,10 @@ function financialMatches(c,ym){
  const protectedIds=new Set([...(c.transfers||[]).filter(x=>x.status==='CONFIRMADA').flatMap(x=>[x.outId,x.inId]),...transfers.proposals.flatMap(x=>[x.outId,x.inId]),...transfers.ambiguous.flatMap(x=>[x.outId,...x.possibleInIds])]);
  const banks=new Map(c.accounts.map(a=>[a.id,financialBank(a.bank)]));
  const cleanCat=t=>String(t||'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.]?\s*/,'').trim();
- const byBankAmount=new Map(),byBankDay=new Map();
+ const byBankAmount=new Map();
  for(const e of entries){
-  const key=e.bank+'|'+e.cents,day=e.bank+'|'+e.date+'|'+Math.sign(e.cents);
+  const key=e.bank+'|'+e.cents;
   if(!byBankAmount.has(key))byBankAmount.set(key,[]);
-  if(!byBankDay.has(day))byBankDay.set(day,[]);
   byBankAmount.get(key).push(e);byBankDay.get(day).push(e);
  }
  const candidates=new Map(),referenceCounts=new Map();
@@ -387,26 +386,6 @@ function financialMatches(c,ym){
   }
   delete m.financialCandidates;
  };
- // Somatórios só no mesmo banco, dia e sentido; nunca somar movimentos de datas aleatórias.
- // Se várias combinações tiverem categorias diferentes, não escolher uma.
- const combinations=m=>{
-  if(m.cents<=0)return [];
-  const day=byBankDay.get(banks.get(m.accountId)+'|'+m.date+'|1')||[];
-  if(day.length>65)return [];
-  const rows=day.filter(e=>e.cents>0&&e.cents<m.cents&&!/transfer[eê]ncia entre contas/i.test(String(e.category||'')));
-  const found=[],maxCombos=80;
-  for(let i=0;i<rows.length;i++){
-   for(let j=i+1;j<rows.length;j++){
-    if(rows[i].cents+rows[j].cents===m.cents)found.push([rows[i],rows[j]]);
-    if(found.length>maxCombos)return [];
-    for(let k=j+1;k<rows.length;k++){
-     if(rows[i].cents+rows[j].cents+rows[k].cents===m.cents)found.push([rows[i],rows[j],rows[k]]);
-     if(found.length>maxCombos)return [];
-    }
-   }
-  }
-  return found;
- };
  let matched=0,ambiguous=0,coded=0,unmatched=0,shared=0,grouped=0;
  for(const m of moves){
   if(m.status==='CONFIRMADO'||protectedIds.has(m.id))continue;
@@ -423,7 +402,7 @@ function financialMatches(c,ym){
    continue;
   }
   clear(m);
-  // Mesmo valor repetido: descrever a categoria somente se TODAS as alternativas
+  // Mesmo valor exato repetido: descrever a categoria somente se TODAS as alternativas
   // pertencerem à mesma conta da coluna D, sem alegar identificar qual linha/cliente.
   const labels=[...new Set(options.map(e=>cleanCat(e.category)).filter(Boolean))];
   if(options.length&&labels.length===1){
@@ -432,18 +411,6 @@ function financialMatches(c,ym){
    // Categoria é unânime, mas a linha/cliente específico permanece indeterminado.
    if(!m.suggested){const code=financialCodeSuggestions(c,m);if(code){m.suggested=code;m.confidence='Controle financeiro + conta analítica do plano — confirmar';coded++;}}
    continue;
-  }
-  if(!options.length){
-   const groups=combinations(m);
-   const signatures=[...new Set(groups.map(group=>[...new Set(group.map(e=>cleanCat(e.category)))].sort().join(' + ')))];
-   if(groups.length&&signatures.length===1&&signatures[0]){
-    m.financialDescription=signatures[0];m.financialMatch='AGRUPADA';
-    m.financialCandidates=[...new Map(groups.flat().map(e=>[e.uniqueKey,source(e)])).values()];
-    grouped++;matched++;continue;
-   }
-   if(groups.length){
-    m.financialMatch='AMBIGUA';m.financialCandidates=[...new Map(groups.flat().map(e=>[e.uniqueKey,source(e)])).values()];ambiguous++;continue;
-   }
   }
   if(options.length){m.financialMatch='AMBIGUA';m.financialCandidates=options.map(source);ambiguous++;}
   else{m.financialMatch='SEM_CORRESPONDENCIA';unmatched++;}
