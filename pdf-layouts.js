@@ -74,7 +74,7 @@ function parseStone(pdf,origin,accountId,Core){
   }
  }
  flush();
- const final=balances.length?balances[balances.length-1].cents:undefined;
+ const final=balances.length?balances[0].cents:undefined; // PDF Stone é ordenado do mais recente ao mais antigo
  return {movements,reviews,balances,balanceCheck:{status:'INDETERMINADO',final,reason:'Stone: saldos extraídos, conferir abertura e fechamento do período'},format:'PDF_STONE_MULTI_LAYOUT',parsedCount:movements.length};
 }
 function parseNubank(pdf,origin,accountId,Core){const movements=[],reviews=[],rows=linesOf(pdf);let currentDate='',direction=0,pending=null;
