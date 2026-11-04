@@ -50,6 +50,14 @@ async function activateCloud(){
  if(!cloud?.authenticated()){authReady=false;cloudDisplay();return;}
  const remote=await cloud.fetchWorkspace();
  if(remote&&!Array.isArray(remote.companies))throw Error('Workspace da nuvem inválido.');
+ // Preservar um retrato local de recuperação ANTES de carregar a nuvem.
+ // Não enviar dados locais antigos automaticamente para a conta conectada.
+ const previousLocal=await loadDB();
+ if(previousLocal&&Array.isArray(previousLocal.companies)&&previousLocal.companies.length){
+  const tx=db.transaction('app','readwrite');
+  tx.objectStore('app').put(previousLocal,'recovery-before-cloud');
+  await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});
+ }
  state=remote||blankState();
  companyId='';ultimoExcluido=null;cloudSyncEnabled=true;authReady=true;
  $('#companySearch').value='';renderSelection();showPage('empresas');
@@ -393,6 +401,7 @@ function financialMatches(c,ym){
    }
    if(options.length){
     m.financialMatch='AMBIGUA';
+    // Manter todas as alternativas identificáveis; não inventar uma linha do DRE.
     m.financialCandidates=options.map(e=>({description:e.description,category:e.category,sourceRow:e.sourceRow,date:e.date,sourceFile:e.sourceFile}));
     ambiguous++;
    }else{m.financialMatch='SEM_CORRESPONDENCIA';delete m.financialCandidates;unmatched++;}
