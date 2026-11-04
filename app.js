@@ -356,17 +356,21 @@ function financialMatches(c,ym){
  const transfers=Core.transferSuggestions(c,ym);
  const protectedIds=new Set([...(c.transfers||[]).filter(x=>x.status==='CONFIRMADA').flatMap(x=>[x.outId,x.inId]),...transfers.proposals.flatMap(x=>[x.outId,x.inId]),...transfers.ambiguous.flatMap(x=>[x.outId,...x.possibleInIds])]);
  const banks=new Map(c.accounts.map(a=>[a.id,financialBank(a.bank)]));
- const candidates=new Map();
+ // Indexar banco e valor evita percorrer todas as linhas do DRE para cada lançamento.
+ const byBankAmount=new Map();
+ for(const e of entries){const key=e.bank+'|'+e.cents;const arr=byBankAmount.get(key)||[];arr.push(e);byBankAmount.set(key,arr);}
+ const candidates=new Map(),referenceCounts=new Map();
  for(const m of moves){
-  // Uma linha do controle somente pode corresponder a um movimento, inclusive se valor/data repetirem.
-  const options=protectedIds.has(m.id)?[]:entries.filter(e=>e.cents===m.cents&&e.bank===banks.get(m.accountId)&&Math.abs(Core.dayDistance(e.date,m.date))<=4);
+  // Uma linha do controle somente pode corresponder a um movimento.
+  const options=protectedIds.has(m.id)?[]:(byBankAmount.get(banks.get(m.accountId)+'|'+m.cents)||[]).filter(e=>Math.abs(Core.dayDistance(e.date,m.date))<=4);
   candidates.set(m.id,options);
+  for(const e of options)referenceCounts.set(e.uniqueKey,(referenceCounts.get(e.uniqueKey)||0)+1);
  }
  let matched=0,ambiguous=0,coded=0,unmatched=0;
  for(const m of moves){
   if(m.status==='CONFIRMADO'||protectedIds.has(m.id))continue;
   const options=candidates.get(m.id)||[];
-  const unique=options.length===1&&moves.filter(o=>(candidates.get(o.id)||[]).some(x=>x.uniqueKey===options[0].uniqueKey)).length===1;
+  const unique=options.length===1&&referenceCounts.get(options[0].uniqueKey)===1;
   if(unique){
    const e=options[0];
    m.financialDescription=e.category||e.description;
