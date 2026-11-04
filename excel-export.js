@@ -35,7 +35,7 @@ function report(core,company,period){
    const cp=String(m.counterpart||'');
    const suggestedCode=String(m.suggested||'');
    const approved=!!(m.status==='CONFIRMADO'&&plan.get(cp)?.analytic&&cp!==bankCode);
-   const proposed=!!(!approved&&m.status!=='PENDENTE_DUPLICIDADE'&&plan.get(suggestedCode)?.analytic);
+   const proposed=!!(!approved&&m.status!=='PENDENTE_DUPLICIDADE'&&!(m.historicalCodeConflict||[]).length&&plan.get(suggestedCode)?.analytic);
    const tr=transferPairs.get(m.id);
    const journal=journalBySource.get(m.id);
    let debit='',credit='',situation='',reconStatus='NÃO VERIFICADO',notes='';
@@ -49,24 +49,24 @@ function report(core,company,period){
    confer.push([dateBR(m.date),debit,credit,number(m.cents/100),formulaText([m.history,m.financialDescription?('Controle: '+m.financialDescription):'',m.financialDetail&&m.financialDetail!==m.financialDescription?('Detalhe: '+m.financialDetail):''].filter(Boolean).join(' — ')),situation,reconStatus,bank?.bank||'',bankCode,formulaText(m.party||''),formulaText(m.origin||''),notes]);
  }
  // Extrato independente do Razão: códigos só são preenchidos para classificações confirmadas.
- const detalhamento=[['Data','Banco','Código Banco','Extrato Origem','Valor (R$)','Sentido','Histórico Original','Descrição Controle Financeiro','Categoria Controle','Arquivo Controle','Linha Controle','Situação Cruzamento','Código Débito','Código Crédito','Status Contábil','Evidência do Código','Possíveis Correspondências']];
+ const detalhamento=[['Data','Banco','Código Banco','Extrato Origem','Valor (R$)','Sentido','Histórico Original','Descrição Controle Financeiro','Categoria Controle','Arquivo Controle','Linha Controle','Situação Cruzamento','Código Débito','Código Crédito','Status Contábil','Evidência do Código','Possíveis Correspondências','Conflito no Razão Histórico']];
  for(const m of moves){
   const bank=accounts.get(m.accountId),bankCode=bank&&plan.get(String(bank.chartCode))?.analytic?String(bank.chartCode):'';
   const cp=m.status==='CONFIRMADO'?String(m.counterpart||''):String(m.suggested||'');
-  const valid=!!cp&&!!plan.get(cp)?.analytic&&cp!==bankCode;
+  const valid=!!cp&&!!plan.get(cp)?.analytic&&cp!==bankCode&&(m.status==='CONFIRMADO'||!(m.historicalCodeConflict||[]).length);
   const debit=valid?(m.cents>0?bankCode:cp):m.cents>0?bankCode:'';
   const credit=valid?(m.cents>0?cp:bankCode):m.cents<0?bankCode:'';
   const match=m.financialMatch||'NÃO ANALISADO';
   const status=m.status==='CONFIRMADO'?'CONFIRMADO':m.status==='PENDENTE_DUPLICIDADE'?'REVISAR DUPLICIDADE':valid?'CÓDIGO SUGERIDO — CONFERIR':'CÓDIGO PENDENTE';
   const possible=(m.financialCandidates||[]).map(e=>(e.date||'')+' | '+(e.description||'')+' | linha '+e.sourceRow).join('; ');
-  detalhamento.push([dateBR(m.date),bank?.bank||'',bankCode,formulaText(m.origin||''),number(m.cents/100),m.cents>=0?'ENTRADA':'SAÍDA',formulaText(m.history),formulaText(m.financialDescription||''),formulaText(m.financialCategory||''),formulaText(m.financialSourceFile||''),m.financialSourceRow||'',match,debit,credit,status,formulaText(m.confidence||''),formulaText(possible)]);
+  detalhamento.push([dateBR(m.date),bank?.bank||'',bankCode,formulaText(m.origin||''),number(m.cents/100),m.cents>=0?'ENTRADA':'SAÍDA',formulaText(m.history),formulaText(m.financialDescription||''),formulaText(m.financialCategory||''),formulaText(m.financialSourceFile||''),m.financialSourceRow||'',match,debit,credit,status,formulaText(m.confidence||''),formulaText(possible),formulaText((m.historicalCodeConflict||[]).join(' / '))]);
  }
  const bankOnly=[['Data','Cód. Conta Débito','Cód. Conta Crédito','Valor Extrato (R$)','Complemento Histórico']];
  for(const m of moves){
   const bank=accounts.get(m.accountId),bankCode=bank&&plan.get(String(bank.chartCode))?.analytic?String(bank.chartCode):'';
   const cp=String(m.counterpart||''),valid=!!plan.get(cp)?.analytic;
   const confirmed=m.status==='CONFIRMADO'&&valid&&!!bankCode&&cp!==bankCode&&m.status!=='PENDENTE_DUPLICIDADE';
-  const proposedCode=String(m.suggested||'');const proposed=!confirmed&&m.status!=='PENDENTE_DUPLICIDADE'&&!!bankCode&&proposedCode!==bankCode&&!!plan.get(proposedCode)?.analytic;
+  const proposedCode=String(m.suggested||'');const proposed=!confirmed&&m.status!=='PENDENTE_DUPLICIDADE'&&!(m.historicalCodeConflict||[]).length&&!!bankCode&&proposedCode!==bankCode&&!!plan.get(proposedCode)?.analytic;
   const duplicate=m.status==='PENDENTE_DUPLICIDADE';
   const situation=duplicate?'REVISAR DUPLICIDADE':!bankCode?'VINCULAR CONTA DO BANCO':confirmed?'CLASSIFICAÇÃO CONFIRMADA':proposed?'SUGESTÃO — REVISAR E CONFIRMAR':'PENDENTE — CONFERIR CONTRAPARTIDA';
   const effectiveCp=confirmed?cp:proposed?proposedCode:'';
@@ -102,7 +102,34 @@ function report(core,company,period){
  for(const a of company.plan)source.push([text(a.code),text(a.classification),formulaText(a.description),a.analytic?'SIM':'NÃO']);
  const imports=[['Arquivo','Banco','Formato','Movimentos','Verificação de Saldos','Diferença (R$)']];
  for(const i of periodImports)imports.push([text(i.name),text(i.bank||accounts.get(i.accountId)?.bank||''),text(i.format),number(i.movementCount||0),text(i.balanceCheck?.status||'NÃO CONFERIDO'),typeof i.balanceCheck?.difference==='number'?number(i.balanceCheck.difference/100):'']);
- return {sheets:[{name:'Extrato_Classificado',rows:bankOnly,widths:[16,24,24,22,100]},{name:'Detalhamento_Financeiro',rows:detalhamento,widths:[16,22,16,43,18,14,58,66,52,43,18,26,18,18,36,58,75]},{name:'Resumo',rows:summary,widths:[48,82]},{name:'Conferencia',rows:confer,widths:[15,20,20,20,72,46,35,21,19,43,43,66]},{name:'Lancamentos_Prontos',rows:ready,widths:[16,24,24,20,82]},{name:'Plano_de_Contas',rows:source,widths:[18,32,62,16]},{name:'Extratos_Importados',rows:imports,widths:[53,24,16,18,29,22]},{name:'Divergencias',rows:auditRows,widths:[16,29,22,21,21,17,17,19,45,78,83,45,27]}],counts:{movements:moves.length,ready:ready.length-1,suggested,blocked,confirmed,hasLedger,codeErrors:rec.errors.length,divergentBalance,unverifiedBalance,unreviewedReadings,unmatchedBankLedger,missingBankLedger,ledgerBalanceDifferences,blockedReadiness,auditEvents:auditData?.events.length||0}};
+ const balanceReview=[['Extrato','Banco','Competência','Movimentos','Estado','Diferença (R$)','O que conferir']];
+ for(const i of periodImports){
+  const check=i.balanceCheck||{},status=check.status||'NÃO CONFERIDO';
+  const guidance=status==='DIVERGENTE'?'Diferença entre saldo inicial, movimentos importados e saldo final; não contabilizar antes de corrigir':status==='INDETERMINADO'||status==='NÃO CONFERIDO'?'Conferir todas as páginas e informar os saldos inicial/final no aplicativo':i.reviewCount?'Resolver linhas ignoradas na leitura do PDF':'Saldo conferido; validar quantidade de movimentos no documento';
+  balanceReview.push([text(i.name),text(i.bank||accounts.get(i.accountId)?.bank||''),period,number(i.movementCount||0),status,typeof check.difference==='number'?number(check.difference/100):'',guidance]);
+ }
+ const transferReview=[['Data','Origem','Destino','Valor (R$)','Código Débito','Código Crédito','Status','Observação']];
+ const transferSuggestions=core.transferSuggestions(company,period);
+ const accountMap=new Map((company.accounts||[]).map(a=>[a.id,a]));
+ const moveMap=new Map(moves.map(m=>[m.id,m]));
+ for(const t of company.transfers||[]){
+  if(t.status!=='CONFIRMADA')continue;
+  const out=moveMap.get(t.outId),inn=moveMap.get(t.inId);
+  if(!out||!inn)continue;
+  const src=accountMap.get(out.accountId),dst=accountMap.get(inn.accountId);
+  transferReview.push([dateBR(inn.date),text(src?.bank||''),text(dst?.bank||''),number(inn.cents/100),String(dst?.chartCode||''),String(src?.chartCode||''),'CONFIRMADA — LANÇAMENTO ÚNICO','Não registrar duas vezes; os dois extratos permanecem na conferência']);
+ }
+ for(const t of transferSuggestions.proposals){
+  const out=moveMap.get(t.outId),inn=moveMap.get(t.inId);
+  if(!out||!inn)continue;
+  transferReview.push([dateBR(inn.date),text(accountMap.get(out.accountId)?.bank||''),text(accountMap.get(inn.accountId)?.bank||''),number(inn.cents/100),'','','SUGERIDA — NÃO CONFIRMADA','Verificar comprovante e titularidade antes de aprovar']);
+ }
+ for(const m of transferSuggestions.unmatched||[])transferReview.push([dateBR(m.date),m.cents<0?text(accountMap.get(m.accountId)?.bank||''):'',m.cents>0?text(accountMap.get(m.accountId)?.bank||''):'',number(m.cents/100),'','','SEM PAR IDENTIFICADO','Histórico sugere transferência, mas não há reflexo comprovado em outro extrato']);
+ const dreReview=[['Data','Banco','Valor (R$)','Histórico do banco','Possíveis descrições DRE','Status']];
+ for(const m of moves.filter(m=>m.financialMatch==='AMBIGUA'||(m.historicalCodeConflict||[]).length)){
+  dreReview.push([dateBR(m.date),text(accounts.get(m.accountId)?.bank||''),number(m.cents/100),formulaText(m.history||''),formulaText((m.financialCandidates||[]).map(e=>[e.category||e.description,e.date,e.sourceFile,'linha '+e.sourceRow].filter(Boolean).join(' | ')).join('; ')||'Códigos históricos: '+(m.historicalCodeConflict||[]).join(', ')),(m.historicalCodeConflict||[]).length?'CÓDIGO HISTÓRICO CONFLITANTE':'DRE AMBÍGUO']);
+ }
+ return {sheets:[{name:'Extrato_Classificado',rows:bankOnly,widths:[16,24,24,22,100]},{name:'Detalhamento_Financeiro',rows:detalhamento,widths:[16,22,16,43,18,14,58,66,52,43,18,26,18,18,36,58,75,28]},{name:'Resumo',rows:summary,widths:[48,82]},{name:'Conferencia',rows:confer,widths:[15,20,20,20,72,46,35,21,19,43,43,66]},{name:'Lancamentos_Prontos',rows:ready,widths:[16,24,24,20,82]},{name:'Plano_de_Contas',rows:source,widths:[18,32,62,16]},{name:'Extratos_Importados',rows:imports,widths:[53,24,16,18,29,22]},{name:'Verificacao_Saldos',rows:balanceReview,widths:[50,22,17,19,30,20,80]},{name:'Transferencias_Conferir',rows:transferReview,widths:[17,24,24,20,18,18,35,75]},{name:'DRE_Ambiguidades',rows:dreReview,widths:[17,24,20,65,100,32]},{name:'Divergencias',rows:auditRows,widths:[16,29,22,21,21,17,17,19,45,78,83,45,27]}],counts:{movements:moves.length,ready:ready.length-1,suggested,blocked,confirmed,hasLedger,codeErrors:rec.errors.length,divergentBalance,unverifiedBalance,unreviewedReadings,unmatchedBankLedger,missingBankLedger,ledgerBalanceDifferences,blockedReadiness,auditEvents:auditData?.events.length||0}};
 }
 function reportStatement(core,company,period){const result=report(core,company,period);return {sheets:result.sheets.filter(s=>s.name==='Extrato_Classificado'),counts:result.counts};}
 const colName=n=>{let s='';for(;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s};
