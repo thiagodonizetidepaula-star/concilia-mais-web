@@ -393,7 +393,7 @@ function financialMatches(c,ym){
   if(m.cents<=0)return [];
   const day=byBankDay.get(banks.get(m.accountId)+'|'+m.date+'|1')||[];
   if(day.length>65)return [];
-  const rows=day.filter(e=>e.cents>0&&e.cents<m.cents);
+  const rows=day.filter(e=>e.cents>0&&e.cents<m.cents&&!/transfer[eê]ncia entre contas/i.test(String(e.category||'')));
   const found=[],maxCombos=80;
   for(let i=0;i<rows.length;i++){
    for(let j=i+1;j<rows.length;j++){
