@@ -335,7 +335,7 @@ function financialRows(workbook){
  return out;
 }
 function financialCodeSuggestions(c,m){
- if(!m.financialDescription||m.financialMatch!=='SUGERIDA'||m.status==='CONFIRMADO')return '';
+ if(!m.financialDescription||!['SUGERIDA','CATEGORIA_COMPARTILHADA'].includes(m.financialMatch)||m.status==='CONFIRMADO')return '';
  const bankCodes=new Set(c.accounts.map(a=>String(a.chartCode)));
  const choices=c.plan.filter(p=>p.analytic&&!bankCodes.has(String(p.code)));
  // Número da categoria do cliente não equivale ao código contábil Domínio.
