@@ -397,7 +397,8 @@ function financialMatches(c,ym){
    // Limpar associação anterior quando deixa de ser única após novo arquivo.
    if(m.financialMatch==='SUGERIDA'){
     delete m.financialDescription;delete m.financialDetail;delete m.financialCategory;delete m.financialSourceRow;delete m.financialSourceFile;
-    if(m.confidence==='Controle financeiro + conta analítica do plano — confirmar'){delete m.suggested;delete m.confidence;}
+    // Uma sugestão apoiada na associação antiga do DRE deixa de valer quando o vínculo fica ambíguo.
+    if(m.confidence==='Controle financeiro + conta analítica do plano — confirmar'||String(m.confidence||'').startsWith('Razão histórico (')){delete m.suggested;delete m.confidence;delete m.historicalCodeConflict;}
    }
    if(options.length){
     m.financialMatch='AMBIGUA';
