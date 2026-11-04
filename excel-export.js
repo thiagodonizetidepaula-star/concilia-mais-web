@@ -10,7 +10,7 @@ const number=n=>({n:Number(n)});
 function cleanStatementHistory(m){
  const clean=t=>String(t||'').replace(/^\s*(?:Controle\s*(?:financeiro)?\s*:\s*)?/i,'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.]?\s*/,'').trim();
  const category=clean(m.financialCategory||m.financialDescription);
- if(m.financialMatch==='SUGERIDA'&&category)return category;
+ if(['SUGERIDA','CATEGORIA_COMPARTILHADA','AGRUPADA'].includes(m.financialMatch)&&category)return category;
  return String(m.history||'').trim();
 }
 function report(core,company,period){
