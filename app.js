@@ -369,7 +369,7 @@ function financialMatches(c,ym){
  for(const e of entries){
   const key=e.bank+'|'+e.cents;
   if(!byBankAmount.has(key))byBankAmount.set(key,[]);
-  byBankAmount.get(key).push(e);byBankDay.get(day).push(e);
+  byBankAmount.get(key).push(e);
  }
  const candidates=new Map(),referenceCounts=new Map();
  for(const m of moves){
