@@ -33,26 +33,50 @@ function parsePagBank(pdf,origin,accountId,Core){let movements=[],reviews=[],bal
  const lastBalance=balances.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];const final=lastBalance?.cents;
  return{movements,reviews,balances,balanceCheck:{status:'INDETERMINADO',final,endDate:lastBalance?.date,reason:'Extrato com saldo diário, mas sem saldo inicial declarado; conferir'},format:'PDF_PAGBANK',parsedCount:movements.length};
 }
-function parseStone(pdf,origin,accountId,Core){const rows=linesOf(pdf),movements=[],reviews=[],balances=[];let current=null;
- const flush=()=>{if(!current)return;const r=current;current=null;const parts=[...r.text.matchAll(/[+-]?\s*R\$\s*(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2}/g)];
- if(!parts.length){reviews.push({origin,line:r.line,content:r.text,reason:'Stone: valor não localizado'});return}
- const cents=money(parts[0][0],Core)*(r.type==='Saída'&&money(parts[0][0],Core)>0?-1:1);
- const tail=r.text.slice(parts[0].index+parts[0][0].length);
- const m2=tail.match(/R\$\s*(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2}/);
- if(m2){balances.push({date:r.date,cents:money(m2[0],Core),page:r.page})}
- const history=(r.text.slice(0,parts[0].index)+' '+tail.replace(m2?.[0]||'','')).replace(/\s+/g,' ').trim();
- if(!cents||!history){reviews.push({origin,line:r.line,content:r.text,reason:'Stone: lançamento incompleto'});return}
- movements.push(make(Core,origin,accountId,r.date,cents,history,r.page));
+function parseStone(pdf,origin,accountId,Core){
+ const rows=linesOf(pdf),movements=[],reviews=[],balances=[];
+ // Stone já publicou pelo menos dois modelos:
+ // 2025: "Crédito/Débito" + valores sem R$;
+ // 2026: "Entrada/Saída" + valores com R$.
+ const number=/[-−]?\s*(?:R\$\s*)?(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2}/g;
+ const rowStart=/^(\d{2}\/\d{2}\/\d{2,4})\s+(Entrada|Sa[ií]da|Cr[eé]dito|D[eé]bito)\s+(.+)$/i;
+ let current=null;
+ const flush=()=>{
+  if(!current)return;
+  const r=current;current=null;
+  if(!r.date||!r.value){reviews.push({origin,line:r.line,content:r.raw,reason:'Stone: data ou valor incompleto'});return;}
+  const signed=money(r.value,Core);
+  const cents=r.out?-Math.abs(signed):Math.abs(signed);
+  // Primeiro campo monetário é a movimentação; segundo é o saldo (não importar).
+  const history=[r.description,...r.notes].join(' ').replace(/\s+/g,' ').trim();
+  if(!cents||!history){reviews.push({origin,line:r.line,content:r.raw,reason:'Stone: lançamento sem valor ou histórico'});return;}
+  movements.push(make(Core,origin,accountId,r.date,cents,history,r.page));
+  if(r.balance!==null)balances.push({date:r.date,cents:r.balance,page:r.page});
  };
- for(const row of rows){const m=row.s.match(/^(\d{2}\/\d{2}\/\d{2,4})\s+(Entrada|Saída)\s+(.+)$/i);
- if(m){flush();current={date:dateIso(m[1]),type:/saida|saída/i.test(m[2])?'Saída':'Entrada',text:m[3],page:row.page,line:row.line};continue}
- if(current&&!/^(?:PÁGINA|EXTRATO|DATA\s+TIPO|OUVIDORIA|INFORMAÇÕES|CÓDIGO\s+DA|DÚVIDAS)/i.test(row.s)&&current.text.length<1200){current.text+=' '+row.s}
+ for(const row of rows){
+  const m=row.s.match(rowStart);
+  if(m){
+   flush();
+   const parts=[...m[3].matchAll(number)];
+   if(!parts.length){reviews.push({origin,line:row.line,content:row.s,reason:'Stone: linha datada sem valor no layout'});continue;}
+   // A data e o tipo delimitam a linha; o valor deve estar nela mesma.
+   // Não consumir números de conta/agência em linhas seguintes como valores.
+   const first=parts[0],second=parts[1];
+   const description=m[3].slice(0,first.index).trim();
+   current={date:dateIso(m[1]),out:/^(?:sa[ií]da|d[eé]bito)$/i.test(m[2]),value:first[0],balance:second?money(second[0],Core):null,description,notes:[],page:row.page,line:row.line,raw:row.s};
+   continue;
+  }
+  if(!current)continue;
+  if(/^(?:P[AÁ]GINA|EXTRATO|DATA\s+TIPO|OUVIDORIA|INFORMA[CÇ][OÕ]ES|C[OÓ]DIGO\s+DA|D[UÚ]VIDAS|TITULAR|PER[IÍ]ODO|EMITIDO|DOCUMENTO|CONTA|AG[EÊ]NCIA|STONE\s+INSTITUI[CÇ][AÃ]O|DE PAGAMENTO|CNPJ|SAC|REGI[OÕ]ES|ENVIE|WHATSAPP)/i.test(row.s))continue;
+  if(current.notes.length<3&&current.notes.join(' ').length<180&&!/^\s*\d+(?:[.,]\d+)*\s*$/.test(row.s)){
+   // Texto da linha seguinte pode esclarecer "Transferência | Pix" ou o tipo de cartão.
+   current.notes.push(row.s);
+  }
  }
  flush();
- const lastBalance=balances.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];const final=lastBalance?.cents;
- return{movements,reviews,balances,balanceCheck:{status:'INDETERMINADO',final,endDate:lastBalance?.date,reason:'Stone: validar primeiro e último saldo da competência'},format:'PDF_STONE',parsedCount:movements.length};
+ const final=balances.length?balances[0].cents:undefined; // PDF Stone é ordenado do mais recente ao mais antigo
+ return {movements,reviews,balances,balanceCheck:{status:'INDETERMINADO',final,reason:'Stone: saldos extraídos, conferir abertura e fechamento do período'},format:'PDF_STONE_MULTI_LAYOUT',parsedCount:movements.length};
 }
-const months={JAN:1,FEV:2,MAR:3,ABR:4,MAI:5,JUN:6,JUL:7,AGO:8,SET:9,OUT:10,NOV:11,DEZ:12};
 function parseNubank(pdf,origin,accountId,Core){const movements=[],reviews=[],rows=linesOf(pdf);let currentDate='',direction=0,pending=null;
  const flush=()=>{if(!pending)return;const p=pending;pending=null;const matches=[...p.text.matchAll(/(?:\+|-)?\s*(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2}/g)];if(!matches.length){reviews.push({origin,line:p.line,content:p.text,reason:'Nubank: sem valor no histórico'});return}
  // Valor da transação é o último valor monetário na primeira linha; informações de agência não contam.
