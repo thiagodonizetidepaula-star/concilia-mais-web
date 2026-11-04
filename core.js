@@ -89,7 +89,11 @@
    if(unique)proposals.push({outId:out.id,inId:candidates[0].id,status:'SUGERIDA'});
    else ambiguous.push({outId:out.id,possibleInIds:candidates.map(m=>m.id),reason:'Vários pares possíveis; conferir titularidade e comprovantes'});
  }
- return {proposals,ambiguous};
+ // Histórico explícito de transferência sem reflexo em outra conta: sinalizar para revisão.
+ const paired=new Set([...proposals.map(p=>p.outId),...proposals.map(p=>p.inId),...ambiguous.flatMap(p=>[p.outId,...p.possibleInIds])]);
+ const transferHint=m=>/(?:TRANSFER[ÊE]NCIA|TRANSF(?:ERENCIA)?|ENTRE CONTAS|MESMA TITULARIDADE)/i.test(String(m.history||'')+' '+String(m.financialCategory||''));
+ const unmatched=[...outs,...ins].filter(m=>!paired.has(m.id)&&transferHint(m)).map(m=>({id:m.id,date:m.date,cents:m.cents,accountId:m.accountId,history:m.history||''}));
+ return {proposals,ambiguous,unmatched};
 }
 function proposedJournal(company,period){let lines=[],errors=[];const mv=periodMovements(company,period);const accountMap=new Map(company.accounts.map(a=>[a.id,a]));const planMap=new Map(company.plan.map(a=>[a.code,a]));const confirmed=new Set();
     for(const t of company.transfers.filter(t=>t.status==='CONFIRMADA')){

@@ -50,6 +50,14 @@ async function activateCloud(){
  if(!cloud?.authenticated()){authReady=false;cloudDisplay();return;}
  const remote=await cloud.fetchWorkspace();
  if(remote&&!Array.isArray(remote.companies))throw Error('Workspace da nuvem inválido.');
+ // Preservar um retrato local de recuperação ANTES de carregar a nuvem.
+ // Não enviar dados locais antigos automaticamente para a conta conectada.
+ const previousLocal=await loadDB();
+ if(previousLocal&&Array.isArray(previousLocal.companies)&&previousLocal.companies.length){
+  const tx=db.transaction('app','readwrite');
+  tx.objectStore('app').put(previousLocal,'recovery-before-cloud');
+  await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});
+ }
  state=remote||blankState();
  companyId='';ultimoExcluido=null;cloudSyncEnabled=true;authReady=true;
  $('#companySearch').value='';renderSelection();showPage('empresas');
@@ -208,8 +216,8 @@ function renderMovements(){
  $('#movementTable').querySelectorAll('tbody tr').forEach((row,i)=>{const m=list[i];if(!m)return;row.classList.add(m.status==='PENDENTE_DUPLICIDADE'?'row-red':matched.has(m.id)||m.status==='CONFIRMADO'?'row-green':'row-yellow');});
 }
 function renderTransfers(){const c=current();if(!c){$('#transferTable').innerHTML=empty('Selecione uma empresa.');$('#transferSummary').innerHTML='';return}const mv=new Map(Core.periodMovements(c,period).map(m=>[m.id,m]));const accounts=new Map(c.accounts.map(a=>[a.id,a]));const suggestions=Core.transferSuggestions(c,period);const stored=c.transfers.filter(t=>mv.has(t.outId)&&mv.has(t.inId));const present=new Set(stored.map(t=>t.outId+'|'+t.inId));const all=stored.concat(suggestions.proposals.filter(t=>!present.has(t.outId+'|'+t.inId)));
-  $('#transferSummary').innerHTML=`<div class="pills">${badge(`${c.transfers.filter(t=>t.status==='CONFIRMADA').length} confirmadas`)}${badge(`${suggestions.ambiguous.length} saídas ambíguas`)}</div>`;
-  $('#transferTable').innerHTML=table(['Saída / origem','Entrada / destino','Valor','Situação','Conferência'],all.map(t=>{const out=mv.get(t.outId),inn=mv.get(t.inId);return[`${datePT(out.date)} — ${safe(accounts.get(out.accountId)?.bank)}<div class="subtle">${safe(out.history)}</div>`,`${datePT(inn.date)} — ${safe(accounts.get(inn.accountId)?.bank)}<div class="subtle">${safe(inn.history)}</div>`,currency(inn.cents),badge(t.status),t.status==='SUGERIDA'?`<div class="inline-actions"><button data-transfer="${safe(t.outId)}|${safe(t.inId)}" data-decision="CONFIRMADA">Confirmar</button><button data-transfer="${safe(t.outId)}|${safe(t.inId)}" data-decision="REJEITADA">Rejeitar</button></div>`:'—']}))+(suggestions.ambiguous.length?`<div class="hint">⚠ ${suggestions.ambiguous.length} movimentação(ões) com valores repetidos e vários pares possíveis: nenhuma foi vinculada automaticamente.</div>`:'');
+  $('#transferSummary').innerHTML=`<div class="pills">${badge(`${c.transfers.filter(t=>t.status==='CONFIRMADA').length} confirmadas`)}${badge(`${suggestions.ambiguous.length} saídas ambíguas`)+badge(`${(suggestions.unmatched||[]).length} possível(is) transferência(s) sem par`)}</div>`;
+  $('#transferTable').innerHTML=table(['Saída / origem','Entrada / destino','Valor','Situação','Conferência'],all.map(t=>{const out=mv.get(t.outId),inn=mv.get(t.inId);return[`${datePT(out.date)} — ${safe(accounts.get(out.accountId)?.bank)}<div class="subtle">${safe(out.history)}</div>`,`${datePT(inn.date)} — ${safe(accounts.get(inn.accountId)?.bank)}<div class="subtle">${safe(inn.history)}</div>`,currency(inn.cents),badge(t.status),t.status==='SUGERIDA'?`<div class="inline-actions"><button data-transfer="${safe(t.outId)}|${safe(t.inId)}" data-decision="CONFIRMADA">Confirmar</button><button data-transfer="${safe(t.outId)}|${safe(t.inId)}" data-decision="REJEITADA">Rejeitar</button></div>`:'—']}))+(suggestions.ambiguous.length?`<div class="hint">⚠ ${suggestions.ambiguous.length} movimentação(ões) com valores repetidos e vários pares possíveis: nenhuma foi vinculada automaticamente.</div>`:'')+(suggestions.unmatched?.length?`<div class="hint">⚠ ${suggestions.unmatched.length} movimento(s) indicam transferência, mas não há par identificado em outro extrato. Confira manualmente.</div>`:'');
 }
 function renderRecon(){const c=current();if(!c){$('#previewTable').innerHTML=empty('Selecione uma empresa.');$('#missingLedger').innerHTML='';$('#reconStats').innerHTML='';return}const rec=Core.reconcile(c,period),preview=Core.previewExport(c,period);$('#reconStats').innerHTML=`<div class="pills">${badge(`${rec.checked.filter(x=>x.recon==='CONCILIADO').length} conciliado(s)`)}${badge(`${preview.rows.length} não encontrado(s) no Razão`)}${badge(`${preview.blocked.length} ambíguo(s)`)}${badge(`${rec.missingLedger.length} lançamentos do Razão sem vínculo`)}</div>`+(rec.errors.length?`<p class="flag">${rec.errors.length} erros de conta inválida impedem a exportação.</p>`:'');
   $('#previewTable').innerHTML=table(['Data','Débito','Crédito','Valor','Histórico','Comparação'],rec.checked.map(l=>[datePT(l.date),safe(l.debit),safe(l.credit),currency(l.cents),safe(l.history),badge(l.recon)]));
@@ -389,10 +397,12 @@ function financialMatches(c,ym){
    // Limpar associação anterior quando deixa de ser única após novo arquivo.
    if(m.financialMatch==='SUGERIDA'){
     delete m.financialDescription;delete m.financialDetail;delete m.financialCategory;delete m.financialSourceRow;delete m.financialSourceFile;
-    if(m.confidence==='Controle financeiro + conta analítica do plano — confirmar'){delete m.suggested;delete m.confidence;}
+    // Uma sugestão apoiada na associação antiga do DRE deixa de valer quando o vínculo fica ambíguo.
+    if(m.confidence==='Controle financeiro + conta analítica do plano — confirmar'||String(m.confidence||'').startsWith('Razão histórico (')){delete m.suggested;delete m.confidence;delete m.historicalCodeConflict;}
    }
    if(options.length){
     m.financialMatch='AMBIGUA';
+    // Manter todas as alternativas identificáveis; não inventar uma linha do DRE.
     m.financialCandidates=options.map(e=>({description:e.description,category:e.category,sourceRow:e.sourceRow,date:e.date,sourceFile:e.sourceFile}));
     ambiguous++;
    }else{m.financialMatch='SEM_CORRESPONDENCIA';delete m.financialCandidates;unmatched++;}
