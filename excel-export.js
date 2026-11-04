@@ -8,10 +8,17 @@ const dateBR=d=>String(d||'').split('-').reverse().join('/');
 const formulaText=s=>String(s??'').slice(0,32767); // Excel inlineStr: strings never formulas
 const number=n=>({n:Number(n)});
 function cleanStatementHistory(m){
- const clean=t=>String(t||'').replace(/^\s*(?:Controle\s*(?:financeiro)?\s*:\s*)?/i,'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.]?\s*/,'').trim();
- const category=clean(m.financialCategory||m.financialDescription);
- if(['SUGERIDA','CATEGORIA_COMPARTILHADA','AGRUPADA'].includes(m.financialMatch)&&category)return category;
- return String(m.history||'').trim();
+ // A coluna Complemento Histórico deve conter somente palavras: sem códigos
+ // numéricos da categoria DRE, pontuação ou rótulos do controle financeiro.
+ // O histórico bancário original continua disponível no Detalhamento_Financeiro.
+ const plain=t=>String(t||'')
+  .replace(/^\s*(?:Controle\s*(?:financeiro)?\s*:\s*)?/i,'')
+  .replace(/[\d]+/g,' ')
+  .replace(/[^\p{L}\s]/gu,' ')
+  .replace(/\s+/g,' ').trim();
+ const category=plain(m.financialCategory||m.financialDescription);
+ if(['SUGERIDA','CATEGORIA_COMPARTILHADA'].includes(m.financialMatch)&&category)return category;
+ return plain(m.history||'');
 }
 function report(core,company,period){
  if(!company||!Array.isArray(company.plan)||!company.plan.length)throw Error('Importe o plano de contas desta empresa antes de exportar.');
