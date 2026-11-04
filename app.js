@@ -14,9 +14,9 @@ function say(msg,error=false){const t=$('#toast');t.textContent=msg;t.className=
 function action(fn){Promise.resolve().then(fn).catch(e=>{console.error(e);say(e.message||String(e),true)})}
 function openDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open('ConciliaMaisBrowserDB',1);r.onupgradeneeded=()=>r.result.createObjectStore('app');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
 function loadDB(){return new Promise((resolve,reject)=>{const tx=db.transaction('app','readonly');const req=tx.objectStore('app').get('workspace');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
-function saveDB(){if(cloudSyncEnabled)return Promise.resolve();return new Promise((resolve,reject)=>{const tx=db.transaction('app','readwrite');tx.objectStore('app').put(state,'workspace');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
+function saveDB(){return new Promise((resolve,reject)=>{const tx=db.transaction('app','readwrite');tx.objectStore('app').put(state,'workspace');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
 function log(type,detail){state.audit.push({at:new Date().toISOString(),companyId,action:type,detail});}
-async function store(type,detail){if(!['EXTRATO_REFAZER','IMPORTACAO_EXCLUIDA','RESTAURACAO_IMPORTACOES'].includes(type))ultimoExcluido=null;log(type,detail);await saveDB();render();if(cloudSyncEnabled&&window.ConciliaCloud?.authenticated()){try{await window.ConciliaCloud.serializedSave(JSON.parse(JSON.stringify(state)));cloudMessage('Alterações salvas na nuvem.');}catch(err){cloudSyncEnabled=false;cloudMessage('Falha ao sincronizar: '+err.message+'. Dados locais preservados. Faça backup JSON antes de continuar.',true)}}}
+async function store(type,detail){if(!['EXTRATO_REFAZER','IMPORTACAO_EXCLUIDA','RESTAURACAO_IMPORTACOES'].includes(type))ultimoExcluido=null;log(type,detail);await saveDB();render();if(cloudSyncEnabled&&window.ConciliaCloud?.authenticated()){try{await window.ConciliaCloud.serializedSave(JSON.parse(JSON.stringify(state)));cloudMessage('Alterações salvas na nuvem e cópia local atualizada.');}catch(err){cloudSyncEnabled=false;cloudMessage('Falha ao sincronizar: '+err.message+'. Cópia local preservada. Faça backup JSON antes de continuar.',true)}}}
 function table(headers,rows){if(!rows.length)return empty('Nenhum registro para exibir.');return `<div class="tablewrap"><table><thead><tr>${headers.map(h=>`<th>${safe(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${v??''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
 function badge(s){const kind=/CONFIRM|CONCILIADO|OK/.test(s)?'ok':/PENDENTE|SUGERIDA|AMBIGU|DUPLIC/.test(s)?'warn':'';return `<span class="badge ${kind}">${safe(s)}</span>`}
 function datePT(d){return String(d||'').split('-').reverse().join('/')}
@@ -356,17 +356,21 @@ function financialMatches(c,ym){
  const transfers=Core.transferSuggestions(c,ym);
  const protectedIds=new Set([...(c.transfers||[]).filter(x=>x.status==='CONFIRMADA').flatMap(x=>[x.outId,x.inId]),...transfers.proposals.flatMap(x=>[x.outId,x.inId]),...transfers.ambiguous.flatMap(x=>[x.outId,...x.possibleInIds])]);
  const banks=new Map(c.accounts.map(a=>[a.id,financialBank(a.bank)]));
- const candidates=new Map();
+ // Indexar banco e valor evita percorrer todas as linhas do DRE para cada lançamento.
+ const byBankAmount=new Map();
+ for(const e of entries){const key=e.bank+'|'+e.cents;const arr=byBankAmount.get(key)||[];arr.push(e);byBankAmount.set(key,arr);}
+ const candidates=new Map(),referenceCounts=new Map();
  for(const m of moves){
-  // Uma linha do controle somente pode corresponder a um movimento, inclusive se valor/data repetirem.
-  const options=protectedIds.has(m.id)?[]:entries.filter(e=>e.cents===m.cents&&e.bank===banks.get(m.accountId)&&Math.abs(Core.dayDistance(e.date,m.date))<=4);
+  // Uma linha do controle somente pode corresponder a um movimento.
+  const options=protectedIds.has(m.id)?[]:(byBankAmount.get(banks.get(m.accountId)+'|'+m.cents)||[]).filter(e=>Math.abs(Core.dayDistance(e.date,m.date))<=4);
   candidates.set(m.id,options);
+  for(const e of options)referenceCounts.set(e.uniqueKey,(referenceCounts.get(e.uniqueKey)||0)+1);
  }
  let matched=0,ambiguous=0,coded=0,unmatched=0;
  for(const m of moves){
   if(m.status==='CONFIRMADO'||protectedIds.has(m.id))continue;
   const options=candidates.get(m.id)||[];
-  const unique=options.length===1&&moves.filter(o=>(candidates.get(o.id)||[]).some(x=>x.uniqueKey===options[0].uniqueKey)).length===1;
+  const unique=options.length===1&&referenceCounts.get(options[0].uniqueKey)===1;
   if(unique){
    const e=options[0];
    m.financialDescription=e.category||e.description;
