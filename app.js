@@ -364,51 +364,89 @@ function financialMatches(c,ym){
  const transfers=Core.transferSuggestions(c,ym);
  const protectedIds=new Set([...(c.transfers||[]).filter(x=>x.status==='CONFIRMADA').flatMap(x=>[x.outId,x.inId]),...transfers.proposals.flatMap(x=>[x.outId,x.inId]),...transfers.ambiguous.flatMap(x=>[x.outId,...x.possibleInIds])]);
  const banks=new Map(c.accounts.map(a=>[a.id,financialBank(a.bank)]));
- // Indexar banco e valor evita percorrer todas as linhas do DRE para cada lançamento.
- const byBankAmount=new Map();
- for(const e of entries){const key=e.bank+'|'+e.cents;const arr=byBankAmount.get(key)||[];arr.push(e);byBankAmount.set(key,arr);}
+ const cleanCat=t=>String(t||'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.]?\s*/,'').trim();
+ const byBankAmount=new Map(),byBankDay=new Map();
+ for(const e of entries){
+  const key=e.bank+'|'+e.cents,day=e.bank+'|'+e.date+'|'+Math.sign(e.cents);
+  if(!byBankAmount.has(key))byBankAmount.set(key,[]);
+  if(!byBankDay.has(day))byBankDay.set(day,[]);
+  byBankAmount.get(key).push(e);byBankDay.get(day).push(e);
+ }
  const candidates=new Map(),referenceCounts=new Map();
  for(const m of moves){
-  // Uma linha do controle somente pode corresponder a um movimento.
-  const options=protectedIds.has(m.id)?[]:(byBankAmount.get(banks.get(m.accountId)+'|'+m.cents)||[]).filter(e=>Math.abs(Core.dayDistance(e.date,m.date))<=4);
+  let options=protectedIds.has(m.id)?[]:(byBankAmount.get(banks.get(m.accountId)+'|'+m.cents)||[]).filter(e=>Core.dayDistance(e.date,m.date)<=4);
+  if(options.length){const closest=Math.min(...options.map(e=>Core.dayDistance(e.date,m.date)));options=options.filter(e=>Core.dayDistance(e.date,m.date)===closest);}
   candidates.set(m.id,options);
   for(const e of options)referenceCounts.set(e.uniqueKey,(referenceCounts.get(e.uniqueKey)||0)+1);
  }
- let matched=0,ambiguous=0,coded=0,unmatched=0;
+ const source=e=>({description:e.description,category:e.category,sourceRow:e.sourceRow,date:e.date,sourceFile:e.sourceFile});
+ const clear=m=>{
+  if(['SUGERIDA','CATEGORIA_COMPARTILHADA','AGRUPADA'].includes(m.financialMatch)){
+   delete m.financialDescription;delete m.financialDetail;delete m.financialCategory;delete m.financialSourceRow;delete m.financialSourceFile;
+   if(m.confidence==='Controle financeiro + conta analítica do plano — confirmar'||String(m.confidence||'').startsWith('Razão histórico (')){delete m.suggested;delete m.confidence;delete m.historicalCodeConflict;}
+  }
+  delete m.financialCandidates;
+ };
+ // Somatórios só no mesmo banco, dia e sentido; nunca somar movimentos de datas aleatórias.
+ // Se várias combinações tiverem categorias diferentes, não escolher uma.
+ const combinations=m=>{
+  if(m.cents<=0)return [];
+  const day=byBankDay.get(banks.get(m.accountId)+'|'+m.date+'|1')||[];
+  if(day.length>65)return [];
+  const rows=day.filter(e=>e.cents>0&&e.cents<m.cents);
+  const found=[],maxCombos=80;
+  for(let i=0;i<rows.length;i++){
+   for(let j=i+1;j<rows.length;j++){
+    if(rows[i].cents+rows[j].cents===m.cents)found.push([rows[i],rows[j]]);
+    if(found.length>maxCombos)return [];
+    for(let k=j+1;k<rows.length;k++){
+     if(rows[i].cents+rows[j].cents+rows[k].cents===m.cents)found.push([rows[i],rows[j],rows[k]]);
+     if(found.length>maxCombos)return [];
+    }
+   }
+  }
+  return found;
+ };
+ let matched=0,ambiguous=0,coded=0,unmatched=0,shared=0,grouped=0;
  for(const m of moves){
   if(m.status==='CONFIRMADO'||protectedIds.has(m.id))continue;
   const options=candidates.get(m.id)||[];
   const unique=options.length===1&&referenceCounts.get(options[0].uniqueKey)===1;
   if(unique){
    const e=options[0];
-   m.financialDescription=e.category||e.description;
-   m.financialDetail=e.description;
-   m.financialCategory=e.category;
-   m.financialSourceRow=e.sourceRow;
-   m.financialSourceFile=e.sourceFile;
-   m.financialMatch='SUGERIDA';
-   delete m.financialCandidates;
-   matched++;
+   m.financialDescription=e.category||e.description;m.financialDetail=e.description;m.financialCategory=e.category;
+   m.financialSourceRow=e.sourceRow;m.financialSourceFile=e.sourceFile;m.financialMatch='SUGERIDA';delete m.financialCandidates;matched++;
    if(!m.suggested||m.confidence==='Controle financeiro + conta analítica do plano — confirmar'){
     const code=financialCodeSuggestions(c,m);
     if(code){m.suggested=code;m.confidence='Controle financeiro + conta analítica do plano — confirmar';coded++;}
    }
-  }else{
-   // Limpar associação anterior quando deixa de ser única após novo arquivo.
-   if(m.financialMatch==='SUGERIDA'){
-    delete m.financialDescription;delete m.financialDetail;delete m.financialCategory;delete m.financialSourceRow;delete m.financialSourceFile;
-    // Uma sugestão apoiada na associação antiga do DRE deixa de valer quando o vínculo fica ambíguo.
-    if(m.confidence==='Controle financeiro + conta analítica do plano — confirmar'||String(m.confidence||'').startsWith('Razão histórico (')){delete m.suggested;delete m.confidence;delete m.historicalCodeConflict;}
-   }
-   if(options.length){
-    m.financialMatch='AMBIGUA';
-    // Manter todas as alternativas identificáveis; não inventar uma linha do DRE.
-    m.financialCandidates=options.map(e=>({description:e.description,category:e.category,sourceRow:e.sourceRow,date:e.date,sourceFile:e.sourceFile}));
-    ambiguous++;
-   }else{m.financialMatch='SEM_CORRESPONDENCIA';delete m.financialCandidates;unmatched++;}
+   continue;
   }
+  clear(m);
+  // Mesmo valor repetido: descrever a categoria somente se TODAS as alternativas
+  // pertencerem à mesma conta da coluna D, sem alegar identificar qual linha/cliente.
+  const labels=[...new Set(options.map(e=>cleanCat(e.category)).filter(Boolean))];
+  if(options.length&&labels.length===1){
+   m.financialDescription=labels[0];m.financialCategory=options[0].category;
+   m.financialMatch='CATEGORIA_COMPARTILHADA';m.financialCandidates=options.map(source);shared++;matched++;
+   continue;
+  }
+  if(!options.length){
+   const groups=combinations(m);
+   const signatures=[...new Set(groups.map(group=>[...new Set(group.map(e=>cleanCat(e.category)))].sort().join(' + ')))];
+   if(groups.length&&signatures.length===1&&signatures[0]){
+    m.financialDescription=signatures[0];m.financialMatch='AGRUPADA';
+    m.financialCandidates=[...new Map(groups.flat().map(e=>[e.uniqueKey,source(e)])).values()];
+    grouped++;matched++;continue;
+   }
+   if(groups.length){
+    m.financialMatch='AMBIGUA';m.financialCandidates=[...new Map(groups.flat().map(e=>[e.uniqueKey,source(e)])).values()];ambiguous++;continue;
+   }
+  }
+  if(options.length){m.financialMatch='AMBIGUA';m.financialCandidates=options.map(source);ambiguous++;}
+  else{m.financialMatch='SEM_CORRESPONDENCIA';unmatched++;}
  }
- return {matched,ambiguous,coded,unmatched,total:entries.length};
+ return {matched,ambiguous,coded,unmatched,shared,grouped,total:entries.length};
 }
 function suggestFromHistoricalLedger(c,ym){
  // Depois do DRE, priorizar exemplos de Razões ANTERIORES da mesma empresa.
