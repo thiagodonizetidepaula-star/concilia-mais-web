@@ -8,6 +8,7 @@ const dateIso=s=>{let m=String(s).match(/^(\d{2})\/(\d{2})\/(\d{2,4})$/);if(!m)r
 function bankOf(pdf,name=''){const start=(pdf.lines||[]).filter(x=>x.page===1).slice(0,28).map(x=>x.content).join(' '),all=pdf.text||'',n=norm(start),f=norm(name);
  if(n.includes('GERENCIADOR CAIXA')||n.includes('EXTRATO POR PERIODO')&&n.includes('CLIENTE')||f.includes('EXTRATO CAIXA'))return 'Caixa';
  if(n.includes('SICREDI')||f.includes('SICREDI'))return 'Sicredi';
+ if(n.includes('BANCO INTER')||n.includes('INSTITUICAO BANCO INTER')||f.includes('EXTRATO INTER'))return 'Inter';
  if(n.includes('STONE')||f.includes('STONE'))return 'Stone';
  if(n.includes('STONE INSTITUICAO DE PAGAMENTO')||n.includes('STONE INSTITUICAO'))return 'Stone';
  if(n.includes('PAGSEGURO INTERNET')||n.includes('EXTRATO DA CONTA')&&n.includes('PAGSEGURO'))return 'PagBank';
@@ -161,6 +162,56 @@ function parseCaixa(pdf,origin,accountId,Core){
  if(!movements.length)reviews.push({origin,line:'?',content:'Extrato Caixa sem movimentos interpretáveis',reason:'Verifique texto digital ou exporte em OFX'});
  return {movements,reviews,balanceCheck,format:'PDF_CAIXA_GERENCIADOR',parsedCount:movements.length};
 }
+function parseInter(pdf,origin,accountId,Core){
+ const rows=linesOf(pdf),movements=[],reviews=[],balances=[];
+ const monthCodes={JANEIRO:'01',FEVEREIRO:'02',MARCO:'03',ABRIL:'04',MAIO:'05',JUNHO:'06',JULHO:'07',AGOSTO:'08',SETEMBRO:'09',OUTUBRO:'10',NOVEMBRO:'11',DEZEMBRO:'12'};
+ const brMoney=/-?\s*R\$\s*(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2}/gi;
+ let date='',pending=null,lastBalance=null;
+ const flush=()=>{
+  if(!pending)return;
+  const p=pending;pending=null;
+  const vals=[...p.content.matchAll(brMoney)];
+  if(!vals.length){reviews.push({origin,line:p.line,content:p.content,reason:'Inter: valor da transação não localizado'});return;}
+  const value=money(vals[0][0],Core);
+  const direction=/\b(?:ENVIADO|PAGO|DEBITADO|SAIDA|SAÍDA)\b/i.test(p.description)?-1:/\b(?:RECEBIDO|CREDITADO|ENTRADA)\b/i.test(p.description)?1:Math.sign(value);
+  const cents=Math.abs(value)*direction;
+  const history=p.description.trim();
+  if(!p.date||!cents||!history){reviews.push({origin,line:p.line,content:p.content,reason:'Inter: lançamento incompleto'});return;}
+  const move=make(Core,origin,accountId,p.date,cents,history,p.page);
+  if(vals.length>1)move.statementBalance=money(vals[1][0],Core);
+  movements.push(move);
+  if(vals.length>1){balances.push({date:p.date,cents:move.statementBalance,page:p.page});lastBalance=move.statementBalance;}
+ };
+ for(const row of rows){
+  const raw=row.s.replace(/\u00a0/g,' ').trim(),normalized=norm(raw);
+  const dateHeader=normalized.match(/^(\d{1,2})\s+DE\s+(JANEIRO|FEVEREIRO|MARCO|ABRIL|MAIO|JUNHO|JULHO|AGOSTO|SETEMBRO|OUTUBRO|NOVEMBRO|DEZEMBRO)\s+DE\s+(\d{4})\b/);
+  if(dateHeader){
+   flush();
+   date=dateHeader[3]+'-'+monthCodes[dateHeader[2]]+'-'+dateHeader[1].padStart(2,'0');
+   continue;
+  }
+  if(!date)continue;
+  const start=raw.match(/^(?:PIX\s+)?(?:PIX\s+RECEBIDO|PIX\s+ENVIADO|RECEBIMENTO|TRANSFER[ÊE]NCIA|PAGAMENTO|BOLETO|TARIFA|D[EÉ]BITO|CR[EÉ]DITO)\b/i);
+  if(start){
+   flush();
+   const idx=[...raw.matchAll(brMoney)][0]?.index;
+   pending={date,page:row.page,line:row.line,description:(idx===undefined?raw:raw.slice(0,idx)).trim(),content:idx===undefined?'':raw.slice(idx)};
+   continue;
+  }
+  if(pending){
+   const vals=[...raw.matchAll(brMoney)];
+   if(vals.length&&pending.content.match(brMoney)===null){pending.content+=' '+raw;continue;}
+   if(!vals.length&&!/^(?:SALDO|VALOR|FALE COM|SAC|OUVIDORIA|DEFICIENCIA|P[AÁ]GINA)/i.test(raw)){
+    pending.description+=' '+raw;
+   }
+  }
+ }
+ flush();
+ // "Saldo total" do cabeçalho é saldo do dia de emissão, NÃO saldo inicial.
+ // Conferência inicial/final exige contexto externo; somente conferir continuidade entre lançamentos.
+ const check={status:'INDETERMINADO',reason:'Banco Inter: saldo inicial não declarado; conferir os saldos inicial e final da competência',final:lastBalance,endDate:balances[balances.length-1]?.date};
+ return {movements,reviews,balances,balanceCheck:check,format:'PDF_INTER',parsedCount:movements.length};
+}
 function parseSicredi(pdf,origin,accountId,Core){
  const movements=[],reviews=[],rows=linesOf(pdf);
  const number=/[-+]?(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2}/g;
@@ -193,6 +244,6 @@ function parseSicredi(pdf,origin,accountId,Core){
  if(!movements.length)reviews.push({origin,line:'?',content:'Sicredi',reason:'Nenhum movimento identificado; verificar layout'});
  return {movements,reviews,balanceCheck,format:'PDF_SICREDI',parsedCount:movements.length};
 }
-function parseStatement(pdf,origin,accountId,period,Core,bank,fallback){switch(bank){case'PagBank':return parsePagBank(pdf,origin,accountId,Core);case'Stone':return parseStone(pdf,origin,accountId,Core);case'Nubank':return parseNubank(pdf,origin,accountId,Core);case'Caixa':return parseCaixa(pdf,origin,accountId,Core);case'Sicredi':return parseSicredi(pdf,origin,accountId,Core);default:return fallback();}}
-return{bankOf,documentCnpj,parseStatement,parsePagBank,parseStone,parseNubank,parseCaixa,parseSicredi,parseDominioLedgerPdf};
+function parseStatement(pdf,origin,accountId,period,Core,bank,fallback){switch(bank){case'PagBank':return parsePagBank(pdf,origin,accountId,Core);case'Stone':return parseStone(pdf,origin,accountId,Core);case'Nubank':return parseNubank(pdf,origin,accountId,Core);case'Caixa':return parseCaixa(pdf,origin,accountId,Core);case'Sicredi':return parseSicredi(pdf,origin,accountId,Core);case'Inter':return parseInter(pdf,origin,accountId,Core);default:return fallback();}}
+return{bankOf,documentCnpj,parseStatement,parsePagBank,parseStone,parseNubank,parseCaixa,parseSicredi,parseInter,parseDominioLedgerPdf};
 });
