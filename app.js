@@ -179,7 +179,7 @@ function renderDashboard(){const c=current();if(!c){$('#stepBanner').innerHTML='
 function renderSetup(){const c=current();const count=c?.plan.length||0;$('#planStatus').textContent=c?count?`${count} contas cadastradas para ${c.name}. ${c.plan.filter(p=>p.analytic).length} marcadas como analíticas.`:'Nenhum plano nesta empresa. Use o botão abaixo para importar o arquivo do Domínio.':'Importe um plano de contas primeiro.';
   $('#companyIdentity').innerHTML=c?'<div class="hint"><strong>'+safe(c.name)+'</strong><br>CNPJ: '+safe(c.cnpj||'não identificado')+' • Domínio: '+safe(c.dominio||'não informado')+(c.identityVerified?'':'<br>⚠ Identificação provisória: confirme o titular antes de usar.')+'</div>':'';$('#planCount').textContent=`${count} contas`;
   analyticalSelect('#bankCode','Primeiro importe o plano');analyticalSelect('#ruleCode','Primeiro importe o plano');
-  $('#planTable').innerHTML=c?table(['Código','Classificação','Descrição','Tipo'],c.plan.slice(0,200).map(p=>[safe(p.code),safe(p.classification||'—'),safe(p.description),badge(p.analytic?'A — analítica':'S — sintética')])):empty('Sem empresa selecionada.');
+  $('#planTable').innerHTML=c?table(['Código','Classificação','Descrição','Tipo','Editar'],c.plan.map(p=>[safe(p.code),safe(p.classification||'—'),safe(p.description),badge(p.analytic?'A — analítica':'S — sintética'),`<button type="button" data-edit-plan="${safe(p.code)}" class="secondary">Editar</button>`])):empty('Sem empresa selecionada.');
   $('#bankTable').innerHTML=c?table(['Banco','Identificação','Código'],c.accounts.map(a=>[safe(a.bank),safe(a.label),`${safe(a.chartCode)}${c.plan.some(p=>p.code===a.chartCode&&p.analytic)?'':' ⚠'}`])):empty('Cadastre uma empresa.');
   $('#ruleTable').innerHTML=c?table(['Termo','Contrapartida'],c.rules.map(r=>[safe(r.term),safe(r.counterpart)])):empty('Cadastre uma empresa.');
   const bankSelect=$('#statementAccount');const previous=bankSelect.value;bankSelect.innerHTML='<option value="">Identificar automaticamente no extrato</option>'+(c?validBankAccounts(c).map(a=>`<option value="${safe(a.id)}">${safe(a.bank)} • ${safe(a.label)} • código ${safe(a.chartCode)}</option>`).join(''):'');if([...bankSelect.options].some(o=>o.value===previous))bankSelect.value=previous;
@@ -597,6 +597,41 @@ if(!c&&old&&old.identitySha===sha)c=old;if(!c&&old&&info.name&&Core.norm(old.nam
 if(c&&c.plan.length&&!confirm('Atualizar o plano desta empresa preservando o anterior no histórico?'))return;
 if(!c){c={id:Core.id(),name:info.name||'Plano: '+file.name.replace(/\.(csv|txt|pdf)$/i,'').replace(/[_-]/g,' ').slice(0,70),cnpj:info.cnpj||'',dominio:info.dominio||'',identityVerified:!!info.cnpj,identitySha:sha,plan:[],plansHistory:[],accounts:[],rules:[],movements:[],imports:[],ledger:[],transfers:[]};state.companies.push(c)}
 c.name=info.name||c.name;c.cnpj=info.cnpj||c.cnpj;c.dominio=info.dominio||c.dominio;c.identitySha=sha;c.identityVerified=!!c.cnpj;c.plansHistory.push({at:new Date().toISOString(),name:file.name,hash:sha,accounts:c.plan});c.plan=parsed.accounts;companyId=c.id;await afterImport('PLANO',c,file,parsed,sha);await store('PLANO_IMPORTADO',file.name+' • '+c.plan.length+' contas');renderSelection();f.reset();showPage('importar');say('Plano importado: '+c.plan.length+' contas. Importe agora os extratos bancários.')})};
+ // Cadastro manual e edição segura de contas do plano, separado por empresa.
+ const clearPlanEditor=()=>{const form=$('#manualPlanForm');form.reset();form.dataset.original='';$('#manualPlanCode').readOnly=false;$('#manualPlanSave').textContent='Salvar conta';};
+ $('#manualPlanCancel').onclick=()=>{clearPlanEditor();$('#manualPlanStatus').textContent='Edição cancelada. Você pode incluir um novo código.';};
+ $('#manualPlanForm').onsubmit=e=>{e.preventDefault();action(async()=>{
+   const c=getCompany(),form=e.currentTarget,values=asData(form);
+   const code=String(values.code||'').trim(),description=String(values.description||'').trim(),classification=String(values.classification||'').trim(),analytic=values.analytic==='A',original=String(form.dataset.original||'');
+   if(!code||!description)throw Error('Preencha código e descrição.');
+   if(code.length>80||description.length>250)throw Error('Código ou descrição muito longo.');
+   if(original&&original!==code)throw Error('Para proteger lançamentos antigos, não é permitido alterar o número de uma conta existente. Cadastre o novo código separadamente.');
+   const found=c.plan.find(p=>String(p.code)===code);
+   if(found&&!original)throw Error('Este código já existe. Clique em Editar na tabela para atualizar a descrição ou o tipo.');
+   if(original&&!found)throw Error('A conta em edição não foi encontrada no plano.');
+   const inUse=c.accounts.some(x=>String(x.chartCode)===code)||c.rules.some(x=>String(x.counterpart)===code)||c.movements.some(x=>String(x.counterpart)===code||String(x.suggested)===code)||(c.learnedCodes||[]).some(x=>Object.hasOwn(x.codes||{},code));
+   if(found&&!analytic&&inUse)throw Error('Este código está em uso em bancos, classificações ou aprendizados. Mantenha como analítico.');
+   if(found){found.description=description;found.classification=classification;found.analytic=analytic;found.rawAnalytic=analytic?'A':'S';}
+   else c.plan.push({code,description,classification,analytic,rawAnalytic:analytic?'A':'S',manual:true});
+   clearPlanEditor();
+   await store(found?'PLANO_CONTA_EDITADA':'PLANO_CONTA_CRIADA',code+' — '+description);
+   $('#manualPlanStatus').textContent=(found?'Conta atualizada: ':'Nova conta adicionada: ')+code+' — '+description+'. Disponível para classificação se for analítica.';
+   say(found?'Conta atualizada no plano.':'Novo código disponível nas classificações.');
+ })};
+ document.addEventListener('click',e=>{
+   const btn=e.target.closest('button[data-edit-plan]');
+   if(!btn)return;
+   const c=current(),p=c?.plan.find(x=>String(x.code)===btn.dataset.editPlan);
+   if(!p)return;
+   const form=$('#manualPlanForm');form.dataset.original=String(p.code);
+   $('#manualPlanCode').value=p.code;$('#manualPlanCode').readOnly=true;
+   $('#manualPlanDescription').value=p.description||'';
+   $('#manualPlanClassification').value=p.classification||'';
+   $('#manualPlanAnalytic').value=p.analytic?'A':'S';
+   $('#manualPlanSave').textContent='Salvar alterações';
+   $('#manualPlanStatus').textContent='Editando conta '+p.code+'. O número do código será preservado.';
+   form.scrollIntoView({behavior:'smooth',block:'center'});
+ });
  $('#bankForm').onsubmit=e=>{e.preventDefault();action(async()=>{const c=getCompany(),f=e.currentTarget,v=asData(f);if(!c.plan.some(a=>a.code===v.chartCode&&a.analytic))throw Error('O código do banco deve existir como conta analítica neste plano.');if(c.accounts.some(a=>a.bank===v.bank&&a.label===v.label.trim()))throw Error('Esta conta já foi vinculada');c.accounts.push({id:Core.id(),bank:v.bank,label:v.label.trim(),chartCode:v.chartCode});await store('BANCO_VINCULADO',`${v.bank}, ${v.label}, código ${v.chartCode}`);f.reset();say('Banco vinculado. Importar extratos foi liberado.')})};
  $('#ruleForm').onsubmit=e=>{e.preventDefault();action(async()=>{const c=getCompany(),v=asData(e.currentTarget);if(!c.plan.some(a=>a.code===v.counterpart&&a.analytic))throw Error('Contrapartida deve existir no plano analítico da empresa.');if(c.rules.some(r=>Core.norm(r.term)===Core.norm(v.term)))throw Error('Regra já cadastrada.');c.rules.push({id:Core.id(),term:v.term.trim(),counterpart:v.counterpart});await store('REGRA_CRIADA',`${v.term} → ${v.counterpart}`);e.currentTarget.reset();say('Regra salva. Ela sugerirá classificações para confirmação humana.')})};
 
