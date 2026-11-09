@@ -381,6 +381,23 @@ function financialCodeSuggestions(c,m){
  // Categorias não padronizadas não devem ser convertidas em conta contábil por suposição.
  return '';
 }
+// Coluna D é o histórico principal; coluna E apenas complementa com palavras novas.
+function composeFinancialDescription(category,detail){
+ const strip=x=>String(x??'').trim().replace(/^\d+(?:\.\d+)*\s*[-–.:]?\s*/,'').trim();
+ const base=strip(category),extra=strip(detail);
+ if(!base)return extra;
+ if(!extra)return base;
+ const normalized=x=>x.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR');
+ const tokens=x=>x.match(/[\p{L}\p{N}]+(?:[-/][\p{L}\p{N}]+)*/gu)||[];
+ const present=new Set(tokens(base).map(normalized));
+ const already=new Set();
+ const novel=tokens(extra).filter(t=>{
+   const key=normalized(t);
+   if(present.has(key)||already.has(key))return false;
+   already.add(key);return true;
+ });
+ return novel.length?base+' — '+novel.join(' '):base;
+}
 function financialMatches(c,ym){
  const controls=(c.financialControls||[]).filter(x=>x.period===ym);
  const entries=controls.flatMap(x=>(x.rows||[]).map(r=>({...r,sourceFile:x.name,uniqueKey:x.id+'|'+r.id})));
@@ -428,7 +445,7 @@ function financialMatches(c,ym){
   const unique=options.length===1&&referenceCounts.get(options[0].uniqueKey)===1;
   if(unique){
    const e=options[0];
-   m.financialDescription=e.description||e.category;m.financialDetail=e.description;m.financialCategory=e.category;
+   m.financialDescription=composeFinancialDescription(e.category,e.description);m.financialDetail=e.description;m.financialCategory=e.category;
    m.financialSourceRow=e.sourceRow;m.financialSourceFile=e.sourceFile;m.financialMatch='SUGERIDA';delete m.financialCandidates;matched++;
    if(!m.suggested||m.confidence==='Controle financeiro + conta analítica do plano — confirmar'){
     const code=financialCodeSuggestions(c,m);
