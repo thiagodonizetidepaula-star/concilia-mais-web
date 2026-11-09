@@ -546,8 +546,77 @@ c.name=info.name||c.name;c.cnpj=info.cnpj||c.cnpj;c.dominio=info.dominio||c.domi
   say('Controle financeiro importado. Confira as descrições sugeridas em Movimentações.');
  })};
  $('#matchFinancial').onclick=()=>action(async()=>{const c=getCompany();if(!(c.financialControls||[]).some(x=>x.period===period))throw Error('Nenhum controle financeiro importado para '+period+'. Primeiro clique em Importar controle financeiro; escolher o arquivo não realiza a importação.');const result=financialMatches(c,period);await store('CRUZAMENTO_FINANCEIRO',result.matched+' correspondências sugeridas; '+result.coded+' novos códigos; '+result.ambiguous+' ambíguas');$('#financialStatus').textContent='Descrições: '+result.matched+'; novos códigos sugeridos: '+result.coded+'; ambíguas: '+result.ambiguous+'. Confira as movimentações.';say('Cruzamento atualizado.')});
- $('#importStatement').onsubmit=e=>{e.preventDefault();action(async()=>{try{setStatementStatus('working','Lendo o extrato. Aguarde a confirmação da quantidade de movimentações.');const c=getCompany(),f=e.currentTarget;if(!canImport(c))throw Error('Importe primeiro o plano de contas.');const files=Array.from(f.elements.file.files);if(!files.length)throw Error('Selecione pelo menos um extrato.');if(files.length>20)throw Error('Importe até 20 extratos por lote para evitar lentidão no celular.');const selectedAccount=f.elements.accountId.value;const batchResults=[];for(const file of files){try{setStatementStatus('working',`Processando ${batchResults.length+1} de ${files.length}: ${file.name}...`);const ext=fileExt(file.name);if(!['pdf','csv','txt','ofx'].includes(ext))throw Error('Use PDF digital, CSV, TXT ou OFX.');const bytes=await file.arrayBuffer(),sha=await hash(bytes);const previous=c.imports.find(x=>x.type==='EXTRATO'&&x.sha===sha);if(previous){batchResults.push({ok:false,skipped:true,name:file.name,periods:previous.periods||[],count:previous.movementCount||0});continue;}
-let txt='',pdf=null;if(ext==='pdf'){say('Extraindo movimentações do PDF digital...');try{pdf=await Pdf.extractPdf(file);txt=pdf.text}catch(err){throw Error('PDF não interpretado: '+err.message+'; tente CSV ou OFX.')}}else txt=(await asText(file)).txt;
+
+/* Leitura de extratos Excel com identificação de cabeçalho por aba e revisão de linhas ambíguas. */
+function parseStatementWorkbook(fileBytes, origin, accountId){
+ if(!window.XLSX)throw Error('Leitor Excel indisponível. Atualize a página e tente novamente.');
+ const book=window.XLSX.read(fileBytes,{type:'array',cellDates:false});
+ const norm=x=>String(x??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+ const match=(headers,aliases)=>headers.findIndex(h=>aliases.includes(h));
+ const isBlank=x=>x==null||String(x).trim()==='';
+ const money=x=>Core.money(String(x).replace(/\s*[CD]\s*$/i,''));
+ const convertedDate=x=>{
+   if(typeof x==='number'&&x>1&&x<100000){
+     const v=window.XLSX.SSF.parse_date_code(x);
+     if(!v)throw Error('Data Excel inválida: '+x);
+     return Core.date(String(v.y).padStart(4,'0')+'-'+String(v.m).padStart(2,'0')+'-'+String(v.d).padStart(2,'0'));
+   }
+   if(x instanceof Date)return Core.date(x);
+   let s=String(x??'').trim();
+   if(/^\d{1,2}\/\d{1,2}\/\d{2}$/.test(s))s=s.replace(/(\d{2})$/,'20$1');
+   if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)){const p=s.split('/');s=p[0].padStart(2,'0')+'/'+p[1].padStart(2,'0')+'/'+p[2];}
+   return Core.date(s);
+ };
+ const movements=[],reviews=[];let detectedSheets=0;
+ for(const sheetName of book.SheetNames){
+   const rows=window.XLSX.utils.sheet_to_json(book.Sheets[sheetName],{header:1,raw:true,defval:''});
+   let head=-1,cols=null;
+   for(let i=0;i<Math.min(rows.length,45);i++){
+     const hh=(rows[i]||[]).map(norm);
+     const date=match(hh,['data','datamov','datamovimento','datalancamento','datatransacao','datadaoperacao','dtmovimento']);
+     const hist=match(hh,['historico','descricao','lancamento','lancamentos','detalhe','detalhes','memo','transacao','movimentacao']);
+     const value=match(hh,['valor','valorr','valorlancamento','valortransacao','amount','valoroperacao']);
+     const entry=match(hh,['entrada','entradas','credito','creditos','valorcredito','recebimentos']);
+     const out=match(hh,['saida','saidas','debito','debitos','valordebito','pagamentos']);
+     if(date>=0&&hist>=0&&(value>=0||entry>=0||out>=0)){
+       head=i;cols={date,hist,value,entry,out,kind:match(hh,['tipo','natureza','dc','debitocredito','operacao']),doc:match(hh,['documento','nrdoc','numerodocumento','doc'])};break;
+     }
+   }
+   if(head<0){if(rows.some(r=>r.some(x=>!isBlank(x))))reviews.push({origin,line:sheetName,content:'Cabeçalho não identificado',reason:'Aba Excel não possui colunas reconhecidas de data, histórico e valores'});continue;}
+   detectedSheets++;
+   for(let i=head+1;i<rows.length;i++){
+     const row=rows[i]||[],get=k=>cols[k]<0?'':row[cols[k]],rawHist=String(get('hist')??'').trim();
+     if(row.every(isBlank))continue;
+     if(/^(saldo(?:\s+do\s+dia|\s+dia|\s+anterior|\s+final)?|total|subtotal|resumo)\b/i.test(rawHist))continue;
+     if(isBlank(get('date'))&&isBlank(get('value'))&&isBlank(get('entry'))&&isBlank(get('out')))continue;
+     try{
+       const date=convertedDate(get('date'));
+       if(!rawHist)throw Error('Histórico vazio');
+       const en=get('entry'),out=get('out'),v=get('value');
+       let cents;
+       if(!isBlank(en)||!isBlank(out)){
+         const e=isBlank(en)?0:Math.abs(money(en));
+         const o=isBlank(out)?0:Math.abs(money(out));
+         if(e&&o)throw Error('Entrada e saída preenchidas na mesma linha');
+         cents=e-o;
+       }else{
+         if(isBlank(v))throw Error('Valor vazio');
+         cents=money(v);
+         const dir=norm(get('kind')), suffix=String(v).trim().match(/([CD])$/i);
+         if(dir==='d'||dir==='debito'||dir==='saida'||suffix?.[1]?.toUpperCase()==='D')cents=-Math.abs(cents);
+         if(dir==='c'||dir==='credito'||dir==='entrada'||suffix?.[1]?.toUpperCase()==='C')cents=Math.abs(cents);
+       }
+       if(!cents)throw Error('Valor zero');
+       movements.push({id:Core.id(),date,cents,history:rawHist,document:String(get('doc')??'').trim(),party:'',accountId,origin,line:sheetName+'!'+(i+1),status:'PENDENTE',counterpart:''});
+     }catch(err){reviews.push({origin,line:sheetName+'!'+(i+1),content:row.map(x=>String(x??'')).join(' | ').slice(0,550),reason:err.message});}
+   }
+ }
+ if(!detectedSheets)throw Error('Não foi encontrada aba com cabeçalho Data, Histórico e Valor (ou Entrada/Saída).');
+ return {movements,reviews,format:'EXCEL'};
+}
+
+ $('#importStatement').onsubmit=e=>{e.preventDefault();action(async()=>{try{setStatementStatus('working','Lendo o extrato. Aguarde a confirmação da quantidade de movimentações.');const c=getCompany(),f=e.currentTarget;if(!canImport(c))throw Error('Importe primeiro o plano de contas.');const files=Array.from(f.elements.file.files);if(!files.length)throw Error('Selecione pelo menos um extrato.');if(files.length>20)throw Error('Importe até 20 extratos por lote para evitar lentidão no celular.');const selectedAccount=f.elements.accountId.value;const batchResults=[];for(const file of files){try{setStatementStatus('working',`Processando ${batchResults.length+1} de ${files.length}: ${file.name}...`);const ext=fileExt(file.name);if(!['pdf','csv','txt','ofx','xlsx','xls'].includes(ext))throw Error('Use PDF digital, Excel XLSX/XLS, CSV, TXT ou OFX.');const bytes=await file.arrayBuffer(),sha=await hash(bytes);const previous=c.imports.find(x=>x.type==='EXTRATO'&&x.sha===sha);if(previous){batchResults.push({ok:false,skipped:true,name:file.name,periods:previous.periods||[],count:previous.movementCount||0});continue;}
+let txt='',pdf=null;if(ext==='pdf'){say('Extraindo movimentações do PDF digital...');try{pdf=await Pdf.extractPdf(file);txt=pdf.text}catch(err){throw Error('PDF não interpretado: '+err.message+'; tente CSV ou OFX.')}}else if(ext!=='xlsx'&&ext!=='xls')txt=(await asText(file)).txt;
 const bank=ext==='pdf'?(window.ConciliaLayouts.bankOf(pdf,file.name)||Pdf.detectBank(txt,file.name)):Pdf.detectBank(txt,file.name);
 // A empresa selecionada e seu plano definem o destino da importação.
 // Identificadores de PDFs podem faltar: nesses casos, registrar alerta, não bloquear a leitura.
@@ -576,7 +645,7 @@ if(!account){
  c.accounts.push(account);
  identityWarning=[identityWarning,'Conta bancária ainda sem código validado no plano. Revise antes de exportar para contabilização.'].filter(Boolean).join(' ');
 }
-const parsed=ext==='pdf'?window.ConciliaLayouts.parseStatement(pdf,file.name,account.id,period,Core,bank,()=>Pdf.parseStatementPdf(pdf,file.name,account.id,period,Core,bank)):ext==='ofx'?Core.parseOfx(txt,account.id,file.name):Core.parseStatementCsv(Core.parseCsv(txt),account.id,file.name);
+const parsed=ext==='pdf'?window.ConciliaLayouts.parseStatement(pdf,file.name,account.id,period,Core,bank,()=>Pdf.parseStatementPdf(pdf,file.name,account.id,period,Core,bank)):(ext==='xlsx'||ext==='xls')?parseStatementWorkbook(bytes,file.name,account.id):ext==='ofx'?Core.parseOfx(txt,account.id,file.name):Core.parseStatementCsv(Core.parseCsv(txt),account.id,file.name);
 if(!parsed.movements.length){await afterImport('EXTRATO',c,file,parsed,sha);await store('ARQUIVO_REVISAO',file.name+' • nenhuma movimentação reconhecida');throw Error(ext==='pdf'?(pdf?.text?.trim()?'PDF contém texto, mas o formato das movimentações não foi reconhecido. Confira Revisão e informe o modelo do banco.':'PDF sem texto selecionável: é necessário OCR para interpretar o documento digitalizado.'):'Nenhum movimento reconhecido no arquivo. Confira Revisão e o formato das colunas.')}
 let overlaps=0;const fingerprint=m=>m.accountId+'|'+m.date+'|'+m.cents+'|'+Core.norm(m.history),seen=new Set(c.movements.map(fingerprint));for(const m of parsed.movements){const key=fingerprint(m);if(seen.has(key)){m.status='PENDENTE_DUPLICIDADE';overlaps++}seen.add(key);if(m.status!=='PENDENTE_DUPLICIDADE')autoSuggest(c,m)}
 if(identityWarning)parsed.reviews.push({origin:file.name,line:'cabeçalho',content:identityWarning,reason:'Conferir identificação bancária antes da contabilização'});
