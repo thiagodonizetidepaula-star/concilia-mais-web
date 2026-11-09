@@ -576,8 +576,8 @@ function parseStatementWorkbook(fileBytes, origin, accountId){
      const date=match(hh,['data','datamov','datamovimento','datalancamento','datatransacao','datadaoperacao','dtmovimento']);
      const hist=match(hh,['historico','descricao','lancamento','lancamentos','detalhe','detalhes','memo','transacao','movimentacao']);
      const value=match(hh,['valor','valorr','valorlancamento','valortransacao','amount','valoroperacao']);
-     const entry=match(hh,['entrada','entradas','credito','creditos','valorcredito','recebimentos']);
-     const out=match(hh,['saida','saidas','debito','debitos','valordebito','pagamentos']);
+     const entry=match(hh,['entrada','entradas','entradar','entradasr','credito','creditos','creditor','creditosr','valorcredito','valorcreditor','recebimentos']);
+     const out=match(hh,['saida','saidas','saidar','saidasr','debito','debitos','debitor','debitosr','valordebito','valordebitor','pagamentos']);
      if(date>=0&&hist>=0&&(value>=0||entry>=0||out>=0)){
        head=i;cols={date,hist,value,entry,out,kind:match(hh,['tipo','natureza','dc','debitocredito','operacao']),doc:match(hh,['documento','nrdoc','numerodocumento','doc'])};break;
      }
