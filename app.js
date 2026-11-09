@@ -318,7 +318,7 @@ function financialBank(t){
  const n=Core.norm(t);
  if(/stone/.test(n))return 'stone';
  if(/sicredi/.test(n))return 'sicredi';
- if(/caixaeconomica|cef/.test(n))return 'caixa';
+ if(n==='caixa'||/caixaeconomica|cef|extratocaixa/.test(n))return 'caixa';
  if(/itau/.test(n))return 'itau';
  if(/santander/.test(n))return 'santander';
  if(/nubank|nuconta/.test(n))return 'nubank';
@@ -388,6 +388,17 @@ function financialMatches(c,ym){
  const transfers=Core.transferSuggestions(c,ym);
  const protectedIds=new Set([...(c.transfers||[]).filter(x=>x.status==='CONFIRMADA').flatMap(x=>[x.outId,x.inId]),...transfers.proposals.flatMap(x=>[x.outId,x.inId]),...transfers.ambiguous.flatMap(x=>[x.outId,...x.possibleInIds])]);
  const banks=new Map(c.accounts.map(a=>[a.id,financialBank(a.bank)]));
+ // Se a planilha de extrato não traz o banco no conteúdo, usar o nome explícito do arquivo,
+ // sem atribuir automaticamente um código contábil não confirmado.
+ for(const m of moves){
+   const account=c.accounts.find(a=>a.id===m.accountId);
+   if(!account||!['banconaoidentificado','outrobanco',''].includes(Core.norm(account.bank)))continue;
+   const originBank=financialBank(m.origin||'');
+   if(['caixa','stone','sicredi','itau','santander','nubank','pagbank','inter','brasil'].includes(originBank)){
+     account.bank=originBank==='caixa'?'Caixa Econômica Federal':originBank;
+     banks.set(account.id,originBank);
+   }
+ }
  const cleanCat=t=>String(t||'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.]?\s*/,'').trim();
  const byBankAmount=new Map();
  for(const e of entries){
@@ -617,7 +628,7 @@ function parseStatementWorkbook(fileBytes, origin, accountId){
 
  $('#importStatement').onsubmit=e=>{e.preventDefault();action(async()=>{try{setStatementStatus('working','Lendo o extrato. Aguarde a confirmação da quantidade de movimentações.');const c=getCompany(),f=e.currentTarget;if(!canImport(c))throw Error('Importe primeiro o plano de contas.');const files=Array.from(f.elements.file.files);if(!files.length)throw Error('Selecione pelo menos um extrato.');if(files.length>20)throw Error('Importe até 20 extratos por lote para evitar lentidão no celular.');const selectedAccount=f.elements.accountId.value;const batchResults=[];for(const file of files){try{setStatementStatus('working',`Processando ${batchResults.length+1} de ${files.length}: ${file.name}...`);const ext=fileExt(file.name);if(!['pdf','csv','txt','ofx','xlsx','xls'].includes(ext))throw Error('Use PDF digital, Excel XLSX/XLS, CSV, TXT ou OFX.');const bytes=await file.arrayBuffer(),sha=await hash(bytes);const previous=c.imports.find(x=>x.type==='EXTRATO'&&x.sha===sha);if(previous){batchResults.push({ok:false,skipped:true,name:file.name,periods:previous.periods||[],count:previous.movementCount||0});continue;}
 let txt='',pdf=null;if(ext==='pdf'){say('Extraindo movimentações do PDF digital...');try{pdf=await Pdf.extractPdf(file);txt=pdf.text}catch(err){throw Error('PDF não interpretado: '+err.message+'; tente CSV ou OFX.')}}else if(ext!=='xlsx'&&ext!=='xls')txt=(await asText(file)).txt;
-const bank=ext==='pdf'?(window.ConciliaLayouts.bankOf(pdf,file.name)||Pdf.detectBank(txt,file.name)):Pdf.detectBank(txt,file.name);
+const bank=ext==='pdf'?(window.ConciliaLayouts.bankOf(pdf,file.name)||Pdf.detectBank(txt,file.name)):(ext==='xlsx'||ext==='xls')?({'caixa':'Caixa Econômica Federal','stone':'Stone','sicredi':'Sicredi','itau':'Itaú','santander':'Santander','nubank':'Nubank','pagbank':'PagBank','inter':'Banco Inter','brasil':'Banco do Brasil'}[financialBank(file.name)]||Pdf.detectBank('',file.name)):Pdf.detectBank(txt,file.name);
 // A empresa selecionada e seu plano definem o destino da importação.
 // Identificadores de PDFs podem faltar: nesses casos, registrar alerta, não bloquear a leitura.
 let identityWarning='';
