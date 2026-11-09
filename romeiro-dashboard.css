@@ -1,0 +1,157 @@
+
+/* Romeiro Dashboard Premium: apenas apresentação. O motor de conciliação não é alterado. */
+:root{--ui-blue:#064b9f;--ui-navy:#04172f;--ui-gold:#f8b515;--ui-soft:#e9f0fa;--ui-stroke:#d7e2f2}
+body.authenticated .shell{background:#061a38}
+body.authenticated .sidebar{width:266px;padding-top:9px;background:radial-gradient(ellipse 120% 40% at -15% 85%,#184e8c40,transparent 80%),linear-gradient(165deg,#04142e 0%,#08284b 68%,#061832 100%)}
+body.authenticated .sidebar .brand{background:transparent;box-shadow:none;border:0;border-radius:0;min-height:99px;padding:13px 5px 10px;position:relative;overflow:visible}
+body.authenticated .sidebar .brand:after{content:"";position:absolute;left:10px;right:10px;bottom:0;height:2px;background:linear-gradient(90deg,transparent,#ffc43c,transparent);box-shadow:0 0 12px #ffbc4288}
+body.authenticated .sidebar .romeiro-logo{height:auto;width:100%;max-width:246px;object-fit:contain}
+body.authenticated .sidebar .side-caption{display:none}
+body.authenticated .sidebar nav{margin-top:8px;gap:5px}
+body.authenticated .sidebar nav button{min-height:42px;color:#eff4ff;font-size:13px;padding:10px 14px}
+body.authenticated .sidebar nav button svg{color:#ecf4ff}
+body.authenticated .sidebar nav button.active{color:#ffdb66;background:linear-gradient(90deg,#8b642b90,#7460362c 83%,transparent);box-shadow:inset 3px 0 #ffca3d,0 3px 14px #020e295c}
+body.authenticated .sidebar nav button.active svg{color:#ffce42}
+body.authenticated .sidebar nav .nav-extra{padding-top:8px;border-top:1px solid #ffffff1a;margin-top:8px;display:grid;gap:3px}
+body.authenticated .workspace{background:#edf2f9;min-height:100vh}
+body.authenticated .topbar{min-height:95px;padding:12px 28px;display:flex;align-items:center;justify-content:space-between;gap:12px 20px;background:linear-gradient(105deg,#061932,#0b315e 65%,#061c3c)}
+body.authenticated .product-mark{display:flex;align-items:center;gap:12px;color:#fff;flex:1 0 360px;min-width:0}
+body.authenticated .product-mark>svg{width:33px;height:33px}
+body.authenticated .product-mark strong{font-size:25px;letter-spacing:-.7px}
+body.authenticated .product-mark-divider{height:27px;width:1px;background:#bed0ec66;margin:0 2px}
+body.authenticated .product-mark-sub{font-size:13px;color:#e5edfb;white-space:nowrap}
+body.authenticated .romeiro-head-actions{display:flex;align-items:center;gap:14px;order:2;margin-left:auto}
+body.authenticated .romeiro-head-actions button{position:relative;border:0;background:transparent;color:#fff;min-width:34px;min-height:36px;padding:6px;display:flex;align-items:center;justify-content:center;gap:7px;border-radius:10px}
+body.authenticated .romeiro-head-actions button:hover{background:#ffffff20}
+body.authenticated .romeiro-head-actions svg{width:20px;height:20px}
+body.authenticated .romeiro-notify-dot{position:absolute;top:4px;right:5px;border-radius:50%;width:8px;height:8px;background:#ffc333;box-shadow:0 0 8px #f9ba3899}
+body.authenticated .avatar-initials{display:inline-grid;place-items:center;background:#317bd0;color:#fff;width:34px;height:34px;border-radius:50%;font-size:13px;font-weight:800}
+body.authenticated .profile-label{font-size:12px;white-space:nowrap}
+body.authenticated .topbar-heading{flex:0 1 170px;margin-left:3px;order:3;min-width:145px}
+body.authenticated .topbar-kicker,body.authenticated .topbar-subtitle{display:none}
+body.authenticated .topbar-title{font-size:12px;color:#dee9f7;letter-spacing:0}
+body.authenticated #restartWorkspace{font-size:10px;margin-top:3px;padding:5px 7px}
+body.authenticated .topbar .select-row{order:4;flex:1 0 100%;width:100%;max-width:100%;grid-template-columns:minmax(115px,.9fr) minmax(190px,1.5fr) minmax(140px,.7fr);gap:9px;justify-content:end}
+body.authenticated .topbar .select-row label{color:#cce1fb;font-size:10px}
+body.authenticated .topbar .select-row input,body.authenticated .topbar .select-row select{min-height:37px}
+body.authenticated main{max-width:none;padding:18px 23px 50px}
+body.authenticated #p-visao>.romeiro-dashboard{margin-bottom:21px}
+body.authenticated .page-heading{margin-bottom:9px}
+body.authenticated #p-visao~*{margin-top:0}
+body.authenticated .romeiro-dashboard{background:linear-gradient(#fafcff,#f3f7ff);border-radius:18px;padding:21px;border:1px solid #d1dced;box-shadow:0 18px 50px #102e5133}
+.romeiro-intro{display:flex;align-items:center;gap:15px;margin-bottom:18px}
+.romeiro-intro-icon{display:grid;place-items:center;border-radius:12px;width:52px;height:52px;background:linear-gradient(135deg,#edf4ff,#d6e5fc);color:#16488f}
+.romeiro-intro-icon svg{width:30px;height:30px}
+.romeiro-intro h2{font-size:26px;font-weight:850;letter-spacing:-.65px;margin:0;color:#071a3b}
+.romeiro-intro p{color:#506781;font-size:12px;margin:4px 0 0}
+.romeiro-import-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.romeiro-import-card{display:flex;gap:13px;align-items:flex-start;background:#fff;border-radius:13px;border:1px solid var(--ui-stroke);box-shadow:0 3px 8px #122f5413,0 2px 0 #adc4e140;min-width:0;padding:17px}
+.romeiro-card-icon{width:53px;height:53px;flex:0 0 53px;border-radius:13px;display:grid;place-items:center}
+.romeiro-card-icon svg{width:30px;height:30px;stroke-width:1.9}
+.romeiro-card-icon.bank-icon{background:#dceaff;color:#0752a7}
+.romeiro-card-icon.ledger-icon{background:#e7e7ff;color:#243ca6}
+.romeiro-card-icon.excel-icon{background:#dff6e7;color:#087b40}
+.romeiro-import-body{min-width:0;flex:1}
+.romeiro-import-body h3{font-size:15px;color:#071a38;margin:3px 0 5px;font-weight:800}
+.romeiro-import-body p{font-size:11px;color:#61718b;margin:0 0 15px;min-height:29px;line-height:1.45}
+.romeiro-import-body button{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;border:0;border-radius:8px;background:linear-gradient(180deg,#0760ca,#003983);color:#fff;min-height:39px;font-weight:800;font-size:12px;box-shadow:0 5px 12px #063b8d23}
+.romeiro-import-body button:hover{filter:brightness(1.12)}
+.romeiro-import-body button svg{width:17px;height:17px}
+.romeiro-kpi-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.romeiro-kpi{background:#fff;min-width:0;min-height:88px;display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--ui-stroke);border-radius:12px;box-shadow:0 3px 10px #0c2c5312,0 2px 0 #bbcee047}
+.romeiro-kpi>div{min-width:0}
+.romeiro-kpi>div>span{display:block;color:#34425a;font-size:11px;white-space:nowrap}
+.romeiro-kpi strong{display:block;font-size:26px;color:#051b3e;font-weight:850;letter-spacing:-.7px;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi-icon{display:grid;place-items:center;flex:0 0 46px;width:46px;height:46px;border-radius:50%}
+.kpi-icon svg{height:25px;width:25px}
+.kpi-blue{background:#e0eeff;color:#1162b7}.kpi-green{background:#e1f8e7;color:#168a45}.kpi-yellow{background:#fff3d9;color:#d58c12}.kpi-red{background:#ffe6e8;color:#d92a38}
+.kpi-pill{font-style:normal;font-size:11px;font-weight:800;border-radius:18px;padding:5px 9px;margin-left:auto;white-space:nowrap}
+.kpi-pill.green{background:#e1f7e8;color:#13713b}.kpi-pill.yellow{background:#fff1d9;color:#90520b}.kpi-pill.red{background:#ffe7e8;color:#b22b37}
+.romeiro-ledger-board{background:#fff;border:1px solid #dce6f5;border-radius:13px;overflow:hidden;box-shadow:0 5px 18px #16345e10}
+.romeiro-board-tabs{display:flex;align-items:stretch;gap:9px;padding:0 16px;background:linear-gradient(180deg,#fff,#f9fbff);border-bottom:1px solid #dfe8f5;min-height:47px;overflow-x:auto}
+.romeiro-board-tabs button{min-width:max-content;display:flex;align-items:center;gap:7px;border:0;background:transparent;color:#293b5b;font-size:12px;font-weight:650;padding:12px 14px;position:relative}
+.romeiro-board-tabs button svg{height:18px;width:18px}
+.romeiro-board-tabs button.active{color:#0655a9;font-weight:800}
+.romeiro-board-tabs button.active:after{content:"";height:4px;border-radius:5px 5px 0 0;position:absolute;bottom:0;left:0;right:0;background:#ffbd19}
+.romeiro-table-controls{display:grid;grid-template-columns:minmax(240px,1.8fr) minmax(130px,1fr) minmax(130px,1fr) auto;gap:12px;align-items:end;padding:15px 16px 12px}
+.romeiro-table-controls label{font-size:11px;color:#2c415d}
+.romeiro-search{position:relative}
+.romeiro-search>svg{position:absolute;left:12px;bottom:10px;height:19px;width:19px;color:#25426c}
+.romeiro-table-controls input,.romeiro-table-controls select{height:40px;min-height:40px;background:#fff;border:1px solid #c8d7eb}
+.romeiro-search input{padding-left:39px;margin-top:0}
+.romeiro-filter-btn,.romeiro-outline{display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;border:1px solid #bfcee2;background:#fff;border-radius:9px;color:#132c55;font-size:12px;padding:10px 12px;min-height:40px}
+.romeiro-filter-btn svg,.romeiro-outline svg{width:16px;height:16px}
+.romeiro-filter-btn:hover,.romeiro-outline:hover{background:#eff5ff}
+.romeiro-tablewrap{padding:0 14px 12px;overflow:auto;max-height:540px}
+.romeiro-ledger-table{border-collapse:separate;border-spacing:0;width:100%;min-width:770px;font-size:11px}
+.romeiro-ledger-table th{font-size:10px;background:#e9eff7;color:#1e304d;text-transform:none;letter-spacing:0;padding:11px 10px;white-space:nowrap}
+.romeiro-ledger-table td{color:#192842;border-bottom:1px solid #e4ebf5;padding:9px 10px;vertical-align:middle}
+.romeiro-ledger-table tbody tr:hover td{background:#f1f7ff}
+.romeiro-ledger-table td:first-child,.romeiro-ledger-table th:first-child{width:30px;text-align:center}
+.romeiro-ledger-table td:nth-child(6){font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:800;text-align:right}
+.romeiro-ledger-table th:nth-child(6){text-align:right}
+.romeiro-ledger-table td:nth-child(7){max-width:265px;min-width:180px;line-height:1.4;overflow-wrap:anywhere}
+.romeiro-ledger-table input[type=checkbox]{width:16px;height:16px;min-height:16px;accent-color:#0c5db1;padding:0;margin:0}
+.bank-token{display:inline-flex;align-items:center;gap:7px;font-weight:750;white-space:nowrap}
+.bank-token-symbol{height:22px;min-width:23px;padding:2px 3px;display:grid;place-items:center;border-radius:5px;background:#2e598d;color:#fff;font-weight:900;font-size:10px;letter-spacing:-.5px}
+.bank-token-symbol.itau{background:#143ba9}.bank-token-symbol.bradesco{background:#fff;color:#e22535;font-size:17px}.bank-token-symbol.santander{background:#fff;color:#df1627;font-size:16px}.bank-token-symbol.caixa{background:linear-gradient(135deg,#0066a4 55%,#e99b1b 55%)}.bank-token-symbol.stone{background:#11865f}.bank-token-symbol.sicredi{background:#188a45}.bank-token-symbol.inter{background:#f87720}.bank-token-symbol.nubank{background:#812eba}.bank-token-symbol.generic{background:#476585}
+.ui-status{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:5px 9px;border-radius:20px;font-weight:800;font-size:10px;white-space:nowrap}
+.ui-status svg{width:14px;height:14px}
+.ui-status.ok{color:#0b7134;background:#e0f8e6}.ui-status.pending{color:#956009;background:#fff1d4}.ui-status.bad{color:#be2339;background:#ffeaed}
+.ui-empty{text-align:center!important;padding:27px!important;color:#7c8b9e!important}
+.romeiro-table-footer{border-top:1px solid #dce5f1;padding:15px 16px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.romeiro-table-footer>span{font-size:11px;color:#526684;white-space:nowrap}
+.romeiro-footer-actions{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+.romeiro-outline.gold-outline{border-color:#e5ad42;background:#fff9ed;color:#7c4b0a}
+.romeiro-finish{display:flex;align-items:center;justify-content:center;gap:7px;min-height:40px;border:1px solid #dc9c00;border-radius:9px;padding:10px 12px;background:linear-gradient(180deg,#ffc839,#e2a200);color:#2e2409;font-size:12px;font-weight:850;white-space:nowrap;box-shadow:0 3px 7px #bf840027}
+.romeiro-finish svg{width:17px;height:17px}
+.romeiro-table-note{padding:0 16px 12px;margin:0!important;font-size:10px!important;color:#60738b!important}
+body.authenticated #p-visao>.grid-2,body.authenticated #p-visao>.guide-workflow,body.authenticated #p-visao>#metrics{margin-top:20px}
+@media(min-width:1550px){body.authenticated .romeiro-dashboard{padding:25px}.romeiro-import-card{padding:21px}.romeiro-kpi{min-height:95px}}
+@media(max-width:1450px){body.authenticated .topbar{gap:9px 12px}body.authenticated .product-mark{flex-basis:300px}.romeiro-kpi{gap:8px;padding:10px}.kpi-icon{flex-basis:38px;width:38px;height:38px}.kpi-pill{padding:4px 6px}.romeiro-import-card{padding:14px;gap:8px}.romeiro-card-icon{flex:0 0 43px;width:43px;height:43px}.romeiro-card-icon svg{width:25px;height:25px}.romeiro-import-body h3{font-size:13px}}
+@media(max-width:1080px){body.authenticated .sidebar{width:225px}body.authenticated main{padding:15px}.romeiro-import-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.romeiro-kpi-row{grid-template-columns:repeat(2,minmax(0,1fr))}.romeiro-table-footer{flex-wrap:wrap}.romeiro-footer-actions{width:100%}}
+@media(max-width:720px){
+ body.authenticated .sidebar{width:100%;padding:10px 12px 8px}
+ body.authenticated .sidebar .brand{width:210px;min-height:62px;padding:6px}
+ body.authenticated .sidebar nav{flex-direction:row;gap:4px;overflow-x:auto}
+ body.authenticated .sidebar nav button{flex:0 0 auto;padding:9px 11px;min-height:38px;font-size:11px}
+ body.authenticated .sidebar nav .nav-extra{display:contents}
+ body.authenticated .topbar{padding:12px 13px;gap:10px}
+ body.authenticated .product-mark{flex:1 1 100%;order:0;gap:8px}
+ body.authenticated .product-mark strong{font-size:21px}
+ body.authenticated .product-mark-sub{font-size:10px;white-space:normal}
+ body.authenticated .product-mark>svg{width:25px;height:25px}
+ body.authenticated .romeiro-head-actions{order:1;margin-left:0}
+ body.authenticated .romeiro-head-actions .profile-label{display:none}
+ body.authenticated .topbar-heading{order:2;flex:1 1 auto;text-align:right}
+ body.authenticated #restartWorkspace{font-size:10px}
+ body.authenticated .topbar .select-row{order:3;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ body.authenticated .topbar .company-search-label{grid-column:1/-1}
+ body.authenticated main{padding:12px 9px 28px}
+ body.authenticated .romeiro-dashboard{padding:13px;border-radius:13px}
+ .romeiro-intro{gap:10px;margin-bottom:14px}
+ .romeiro-intro-icon{width:43px;height:43px}
+ .romeiro-intro h2{font-size:20px}
+ .romeiro-intro p{font-size:11px}
+ .romeiro-import-cards{grid-template-columns:1fr;gap:10px}
+ .romeiro-import-card{padding:12px}
+ .romeiro-import-body p{min-height:0;margin-bottom:9px}
+ .romeiro-kpi-row{gap:9px}
+ .romeiro-kpi{padding:10px;gap:7px;min-height:75px}
+ .romeiro-kpi>div>span{font-size:10px;white-space:normal}
+ .romeiro-kpi strong{font-size:22px}
+ .kpi-pill{font-size:9px;padding:3px 5px}
+ .kpi-icon{width:31px;height:31px;flex-basis:31px}
+ .kpi-icon svg{height:20px;width:20px}
+ .romeiro-board-tabs{padding:0 8px;gap:0}
+ .romeiro-board-tabs button{padding:12px 9px;font-size:11px}
+ .romeiro-table-controls{grid-template-columns:1fr 1fr;gap:9px;padding:11px}
+ .romeiro-search{grid-column:1/-1}
+ .romeiro-table-controls .romeiro-filter-btn{grid-column:1/-1}
+ .romeiro-tablewrap{padding:0 9px 10px}
+ .romeiro-table-footer{padding:12px}
+ .romeiro-footer-actions{gap:6px}
+ .romeiro-footer-actions button{flex:1 1 auto;font-size:11px}
+ .romeiro-table-footer>span{white-space:normal}
+}
+@media(prefers-reduced-motion:reduce){.romeiro-import-body button{transition:none}}
