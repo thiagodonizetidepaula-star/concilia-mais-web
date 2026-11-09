@@ -296,6 +296,49 @@ function guessBankAccount(c,bank){
  });
  return candidates.length===1?String(candidates[0].code):'';
 }
+// Memória de classificações confirmadas. Apenas padrões específicos da empresa e banco;
+// PIX/boletos genéricos sem identificação de contraparte nunca viram aprendizado automático.
+function learningKey(c,m){
+ const bank=financialBank(c.accounts.find(a=>a.id===m.accountId)?.bank||'');
+ const description=String(m.financialDescription||'').replace(/\s*\(identificação individual pendente\)/i,'').trim();
+ const raw=description||String(m.history||'').trim();
+ const normalized=raw.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
+ if(!bank||!normalized||normalized.length<8)return '';
+ if(!description&&/^(?:cre pix ch|cred pix|deb pix ch|envio pix|pag boleto|compra|transferencia|pagamento|recebimento|pix recebido|pix enviado)$/.test(normalized))return '';
+ if(m.financialMatch&&m.financialMatch!=='SUGERIDA'&&description)return '';
+ const direction=m.cents>0?'ENTRADA':'SAIDA';
+ return bank+'|'+direction+'|'+normalized;
+}
+function learnConfirmed(c,m,cp){
+ const key=learningKey(c,m);
+ if(!key)return false;
+ c.learnedCodes=c.learnedCodes||[];
+ let rule=c.learnedCodes.find(r=>r.key===key);
+ if(!rule){rule={key,bank:financialBank(c.accounts.find(a=>a.id===m.accountId)?.bank),label:m.financialDescription||m.history,codes:{},examples:0,updatedAt:''};c.learnedCodes.push(rule);}
+ rule.codes=rule.codes||{};
+ rule.codes[String(cp)]=(rule.codes[String(cp)]||0)+1;
+ rule.examples=Object.values(rule.codes).reduce((n,v)=>n+v,0);
+ rule.updatedAt=new Date().toISOString();
+ return true;
+}
+function applyLearnedCode(c,m){
+ if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||m.financialMatch==='AMBIGUA'||m.financialMatch==='SEM_CORRESPONDENCIA')return false;
+ if(m.suggested&&m.confidence&&!String(m.confidence).startsWith('Aprendizado'))return false;
+ const key=learningKey(c,m);
+ const rule=(c.learnedCodes||[]).find(x=>x.key===key);
+ if(!rule)return false;
+ const codes=Object.entries(rule.codes||{}).filter(([code])=>c.plan.some(p=>String(p.code)===code&&p.analytic)&&!c.accounts.some(a=>String(a.chartCode)===code));
+ const total=Object.values(rule.codes||{}).reduce((n,v)=>n+v,0);
+ if(codes.length!==1||total<2||codes[0][1]!==total)return false;
+ m.suggested=codes[0][0];
+ m.confidence='Aprendizado: '+total+' confirmações anteriores — exige revisão';
+ return true;
+}
+function applyLearningPeriod(c,ym){
+ let count=0;
+ for(const m of Core.periodMovements(c,ym))if(applyLearnedCode(c,m))count++;
+ return count;
+}
 function autoSuggest(c,m){
  if(m.status==='PENDENTE_DUPLICIDADE'||m.status==='CONFIRMADO')return;
  const h=Core.norm(m.history);
@@ -306,6 +349,7 @@ function autoSuggest(c,m){
  if(/tarifa|tarif|pacoteservico|tarliq/.test(h))candidates=matches(['tarifabancaria','despesasbancarias','tarifasbancarias']);
  else if(/rendimentosrendpagoaplic|rendimentodeaplicacao|rendimentosaplic/.test(h))candidates=matches(['receitafinanceira','rendimentodeaplicacao','rendimentosdeaplicacoes']);
  if(candidates.length===1){m.suggested=String(candidates[0].code);m.confidence='Sugestão por histórico e plano de contas — exige confirmação';}
+ applyLearnedCode(c,m);
 }
 
 function financialDate(v){
@@ -467,7 +511,8 @@ function financialMatches(c,ym){
   if(options.length){m.financialMatch='AMBIGUA';m.financialCandidates=options.map(source);ambiguous++;}
   else{m.financialMatch='SEM_CORRESPONDENCIA';unmatched++;}
  }
- return {matched,ambiguous,coded,unmatched,shared,grouped,total:entries.length};
+ const learned=applyLearningPeriod(c,ym);
+ return {matched,ambiguous,coded,unmatched,shared,grouped,learned,total:entries.length};
 }
 function suggestFromHistoricalLedger(c,ym){
  // Depois do DRE, priorizar exemplos de Razões ANTERIORES da mesma empresa.
@@ -686,7 +731,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  const allPeriods=[...new Set(batchResults.filter(r=>r.ok||r.skipped).flatMap(r=>r.periods||[]))];
  if(allPeriods.length===1){period=allPeriods[0];$('#period').value=period;}
  let totalSuggested=0,possibleTransfers=0,ambiguousTransfers=0,ledgerHits=0,financeMatched=0,financeAmbiguous=0,financeUnmatched=0;
- for(const ym of allPeriods){if((c.financialControls||[]).some(x=>x.period===ym)){const fm=financialMatches(c,ym);financeMatched+=fm.matched;financeAmbiguous+=fm.ambiguous;financeUnmatched+=fm.unmatched;}ledgerHits+=suggestFromHistoricalLedger(c,ym).applied;const moves=Core.periodMovements(c,ym);totalSuggested+=moves.filter(m=>m.suggested&&!m.counterpart).length;const pairs=Core.transferSuggestions(c,ym);possibleTransfers+=pairs.proposals.length;ambiguousTransfers+=pairs.ambiguous.length;}
+ for(const ym of allPeriods){if((c.financialControls||[]).some(x=>x.period===ym)){const fm=financialMatches(c,ym);financeMatched+=fm.matched;financeAmbiguous+=fm.ambiguous;financeUnmatched+=fm.unmatched;}applyLearningPeriod(c,ym);ledgerHits+=suggestFromHistoricalLedger(c,ym).applied;const moves=Core.periodMovements(c,ym);totalSuggested+=moves.filter(m=>m.suggested&&!m.counterpart).length;const pairs=Core.transferSuggestions(c,ym);possibleTransfers+=pairs.proposals.length;ambiguousTransfers+=pairs.ambiguous.length;}
  if(ok.length||ledgerHits)await store('IMPORTACAO_EM_LOTE',`${ok.length} novos, ${skipped.length} já existentes, ${bad.length} falhas; ${total} novas movimentações`);else render();
  const failures=bad.map(r=>`${r.name}: ${r.error}`).join(' | ');
  const diagnostics=batchResults.map(r=>(r.ok?'IMPORTADO':r.skipped?'JÁ EXISTENTE':'FALHOU')+' — '+r.name+(r.ok?' ('+r.count+' lançamentos)':'')+(r.error?' — '+r.error:'')).join(' | ');
@@ -841,7 +886,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
   }finally{field.value='';}
  })};
  document.addEventListener('click',e=>{const b=e.target.closest('button[data-classify],button[data-transfer]');if(!b)return;
- if(b.dataset.classify){action(async()=>{const c=getCompany(),m=c.movements.find(m=>m.id===b.dataset.classify);if(!m)throw Error('Movimento não encontrado');if(m.status==='PENDENTE_DUPLICIDADE')throw Error('Resolva suspeita de duplicidade antes de classificar');const cp=$('#cp_'+CSS.escape(m.id))?.value||m.suggested;if(!c.plan.some(p=>p.code===cp&&p.analytic))throw Error('Escolha uma contrapartida analítica válida.');if(!confirm(`Confirma que o código ${cp} é a contrapartida correta deste lançamento?`))return;m.counterpart=cp;m.status='CONFIRMADO';await store('CLASSIFICACAO_CONFIRMADA',`${m.date}, ${m.cents}, ${cp}`);say('Classificação confirmada.')})}
+ if(b.dataset.classify){action(async()=>{const c=getCompany(),m=c.movements.find(m=>m.id===b.dataset.classify);if(!m)throw Error('Movimento não encontrado');if(m.status==='PENDENTE_DUPLICIDADE')throw Error('Resolva suspeita de duplicidade antes de classificar');const cp=$('#cp_'+CSS.escape(m.id))?.value||m.suggested;if(!c.plan.some(p=>p.code===cp&&p.analytic))throw Error('Escolha uma contrapartida analítica válida.');if(!confirm(`Confirma que o código ${cp} é a contrapartida correta deste lançamento?`))return;m.counterpart=cp;m.status='CONFIRMADO';learnConfirmed(c,m,cp);await store('CLASSIFICACAO_CONFIRMADA',`${m.date}, ${m.cents}, ${cp}`);say('Classificação confirmada.')})}
  if(b.dataset.transfer){action(async()=>{const c=getCompany(),[outId,inId]=b.dataset.transfer.split('|'),decision=b.dataset.decision;const mv=new Map(c.movements.map(m=>[m.id,m])),out=mv.get(outId),inn=mv.get(inId);if(!out||!inn)throw Error('Movimentação não encontrada');const src=c.accounts.find(a=>a.id===out.accountId),dst=c.accounts.find(a=>a.id===inn.accountId);if(!src||!dst||src.id===dst.id)throw Error('Contas de origem/destino inválidas');if(decision==='CONFIRMADA'){
    if(out.status==='PENDENTE_DUPLICIDADE'||inn.status==='PENDENTE_DUPLICIDADE')throw Error('Existe duplicidade pendente neste par');
    if(out.cents!==-inn.cents||out.cents>=0||Core.dayDistance(out.date,inn.date)>2)throw Error('Par não atende às condições de conferência');
