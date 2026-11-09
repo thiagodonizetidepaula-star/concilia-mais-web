@@ -334,3 +334,49 @@ body:not(.authenticated) .auth-screen::after{right:-15vw;top:79%;transform:rotat
 @media(max-width:370px){.auth-stage{padding:15px 10px 20px}.auth-stage .auth-card{padding:20px 15px}.auth-stage .auth-logo .romeiro-logo{height:80px}.auth-product-subtitle{font-size:9px}}
 @media(max-height:700px) and (min-width:721px){.auth-stage{padding:16px}.auth-stage .auth-card{padding:23px 30px}.auth-stage .auth-logo{min-height:92px;margin-bottom:8px}.auth-stage .auth-logo .romeiro-logo{height:81px}.auth-stage .auth-card>p{margin-bottom:12px}}
 @media(prefers-reduced-motion:reduce){.auth-stage .auth-logo .romeiro-logo,.auth-stage .auth-logo:after{animation:none!important}}
+
+/* Correção de visibilidade da marca: proporção natural, sem cortes e sem CDN externa. */
+.romeiro-logo,
+.sidebar .romeiro-logo,
+.auth-header-logo,
+.auth-stage .auth-logo .romeiro-logo,
+.auth-logo .romeiro-logo {
+  object-fit:contain!important;
+  object-position:center!important;
+  max-width:100%;
+}
+.sidebar .brand {background:linear-gradient(155deg,#ffffff,#f4f8ff);min-height:79px}
+.sidebar .romeiro-logo {width:100%;max-width:230px;height:auto;aspect-ratio:500/117}
+.auth-header-logo{
+  display:block;
+  width:clamp(166px,18vw,238px);
+  height:68px;
+  flex-shrink:0;
+  background:linear-gradient(135deg,#fff,#eaf3ff);
+  border-radius:10px;
+  border:1px solid rgba(243,186,53,.4);
+  padding:7px 10px;
+  box-sizing:border-box;
+  filter:none;
+}
+.auth-stage .auth-logo {min-height:108px;gap:5px}
+.auth-stage .auth-logo .romeiro-logo{
+  width:min(100%,338px);
+  height:auto;
+  aspect-ratio:500/117;
+  max-width:338px;
+  min-height:0;
+  flex-shrink:0;
+}
+.auth-logo .romeiro-logo{height:auto;aspect-ratio:500/117}
+.auth-stage .auth-logo:after{bottom:0}
+@media(max-width:720px){
+ .sidebar .brand{min-height:59px}
+ .sidebar .romeiro-logo{width:100%;height:auto;max-width:178px}
+ .auth-stage .auth-logo{min-height:93px}
+ .auth-stage .auth-logo .romeiro-logo{width:min(100%,295px);height:auto;min-height:0}
+ .auth-header-logo{display:none}
+}
+@media(max-height:700px) and (min-width:721px){
+ .auth-stage .auth-logo .romeiro-logo{height:auto}
+}
