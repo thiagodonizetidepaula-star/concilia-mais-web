@@ -17,8 +17,8 @@ function cleanStatementHistory(m){
   .replace(/\s+/g,' ')
   .replace(/^[\s.:\-–]+|[\s.:\-–]+$/g,'')
   .trim();
- const category=clean(m.financialCategory||m.financialDescription);
- if(['SUGERIDA','CATEGORIA_COMPARTILHADA'].includes(m.financialMatch)&&category)return category;
+ const category=(m.financialMatch==='SUGERIDA'?String(m.financialDescription||m.financialCategory||'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.:]?\s*/,'').trim():clean(m.financialDescription||m.financialCategory));
+ if(m.financialMatch==='SUGERIDA'&&category)return category;
  return clean(m.history||'');
 }
 function report(core,company,period){
