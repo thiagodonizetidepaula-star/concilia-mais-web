@@ -108,3 +108,10 @@ footer{color:#71869b}
  .panel{padding:15px}
 }
 @media(prefers-reduced-motion:reduce){.sidebar nav button,.metric,.primary{transition:none!important}}
+
+/* Ajuste da marca original sobre o menu escuro: superfície clara para garantir contraste. */
+.sidebar .brand{background:linear-gradient(155deg,#fff,#edf4ff);border:1px solid rgba(246,189,58,.62);box-shadow:0 5px 22px rgba(0,0,0,.18),0 0 16px rgba(238,177,35,.12);border-radius:13px;padding:5px 9px;min-height:82px;margin-bottom:6px}
+.sidebar .romeiro-logo{width:100%;max-width:228px;height:67px;object-fit:cover;object-position:center}
+.auth-logo .romeiro-logo{width:min(100%,310px);max-width:none;height:110px;object-fit:cover;object-position:center}
+.app-brand-label{color:#164789;font-size:17px;letter-spacing:-.4px;font-weight:800}
+@media(max-width:720px){.sidebar .brand{width:210px;min-height:60px;margin-bottom:6px}.sidebar .romeiro-logo{height:47px}}
