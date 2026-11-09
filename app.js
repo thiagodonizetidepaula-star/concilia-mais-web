@@ -417,7 +417,7 @@ function financialMatches(c,ym){
   const unique=options.length===1&&referenceCounts.get(options[0].uniqueKey)===1;
   if(unique){
    const e=options[0];
-   m.financialDescription=e.category||e.description;m.financialDetail=e.description;m.financialCategory=e.category;
+   m.financialDescription=e.description||e.category;m.financialDetail=e.description;m.financialCategory=e.category;
    m.financialSourceRow=e.sourceRow;m.financialSourceFile=e.sourceFile;m.financialMatch='SUGERIDA';delete m.financialCandidates;matched++;
    if(!m.suggested||m.confidence==='Controle financeiro + conta analítica do plano — confirmar'){
     const code=financialCodeSuggestions(c,m);
@@ -430,7 +430,7 @@ function financialMatches(c,ym){
   // pertencerem à mesma conta da coluna D, sem alegar identificar qual linha/cliente.
   const labels=[...new Set(options.map(e=>cleanCat(e.category)).filter(Boolean))];
   if(options.length&&labels.length===1){
-   m.financialDescription=labels[0];m.financialCategory=options[0].category;
+   m.financialDescription=labels[0]+' (identificação individual pendente)';m.financialCategory=options[0].category;
    m.financialMatch='CATEGORIA_COMPARTILHADA';m.financialCandidates=options.map(source);shared++;matched++;
    // Categoria é unânime, mas a linha/cliente específico permanece indeterminado.
    if(!m.suggested){const code=financialCodeSuggestions(c,m);if(code){m.suggested=code;m.confidence='Controle financeiro + conta analítica do plano — confirmar';coded++;}}
@@ -657,8 +657,8 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  const total=ok.reduce((n,r)=>n+r.count,0),pending=ok.reduce((n,r)=>n+r.review,0),duplicate=ok.reduce((n,r)=>n+r.duplicate,0);
  const allPeriods=[...new Set(batchResults.filter(r=>r.ok||r.skipped).flatMap(r=>r.periods||[]))];
  if(allPeriods.length===1){period=allPeriods[0];$('#period').value=period;}
- let totalSuggested=0,possibleTransfers=0,ambiguousTransfers=0,ledgerHits=0;
- for(const ym of allPeriods){ledgerHits+=suggestFromHistoricalLedger(c,ym).applied;const moves=Core.periodMovements(c,ym);totalSuggested+=moves.filter(m=>m.suggested&&!m.counterpart).length;const pairs=Core.transferSuggestions(c,ym);possibleTransfers+=pairs.proposals.length;ambiguousTransfers+=pairs.ambiguous.length;}
+ let totalSuggested=0,possibleTransfers=0,ambiguousTransfers=0,ledgerHits=0,financeMatched=0,financeAmbiguous=0,financeUnmatched=0;
+ for(const ym of allPeriods){if((c.financialControls||[]).some(x=>x.period===ym)){const fm=financialMatches(c,ym);financeMatched+=fm.matched;financeAmbiguous+=fm.ambiguous;financeUnmatched+=fm.unmatched;}ledgerHits+=suggestFromHistoricalLedger(c,ym).applied;const moves=Core.periodMovements(c,ym);totalSuggested+=moves.filter(m=>m.suggested&&!m.counterpart).length;const pairs=Core.transferSuggestions(c,ym);possibleTransfers+=pairs.proposals.length;ambiguousTransfers+=pairs.ambiguous.length;}
  if(ok.length||ledgerHits)await store('IMPORTACAO_EM_LOTE',`${ok.length} novos, ${skipped.length} já existentes, ${bad.length} falhas; ${total} novas movimentações`);else render();
  const failures=bad.map(r=>`${r.name}: ${r.error}`).join(' | ');
  const diagnostics=batchResults.map(r=>(r.ok?'IMPORTADO':r.skipped?'JÁ EXISTENTE':'FALHOU')+' — '+r.name+(r.ok?' ('+r.count+' lançamentos)':'')+(r.error?' — '+r.error:'')).join(' | ');
@@ -669,7 +669,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  }else{
    summary=`LOTE PROCESSADO: ${ok.length} novo(s), ${skipped.length} já importado(s), ${bad.length} com falha(s). ${total} novas movimentações, ${existingTotal} no(s) período(s) analisado(s), ${pending} linha(s) em revisão e ${duplicate} possível(is) duplicidade(s). ${totalSuggested} sugestão(ões) de contrapartida existente(s) (${ledgerHits} nova(s) do Razão); ${possibleTransfers} transferência(s) candidata(s), ${ambiguousTransfers} ambígua(s). Nenhuma contrapartida incerta foi confirmada.`;
  }
- setStatementStatus(bad.length?'error':'success',summary+' DETALHES POR ARQUIVO: '+diagnostics);
+ setStatementStatus(bad.length?'error':'success',summary+(financeMatched||financeAmbiguous||financeUnmatched?' CONTROLE FINANCEIRO: '+financeMatched+' descrições sugeridas, '+financeAmbiguous+' ambíguas e '+financeUnmatched+' sem correspondência individual.':'')+' DETALHES POR ARQUIVO: '+diagnostics);
  if(skipped.length&&!ok.length&&!bad.length)say(`Extrato já importado: ${existingTotal} movimentações preservadas. Abra Classificações.`);
  else say(`${ok.length} novo(s), ${skipped.length} já importado(s), ${bad.length} falha(s). ${total} novas movimentações.`,!!bad.length);
  }catch(err){setStatementStatus('error','IMPORTAÇÃO NÃO CONCLUÍDA: '+(err.message||String(err))+'. Confira o arquivo ou a empresa e tente novamente.');throw err;}})};
