@@ -103,22 +103,69 @@
    tr.appendChild(td(brl.format(r.cents/100)));
    tr.appendChild(td(r.history||'Sem histórico','',r.review?'Descrição requer revisão':''));
    const statusTd=document.createElement('td'),badge=document.createElement('span');badge.className='ui-status '+(r.status==='CONCILIADO'?'ok':r.status==='DIVERGENTE'?'bad':'pending');badge.textContent=(r.status==='CONCILIADO'?'✓  Conciliado':r.status==='DIVERGENTE'?'⊗  Divergente':'◷  Pendente');statusTd.appendChild(badge);tr.appendChild(statusTd);
-   const last=document.createElement('td'),more=document.createElement('button');more.type='button';more.className='ui-row-more';more.dataset.uiGo='movimentos';more.title='Conferir lançamento na tela Classificações';more.setAttribute('aria-label','Abrir classificação');more.textContent='⋯';last.appendChild(more);tr.appendChild(last);
+   const last=document.createElement('td'),more=document.createElement('button');more.type='button';more.className='ui-row-more';more.dataset.uiRow=r.id;more.title='Abrir este lançamento para classificar';more.setAttribute('aria-label','Abrir classificação');more.textContent='⋯';last.appendChild(more);tr.appendChild(last);
    frag.appendChild(tr);
   }
   if(!ui.visible.length){const tr=document.createElement('tr');const cell=td(ui.rows.length?'Nenhum lançamento corresponde aos filtros.':'Nenhum lançamento importado nesta competência.','ui-empty');cell.colSpan=9;tr.appendChild(cell);frag.appendChild(tr);}
   if(ui.visible.length>500){const tr=document.createElement('tr'),cell=td('Exibindo os primeiros 500 de '+num.format(ui.visible.length)+' lançamentos. Refine os filtros para encontrar os demais.','ui-empty');cell.colSpan=9;tr.appendChild(cell);frag.appendChild(tr);}
   el.replaceChildren(frag);
   const count=$('#uiSelectionCount');if(count)count.textContent=num.format(ui.selection.size)+' lançamento(s) selecionado(s)';
-  const all=$('#uiSelectAll');if(all){all.checked=ui.visible.length>0&&ui.visible.every(r=>ui.selection.has(r.id));all.indeterminate=ui.visible.some(r=>ui.selection.has(r.id))&&!all.checked;}
+  const all=$('#uiSelectAll');if(all){all.checked=ui.visible.length>0&&ui.visible.slice(0,500).every(r=>ui.selection.has(r.id));all.indeterminate=ui.visible.slice(0,500).some(r=>ui.selection.has(r.id))&&!all.checked;}
   document.querySelectorAll('.ui-tab').forEach(b=>{const active=b.dataset.uiTab===ui.tab;b.classList.toggle('active',active);b.setAttribute('aria-pressed',active?'true':'false');});
  }
  function go(page,focusId){
   const target=document.querySelector('nav button[data-page="'+page+'"]');
   if(target)target.click();
-  if(focusId){const focus=$('#'+focusId);if(focus){focus.scrollIntoView({behavior:'smooth',block:'start'});}}
+  if(focusId){
+   if(['workflowGuide','stepBanner','recentFiles','steps','metrics'].includes(focusId)){
+    const details=$('#uiWorkflowDetails');if(details)details.open=true;
+   }
+   const focus=$('#'+focusId);
+   if(focus)focus.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+ }
+ // The original editor and code confirmation remain the only place that can change entries.
+ // Focus the actual selected entry inside its original imported-statement table.
+ function showMovement(id){
+  const row=ui.rows.find(x=>x.id===String(id));
+  if(!row)return false;
+  let c=null;try{if(typeof current==='function')c=current();}catch(e){}
+  if(!c)return false;
+  const original=window.ConciliaCore.periodMovements(c,typeof period==='string'?period:$('#period').value).find(m=>String(m.id)===row.id);
+  if(!original)return false;
+  go('movimentos');
+  const origin=original.importId?'id:'+original.importId:'legacy:'+String(original.origin||'SEM_ORIGEM');
+  const filter=$('#movementStatementFilter');
+  if(filter&&[...filter.options].some(option=>option.value===origin)){
+   filter.value=origin;
+   filter.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  const sourceMoves=window.ConciliaCore.periodMovements(c,typeof period==='string'?period:$('#period').value)
+   .filter(m=>(m.importId?'id:'+m.importId:'legacy:'+String(m.origin||'SEM_ORIGEM'))===origin)
+   .sort((a,b)=>a.date.localeCompare(b.date)||String(a.history||'').localeCompare(String(b.history||'')));
+  const index=sourceMoves.findIndex(m=>String(m.id)===row.id);
+  const tr=$('#movementTable tbody')?.rows?.[index];
+  if(tr){
+   document.querySelectorAll('#movementTable .ui-target-row').forEach(x=>x.classList.remove('ui-target-row'));
+   tr.classList.add('ui-target-row');
+   tr.scrollIntoView({behavior:'smooth',block:'center'});
+  }else $('#movementTable')?.scrollIntoView({behavior:'smooth',block:'start'});
+  return true;
+ }
+ function selectedReview(){
+  const ids=[...ui.selection].filter(id=>ui.rows.some(r=>r.id===id));
+  const note=$('#uiDashboardNote');
+  if(!ids.length){
+   if(note)note.textContent='Selecione primeiro um lançamento usando a caixa à esquerda da linha.';
+   $('#uiSelectAll')?.focus();
+   return;
+  }
+  const ok=showMovement(ids[0]);
+  if(note&&ok)note.textContent=ids.length===1?'Lançamento selecionado localizado na tela Classificações. Confirme o código somente após revisar.':ids.length+' lançamentos selecionados. Exibindo o primeiro na tela Classificações; faça a conferência individual dos demais.';
  }
  document.addEventListener('click',e=>{
+  const rowAction=e.target.closest('[data-ui-row]');
+  if(rowAction){showMovement(rowAction.dataset.uiRow);return;}
   const jump=e.target.closest('[data-ui-go]');
   if(jump){go(jump.dataset.uiGo,jump.dataset.uiFocus);return;}
   const tab=e.target.closest('[data-ui-tab]');
@@ -126,16 +173,13 @@
   if(e.target.closest('#uiClearFilters')){ui.query='';ui.bank='';ui.status='';ui.tab='all';$('#uiMovementSearch').value='';$('#uiBankFilter').value='';$('#uiStatusFilter').value='';renderRows();return;}
   if(e.target.closest('#uiSettingsNav')||e.target.closest('#uiProfileTop')){const details=$('.cloud-settings');if(details){details.open=true;details.scrollIntoView({behavior:'smooth',block:'center'});}return;}
   if(e.target.closest('#uiHelpTop')){go('visao','workflowGuide');return;}
-  if(e.target.closest('#uiReconcileSelected')||e.target.closest('#uiReviewSelections')){
-   go('movimentos','movementTable');
-   const note=$('#uiDashboardNote');
-   if(note)note.textContent='A seleção na tabela é visual. Confirme ou revise os códigos individualmente na tela Classificações, sem lançamento automático.';
-  }
+  if(e.target.closest('#uiReconcileSelected')){selectedReview();return;}
+  if(e.target.closest('#uiReviewSelections')){ui.selection.clear();renderRows();go('revisao','reviewTable');return;}
  });
  document.addEventListener('change',e=>{
   if(e.target.id==='uiBankFilter'){ui.bank=e.target.value;renderRows();}
   if(e.target.id==='uiStatusFilter'){ui.status=e.target.value;renderRows();}
-  if(e.target.id==='uiSelectAll'){for(const row of ui.visible){if(e.target.checked)ui.selection.add(row.id);else ui.selection.delete(row.id);}renderRows();}
+  if(e.target.id==='uiSelectAll'){for(const row of ui.visible.slice(0,500)){if(e.target.checked)ui.selection.add(row.id);else ui.selection.delete(row.id);}renderRows();}
   if(e.target.matches('.ui-row-check')){if(e.target.checked)ui.selection.add(e.target.dataset.id);else ui.selection.delete(e.target.dataset.id);renderRows();}
  });
  const search=$('#uiMovementSearch');
