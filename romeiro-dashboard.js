@@ -167,12 +167,27 @@
    $('#uiSelectAll')?.focus();
    return;
   }
-  const ok=showMovement(ids[0]);
-  if(note&&ok)note.textContent=ids.length===1?'Lançamento selecionado localizado na tela Classificações. Confirme o código somente após revisar.':ids.length+' lançamentos selecionados. Exibindo o primeiro na tela Classificações; faça a conferência individual dos demais.';
+  if(ids.length===1){showMovement(ids[0]);return;}
+  const dialog=$('#uiSelectedDialog'),list=$('#uiSelectedList');
+  if(!dialog||!list||!dialog.showModal){showMovement(ids[0]);return;}
+  const frag=document.createDocumentFragment();
+  for(const id of ids){
+   const r=ui.rows.find(x=>x.id===id);if(!r)continue;
+   const button=document.createElement('button');
+   button.type='button';button.className='ui-selected-entry';button.dataset.uiRow=id;
+   const title=document.createElement('strong');title.textContent=dateBR(r.date)+'  •  '+r.bank+'  •  '+brl.format(r.cents/100);
+   const description=document.createElement('span');description.textContent=r.history||'Sem histórico';
+   const suffix=document.createElement('small');suffix.textContent='Abrir classificação ›';
+   button.append(title,description,suffix);frag.appendChild(button);
+  }
+  list.replaceChildren(frag);
+  if(note)note.textContent=ids.length+' lançamentos selecionados para conferência manual, sem confirmação automática.';
+  dialog.showModal();
  }
  document.addEventListener('click',e=>{
+  if(e.target.closest('#uiSelectedClose')){$('#uiSelectedDialog')?.close();return;}
   const rowAction=e.target.closest('[data-ui-row]');
-  if(rowAction){showMovement(rowAction.dataset.uiRow);return;}
+  if(rowAction){const modal=$('#uiSelectedDialog');if(modal?.open)modal.close();showMovement(rowAction.dataset.uiRow);return;}
   const jump=e.target.closest('[data-ui-go]');
   if(jump){go(jump.dataset.uiGo,jump.dataset.uiFocus);return;}
   const tab=e.target.closest('[data-ui-tab]');
