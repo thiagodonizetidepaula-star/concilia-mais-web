@@ -226,3 +226,22 @@ body.authenticated #p-visao>.ui-workflow-details .step-banner{margin-top:12px}
 .ui-selected-entry span{font-size:12px;overflow-wrap:anywhere}
 .ui-selected-entry small{font-size:10px;color:#1764b9;font-weight:800}
 @media(max-width:720px){.ui-selected-dialog{padding:16px}.ui-selected-head h2{font-size:15px}.ui-selected-list{max-height:55vh}}
+
+/* Compatibilidade com navegação original: manter ordem, nomes e ações do sistema. */
+body.authenticated .sidebar nav{display:flex;flex-direction:column}
+body.authenticated .sidebar nav button{width:100%;text-align:left;display:flex;align-items:center;gap:10px}
+body.authenticated .sidebar nav button svg{width:18px;height:18px;flex-shrink:0}
+body.authenticated .topbar .product-mark{order:0}
+body.authenticated .topbar .topbar-heading{order:1;margin-left:auto}
+body.authenticated .topbar .select-row{order:2}
+.romeiro-ledger-table th:first-child,.romeiro-ledger-table td:first-child{width:auto;text-align:left}
+.romeiro-ledger-table td:nth-child(5){font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:800;text-align:right}
+.romeiro-ledger-table th:nth-child(5){text-align:right}
+.romeiro-ledger-table td:nth-child(6){font-variant-numeric:normal;white-space:normal;font-weight:400;text-align:left;max-width:265px;overflow-wrap:anywhere}
+.romeiro-ledger-table td:nth-child(7){min-width:120px;max-width:none}
+body.authenticated .romeiro-table-footer{justify-content:flex-start}
+body.authenticated .romeiro-table-footer>span{white-space:normal;line-height:1.5}
+@media(max-width:720px){
+ body.authenticated .sidebar nav{display:flex;flex-direction:row;overflow-x:auto;gap:5px}
+ body.authenticated .sidebar nav button{flex:0 0 auto;width:auto;white-space:nowrap}
+}
