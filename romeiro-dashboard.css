@@ -155,3 +155,49 @@ body.authenticated #p-visao>.grid-2,body.authenticated #p-visao>.guide-workflow,
  .romeiro-table-footer>span{white-space:normal}
 }
 @media(prefers-reduced-motion:reduce){.romeiro-import-body button{transition:none}}
+
+/* Revisão de usabilidade: layout mais estável, nenhum campo original removido. */
+body.authenticated #p-visao>.ui-workflow-details{
+ margin-top:18px;
+ background:#fff;
+ border:1px solid #d8e3f2;
+ border-radius:12px;
+ padding:0 16px;
+ box-shadow:0 5px 18px rgba(21,49,88,.055);
+}
+body.authenticated #p-visao>.ui-workflow-details>summary{
+ display:flex;
+ align-items:center;
+ gap:9px;
+ padding:15px 0;
+ color:#133968;
+ font-size:12px;
+ font-weight:800;
+ cursor:pointer;
+ list-style:none;
+}
+body.authenticated #p-visao>.ui-workflow-details>summary::-webkit-details-marker{display:none}
+body.authenticated #p-visao>.ui-workflow-details>summary svg{height:17px;width:17px}
+body.authenticated #p-visao>.ui-workflow-details>summary svg:last-child{margin-left:auto}
+body.authenticated #p-visao>.ui-workflow-details[open]>summary{border-bottom:1px solid #e5edf6;margin-bottom:12px}
+body.authenticated #p-visao>.ui-workflow-details #metrics{display:none}
+body.authenticated #p-visao>.ui-workflow-details .grid-2{grid-template-columns:1fr;margin:12px 0}
+body.authenticated .sidebar nav button:focus-visible,
+body.authenticated .romeiro-dashboard button:focus-visible,
+body.authenticated .romeiro-dashboard input:focus-visible,
+body.authenticated .romeiro-dashboard select:focus-visible{outline:3px solid #e7b343;outline-offset:2px}
+.romeiro-ledger-table .ui-suggested{color:#9b6d0a;font-style:italic;text-decoration:underline dotted;text-underline-offset:3px}
+.romeiro-ledger-table .ui-row-more{background:transparent;border:0;border-radius:7px;color:#1c4579;min-height:30px;min-width:32px;font-size:20px;font-weight:800}
+.romeiro-ledger-table .ui-row-more:hover{background:#dceafa}
+#movementTable .ui-target-row td{outline:1px solid #d8ac35;outline-offset:-1px;background:#fff6d6!important}
+.romeiro-table-controls .romeiro-filter-btn:hover{border-color:#245cad;color:#12488d}
+.romeiro-head-actions button:focus-visible{outline:2px solid #f1bc48;outline-offset:2px}
+.romeiro-table-note{max-width:100%;min-height:15px}
+@media(max-width:720px){
+ body.authenticated #p-visao>.ui-workflow-details{padding:0 12px}
+ body.authenticated .sidebar nav .nav-extra{display:contents}
+ .romeiro-board-tabs{scrollbar-width:thin}
+ .romeiro-table-footer{align-items:stretch}
+ .romeiro-footer-actions .romeiro-finish{flex-basis:100%}
+ .romeiro-table-controls label{min-width:0}
+}
