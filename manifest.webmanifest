@@ -1,0 +1,18 @@
+{
+  "name": "Concilia+ Web — Conciliação Contábil e Bancária",
+  "short_name": "Concilia+",
+  "description": "Conciliação contábil e bancária por empresa",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#061b38",
+  "theme_color": "#061b38",
+  "icons": [
+    {
+      "src": "./assets/concilia-app-icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    }
+  ]
+}
