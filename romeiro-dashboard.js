@@ -184,8 +184,67 @@
  });
  const search=$('#uiMovementSearch');
  if(search)search.addEventListener('input',e=>{ui.query=e.target.value;renderRows();});
+
+ // Conectar os controles históricos já presentes à importação/análise oficial.
+ // Não cria um novo motor: utiliza os handlers originais de importLedger e suggest.
+ const histForm=$('#historicalLedgerForm');
+ const histStatus=$('#historicalStatus');
+ const histList=$('#historicalList');
+ const mode=$('#importMode'),ledgerMode=$('#ledgerMode');
+ const updateHist=()=>{
+  let c=null;try{if(typeof current==='function')c=current();}catch(e){}
+  const refs=c?.referenceLedgers||[];
+  if(!histList)return;
+  const fragment=document.createDocumentFragment();
+  const summary=document.createElement('p');summary.className='micro';summary.textContent=refs.length?'Razões históricos disponíveis: '+refs.length:'Nenhum Razão histórico cadastrado para a empresa.';
+  fragment.appendChild(summary);
+  for(const ref of refs.slice(-30).reverse()){
+   const row=document.createElement('div');row.className='ui-history-row';
+   const title=document.createElement('strong');title.textContent=String(ref.file||ref.name||'Razão de referência');
+   const detail=document.createElement('span');detail.textContent=' • '+(ref.periods||[]).join(', ')+' • '+(ref.entries||[]).length+' lançamento(s)';
+   row.append(title,detail);fragment.appendChild(row);
+  }
+  histList.replaceChildren(fragment);
+ };
+ if(mode&&ledgerMode){
+  mode.addEventListener('change',()=>{ledgerMode.value=mode.value==='full'?'reconcile':'reference';});
+  ledgerMode.addEventListener('change',()=>{mode.value=ledgerMode.value==='reconcile'?'full':'onlyStatement';});
+  mode.value=ledgerMode.value==='reconcile'?'full':'onlyStatement';
+ }
+ if(histForm){
+  histForm.addEventListener('submit',event=>{
+   event.preventDefault();
+   const source=histForm.querySelector('input[type=file]');
+   const dest=$('#importLedger input[type=file]');
+   const target=$('#importLedger');
+   if(!source?.files?.length){if(histStatus)histStatus.textContent='Selecione pelo menos um Razão histórico.';return;}
+   if(!dest||!target){if(histStatus)histStatus.textContent='Importador de Razões indisponível. Use a seção Razão acima.';return;}
+   try{
+    dest.files=source.files;
+    if(ledgerMode)ledgerMode.value='reference';
+    if(mode)mode.value='onlyStatement';
+    if(histStatus)histStatus.textContent='Enviando '+source.files.length+' Razão(ões) ao importador histórico existente. Acompanhe o resultado abaixo.';
+    target.requestSubmit();
+   }catch(err){if(histStatus)histStatus.textContent='Não foi possível encaminhar os arquivos. Use o formulário Razão logo acima em modo histórico. '+(err.message||'');}
+  });
+ }
+ const applyHistory=$('#applyHistorical');
+ if(applyHistory)applyHistory.addEventListener('click',()=>{
+  const original=$('#suggest');
+  if(!original){if(histStatus)histStatus.textContent='Análise de códigos temporariamente indisponível.';return;}
+  if(histStatus)histStatus.textContent='Analisando sugestões com os Razões históricos e regras existentes; nenhuma sugestão será confirmada automaticamente.';
+  original.click();
+ });
+ const ledgerStatus=$('#ledgerStatus');
+ if(ledgerStatus&&histStatus){
+  new MutationObserver(()=>{
+   if(histStatus.textContent?.includes('Enviando')||histStatus.textContent?.includes('Analisando'))histStatus.textContent=ledgerStatus.textContent||'Aguardando processamento do Razão.';
+   updateHist();
+  }).observe(ledgerStatus,{childList:true,characterData:true,subtree:true});
+ }
+ updateHist();
  const metrics=$('#metrics');
- if(metrics)new MutationObserver(()=>{if(document.body.classList.contains('authenticated'))render();}).observe(metrics,{childList:true});
+ if(metrics)new MutationObserver(()=>{if(document.body.classList.contains('authenticated')){render();updateHist();}}).observe(metrics,{childList:true});
  const periodInput=$('#period'),companyInput=$('#companySelect');
  if(periodInput)periodInput.addEventListener('change',()=>{ui.selection.clear();ui.bank='';render();});
  if(companyInput)companyInput.addEventListener('change',()=>{ui.selection.clear();ui.bank='';render();});
