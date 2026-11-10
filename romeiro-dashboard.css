@@ -251,3 +251,75 @@ body.authenticated #p-visao .romeiro-import-cards{grid-template-columns:repeat(2
 body.authenticated #p-visao .romeiro-import-card{align-items:center;min-height:142px}
 body.authenticated #p-visao .romeiro-import-body p{min-height:0}
 @media(max-width:720px){body.authenticated #p-visao .romeiro-import-cards{grid-template-columns:minmax(0,1fr)}body.authenticated #p-visao .romeiro-import-card{min-height:0;align-items:flex-start}}
+
+/* Conta autenticada no cabeçalho — reposicionamento puro, mantendo os IDs/handlers oficiais. */
+body.authenticated .topbar{overflow:visible;isolation:isolate;align-items:center}
+body.authenticated .topbar .product-mark{flex:1 1 250px;min-width:220px}
+body.authenticated .topbar .topbar-heading{flex:0 0 auto;min-width:132px;order:1;margin-left:auto}
+body.authenticated .topbar .topbar-account{
+ order:2;
+ flex:0 1 272px;
+ width:auto;
+ max-width:310px;
+ min-width:205px;
+ margin:0;
+ padding:10px 12px;
+ position:relative;
+ background:linear-gradient(135deg,rgba(20,67,121,.85),rgba(11,35,72,.96));
+ border:1px solid rgba(172,204,238,.42);
+ box-shadow:0 3px 15px rgba(0,10,38,.2);
+ border-radius:12px;
+ color:#f5f9ff;
+}
+body.authenticated .topbar-account #cloudSignedIn{
+ display:grid;
+ grid-template-columns:minmax(0,1fr) auto;
+ grid-template-areas:"heading logout" "email logout" "settings settings";
+ align-items:center;
+ column-gap:9px;
+ row-gap:3px;
+}
+body.authenticated .topbar-account .cloud-userhead{grid-area:heading;margin:0;gap:5px;min-width:0;font-size:10px;line-height:1.15}
+body.authenticated .topbar-account .cloud-userhead svg{height:14px;width:14px;flex-shrink:0}
+body.authenticated .topbar-account .cloud-identity{grid-area:email;margin:0;color:#fff;font-size:11px;font-weight:750;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;line-height:1.3}
+body.authenticated .topbar-account .logout-button{
+ grid-area:logout;
+ width:auto;
+ margin:0;
+ padding:8px 10px;
+ min-height:34px;
+ border:1px solid rgba(244,188,73,.66);
+ background:linear-gradient(145deg,#244e88,#163a6d);
+ border-radius:9px;
+ color:#fff;
+ white-space:nowrap;
+ font-size:11px;
+}
+body.authenticated .topbar-account .logout-button:hover{background:#315e9a;border-color:#ffcc60}
+body.authenticated .topbar-account .logout-button svg{height:15px;width:15px}
+body.authenticated .topbar-account .cloud-settings{grid-area:settings;margin:5px 0 0;padding-top:6px;border-top:1px solid rgba(197,222,255,.17)}
+body.authenticated .topbar-account .cloud-settings summary{font-size:10px;color:#c9dbf3;line-height:1.3}
+body.authenticated .topbar-account .cloud-settings:not([open]){margin-top:3px}
+body.authenticated .topbar-account .cloud-settings[open]{position:absolute;z-index:20;top:calc(100% - 5px);left:0;right:0;margin:0;padding:14px;background:linear-gradient(155deg,#10375f,#071f40);border:1px solid rgba(189,216,246,.5);border-radius:0 0 12px 12px;box-shadow:0 12px 24px #061b3b55}
+body.authenticated .topbar-account .cloud-settings[open] summary{margin-bottom:9px}
+body.authenticated .topbar-account .cloud-status{white-space:normal}
+body.authenticated .topbar .select-row{order:3}
+@media(max-width:1080px){
+ body.authenticated .topbar .product-mark{flex:1 1 210px}
+ body.authenticated .topbar .topbar-account{flex:0 1 258px;max-width:280px}
+}
+@media(max-width:720px){
+ body.authenticated .topbar{align-items:center;gap:10px}
+ body.authenticated .topbar .product-mark{order:0;flex:1 1 100%;min-width:0}
+ body.authenticated .topbar .topbar-heading{order:1;flex:1 1 130px;text-align:left;margin:0;min-width:0}
+ body.authenticated .topbar .topbar-account{order:2;flex:1 1 188px;min-width:0;max-width:none;padding:9px}
+ body.authenticated .topbar-account .logout-button{min-height:32px;padding:7px}
+ body.authenticated .topbar-account .cloud-identity{font-size:10px}
+ body.authenticated .topbar-account .cloud-userhead{font-size:9px}
+ body.authenticated .topbar-account .cloud-settings summary{font-size:9px}
+ body.authenticated .topbar .select-row{order:3}
+}
+@media(max-width:380px){
+ body.authenticated .topbar .topbar-heading{flex-basis:100%;text-align:left}
+ body.authenticated .topbar .topbar-account{flex-basis:100%;max-width:100%}
+}
