@@ -201,3 +201,12 @@ body.authenticated .romeiro-dashboard select:focus-visible{outline:3px solid #e7
  .romeiro-footer-actions .romeiro-finish{flex-basis:100%}
  .romeiro-table-controls label{min-width:0}
 }
+
+/* Marcações bancárias legíveis sem caracteres pictográficos de fonte incerta. */
+.romeiro-ledger-table .bank-token-symbol.bradesco{background:#de1e36;color:#fff;font-size:13px;font-weight:900}
+.romeiro-ledger-table .bank-token-symbol.santander{background:#e32533;color:#fff;font-size:13px;font-weight:900}
+.romeiro-ledger-table .bank-token-symbol.itau{background:#133db5;color:#fff;font-size:8px;letter-spacing:-.6px}
+.romeiro-notify-dot[hidden]{display:none!important}
+body.authenticated main:has(#p-visao.visible)>.page-heading{display:none}
+body.authenticated #p-visao>.ui-workflow-details .guide-workflow{border:0;box-shadow:none}
+body.authenticated #p-visao>.ui-workflow-details .step-banner{margin-top:12px}
