@@ -1,4 +1,4 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0e2437"><meta name="description" content="Concilia+ Web — demonstração de conciliação de extratos por empresa"><title>Concilia+ Web • Sistema de conciliação</title><link rel="stylesheet" href="./style.css?v=20261020-login07"><link rel="stylesheet" href="./robot.css?v=1"><link rel="stylesheet" href="./romeiro-theme.css?v=20261109-logo-local03"><link rel="stylesheet" href="./romeiro-dashboard.css?v=20261109-restore-nav03"></head>
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0e2437"><meta name="description" content="Concilia+ Web — demonstração de conciliação de extratos por empresa"><title>Concilia+ Web • Sistema de conciliação</title><link rel="stylesheet" href="./style.css?v=20261020-login07"><link rel="stylesheet" href="./robot.css?v=1"><link rel="stylesheet" href="./romeiro-theme.css?v=20261109-logo-local03"><link rel="stylesheet" href="./romeiro-dashboard.css?v=20261109-two-cards04"></head>
 <body>
 <div id="authGate" class="auth-screen" role="main">
  <header class="auth-header" aria-label="Identidade visual Romeiro e Concilia+">
@@ -37,7 +37,6 @@
 <button data-page="movimentos"><i data-lucide="list-checks"></i> Classificações</button>
 <button data-page="transferencias"><i data-lucide="arrow-left-right"></i> Transferências</button>
 <button data-page="conciliacao"><i data-lucide="file-check-2"></i> Conciliação e exportação</button>
-<button data-page="revisao"><i data-lucide="scan-search"></i> Revisão de leitura</button>
 </nav>
 <section class="cloud-panel" aria-label="Conta conectada">
   <div id="cloudSignedIn">
@@ -62,9 +61,8 @@
 <section class="romeiro-dashboard" aria-label="Painel de conciliação">
  <div class="romeiro-intro"><span class="romeiro-intro-icon"><i data-lucide="arrow-left-right"></i></span><div><h2>Conciliação Bancária</h2><p>Concilie os lançamentos do banco com o Razão contábil e o controle financeiro do cliente.</p></div></div>
  <div class="romeiro-import-cards">
-  <article class="romeiro-import-card"><span class="romeiro-card-icon bank-icon"><i data-lucide="landmark"></i></span><div class="romeiro-import-body"><h3>Importar extratos</h3><p>Extratos bancários em PDF, Excel, OFX e CSV.</p><button type="button" data-ui-go="importar" data-ui-focus="importStatement"><i data-lucide="upload"></i> Importar extrato</button></div></article>
-  <article class="romeiro-import-card"><span class="romeiro-card-icon ledger-icon"><i data-lucide="book-open"></i></span><div class="romeiro-import-body"><h3>Razão</h3><p>Razões contábeis e históricos para conferência.</p><button type="button" data-ui-go="importar" data-ui-focus="actualLedgerPanel"><i data-lucide="upload"></i> Importar razão</button></div></article>
-  <article class="romeiro-import-card"><span class="romeiro-card-icon excel-icon"><i data-lucide="file-spreadsheet"></i></span><div class="romeiro-import-body"><h3>Controle financeiro (Excel)</h3><p>Planilha DRE do cliente para identificar históricos.</p><button type="button" data-ui-go="importar" data-ui-focus="importFinancial"><i data-lucide="upload"></i> Importar controle</button></div></article>
+  <article class="romeiro-import-card"><span class="romeiro-card-icon ledger-icon"><i data-lucide="book-open-check"></i></span><div class="romeiro-import-body"><h3>Plano de contas</h3><p>Importe ou atualize o plano de contas e os códigos contábeis da empresa.</p><button type="button" data-ui-go="empresas" data-ui-focus="importPlan"><i data-lucide="upload"></i> Importar plano de contas</button></div></article>
+  <article class="romeiro-import-card"><span class="romeiro-card-icon bank-icon"><i data-lucide="landmark"></i></span><div class="romeiro-import-body"><h3>Importar extratos e Razões</h3><p>Envie os extratos bancários e os Razões da competência na mesma área.</p><button type="button" data-ui-go="importar"><i data-lucide="upload"></i> Importar extratos e Razões</button></div></article>
  </div>
  <div class="romeiro-kpi-row" aria-label="Indicadores da competência">
   <article class="romeiro-kpi"><span class="kpi-icon kpi-blue"><i data-lucide="list-checks"></i></span><div><span>Total de lançamentos</span><strong id="uiTotal">0</strong></div></article>
