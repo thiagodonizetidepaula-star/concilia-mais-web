@@ -11,8 +11,8 @@
  const symbol=(bank)=>{
   const n=String(bank||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   if(n.includes('itau'))return ['itau','Itaú'];
-  if(n.includes('bradesco'))return ['bradesco','♜'];
-  if(n.includes('santander'))return ['santander','♨'];
+  if(n.includes('bradesco'))return ['bradesco','B'];
+  if(n.includes('santander'))return ['santander','S'];
   if(n.includes('caixa'))return ['caixa','CA'];
   if(n.includes('stone'))return ['stone','S'];
   if(n.includes('sicredi'))return ['sicredi','Si'];
@@ -56,6 +56,13 @@
   let c=null;
   try{if(typeof current==='function')c=current();}catch(e){}
   const rows=panelFor(c);ui.rows=rows;
+  // A bolinha de notificação deve representar revisões reais, não ser um aviso fixo.
+  let reviews=0;
+  try{reviews=(typeof state!=='undefined'&&state.reviews||[]).filter(x=>c&&x.companyId===c.id).length;}catch(e){}
+  const notification=$('.romeiro-notify-dot');
+  if(notification)notification.hidden=reviews===0;
+  const bell=document.querySelector('.romeiro-head-actions button[data-ui-go="revisao"]');
+  if(bell)bell.title=reviews?reviews+' linha(s) em revisão':'Nenhuma linha pendente de revisão';
   const totals={CONCILIADO:0,PENDENTE:0,DIVERGENTE:0};
   for(const r of rows)totals[r.status]++;
   const total=rows.length;
