@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Concilia+">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#154b87"/><stop offset=".52" stop-color="#082955"/><stop offset="1" stop-color="#04162f"/></linearGradient><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffe290"/><stop offset=".55" stop-color="#ffc343"/><stop offset="1" stop-color="#e69f16"/></linearGradient></defs>
+<rect x="10" y="10" width="492" height="492" rx="103" fill="url(#bg)"/>
+<rect x="19" y="19" width="474" height="474" rx="95" fill="none" stroke="#f4bb49" stroke-opacity=".72" stroke-width="8"/>
+<g fill="none" stroke="#f2f7ff" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+<path d="M95 215 247 140 399 215 247 289Z"/>
+<path d="m104 281 143 73 143-73"/>
+<path d="m104 345 143 73 143-73"/>
+</g>
+<circle cx="387" cy="117" r="63" fill="#052650" stroke="#092a56" stroke-width="10"/>
+<path d="M387 84v66M354 117h66" stroke="url(#gold)" stroke-width="20" stroke-linecap="round"/>
+</svg>
