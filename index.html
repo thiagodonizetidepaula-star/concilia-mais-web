@@ -1,4 +1,4 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0e2437"><meta name="description" content="Concilia+ Web — demonstração de conciliação de extratos por empresa"><title>Concilia+ Web • Sistema de conciliação</title><link rel="stylesheet" href="./style.css?v=20261020-login07"><link rel="stylesheet" href="./robot.css?v=1"><link rel="stylesheet" href="./romeiro-theme.css?v=20261109-logo-local03"><link rel="stylesheet" href="./romeiro-dashboard.css?v=20261109-two-cards04"></head>
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0e2437"><meta name="description" content="Concilia+ Web — demonstração de conciliação de extratos por empresa"><title>Concilia+ Web • Sistema de conciliação</title><link rel="stylesheet" href="./style.css?v=20261020-login07"><link rel="stylesheet" href="./romeiro-theme.css?v=20261109-logo-local03"><link rel="stylesheet" href="./romeiro-dashboard.css?v=20261109-account-top05"></head>
 <body>
 <div id="authGate" class="auth-screen" role="main">
  <header class="auth-header" aria-label="Identidade visual Romeiro e Concilia+">
@@ -38,7 +38,9 @@
 <button data-page="transferencias"><i data-lucide="arrow-left-right"></i> Transferências</button>
 <button data-page="conciliacao"><i data-lucide="file-check-2"></i> Conciliação e exportação</button>
 </nav>
-<section class="cloud-panel" aria-label="Conta conectada">
+
+</aside>
+<div class="workspace"><header class="topbar" aria-label="Cabeçalho do Concilia+"><div class="product-mark"><i data-lucide="layers-3"></i><strong>Conciliar</strong><span class="product-mark-divider"></span><span class="product-mark-sub">Conciliação Contábil e Bancária</span></div><div class="topbar-heading"><div class="topbar-kicker">PAINEL DE TRABALHO</div><div class="topbar-title">Conciliação contábil</div><div class="topbar-subtitle">Empresa e período de trabalho</div><button type="button" id="restartWorkspace" class="restart-button"><i data-lucide="rotate-ccw"></i> Refazer / Reiniciar</button></div><section class="cloud-panel topbar-account" aria-label="Conta conectada">
   <div id="cloudSignedIn">
     <div class="cloud-userhead"><i data-lucide="shield-check"></i><span>Conta conectada</span></div>
     <div id="cloudUser" class="cloud-identity"></div>
@@ -52,9 +54,7 @@
       <label class="mini-btn fake-button">Restaurar backup JSON<input id="restore" type="file" accept=".json" hidden></label>
     </details>
   </div>
-</section>
-</aside>
-<div class="workspace"><header class="topbar" aria-label="Cabeçalho do Concilia+"><div class="product-mark"><i data-lucide="layers-3"></i><strong>Conciliar</strong><span class="product-mark-divider"></span><span class="product-mark-sub">Conciliação Contábil e Bancária</span></div><div class="topbar-heading"><div class="topbar-kicker">PAINEL DE TRABALHO</div><div class="topbar-title">Conciliação contábil</div><div class="topbar-subtitle">Empresa e período de trabalho</div><button type="button" id="restartWorkspace" class="restart-button"><i data-lucide="rotate-ccw"></i> Refazer / Reiniciar</button></div><div class="select-row"><label class="company-search-label">Localizar empresa<input type="search" id="companySearch" placeholder="Nome ou CNPJ" autocomplete="off" aria-label="Buscar empresa pelo nome ou CNPJ"></label><label class="company-select-label">Empresa selecionada<select id="companySelect" aria-label="Empresa selecionada"></select></label><label class="period-select-label">Competência<input type="month" id="period" value="2026-08" aria-label="Competência"></label></div></header>
+</section><div class="select-row"><label class="company-search-label">Localizar empresa<input type="search" id="companySearch" placeholder="Nome ou CNPJ" autocomplete="off" aria-label="Buscar empresa pelo nome ou CNPJ"></label><label class="company-select-label">Empresa selecionada<select id="companySelect" aria-label="Empresa selecionada"></select></label><label class="period-select-label">Competência<input type="month" id="period" value="2026-08" aria-label="Competência"></label></div></header>
 <main><div class="page-heading"><div><p class="eyebrow" id="eyebrow">PAINEL OPERACIONAL</p><h1 id="pageTitle">Visão geral</h1><p class="subheading" id="subtitle">Selecione uma empresa e acompanhe o andamento da competência.</p></div></div>
 
 <section class="page visible" id="p-visao">
@@ -100,4 +100,4 @@
     <div class="restart-dialog-actions"><button type="submit" value="cancel" class="secondary">Cancelar</button><button id="confirmRestart" type="submit" value="confirm" class="primary">Continuar</button></div>
   </form>
 </dialog>
-<div id="toast" class="toast" role="status"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script src="./core.js?v=20261104-audit43"></script><script src="./pdf-reader.js?v=20261022-detalhes01"></script><script src="./excel-export.js?v=20261109-dre-description48"></script><script src="./assistente.js?v=20261104-dre-august44"></script><script src="./pdf-layouts.js?v=20261106-banco-inter49"></script><script src="./auditoria.js?v=20261022-pix-individual02"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script><script src="./cloud.js?v=20261020-authredirect08"></script><script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script><script src="./app.js?v=20261109-manual-plan57"></script><script src="./robot.js?v=1"></script><script src="./romeiro-dashboard.js?v=20261109-restore-nav03"></script></body></html>
+<div id="toast" class="toast" role="status"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script src="./core.js?v=20261104-audit43"></script><script src="./pdf-reader.js?v=20261022-detalhes01"></script><script src="./excel-export.js?v=20261109-dre-description48"></script><script src="./assistente.js?v=20261104-dre-august44"></script><script src="./pdf-layouts.js?v=20261106-banco-inter49"></script><script src="./auditoria.js?v=20261022-pix-individual02"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script><script src="./cloud.js?v=20261020-authredirect08"></script><script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script><script src="./app.js?v=20261109-manual-plan57"></script><script src="./romeiro-dashboard.js?v=20261109-restore-nav03"></script></body></html>
