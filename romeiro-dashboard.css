@@ -323,3 +323,101 @@ body.authenticated .topbar .select-row{order:3}
  body.authenticated .topbar .topbar-heading{flex-basis:100%;text-align:left}
  body.authenticated .topbar .topbar-account{flex-basis:100%;max-width:100%}
 }
+
+/* Cabeçalho simplificado: conta e Sair somente; rotinas de recuperação continuam intactas internamente. */
+body.authenticated .topbar-account .cloud-settings,
+body.authenticated .topbar-account .cloud-settings[open]{display:none!important}
+body.authenticated .topbar-account #cloudSignedIn{
+ grid-template-areas:"heading logout" "email logout";
+}
+body.authenticated .topbar-account .cloud-identity{
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+/* Mobile: cabeçalho bem distribuído e formulários sem rolagem horizontal da página. */
+@media(max-width:720px){
+ body.authenticated .shell,
+ body.authenticated .workspace,
+ body.authenticated main{min-width:0;max-width:100%}
+ body.authenticated .workspace{overflow-x:clip}
+ body.authenticated .topbar{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  grid-template-areas:"brand brand" "actions account" "filters filters";
+  align-items:center;
+  padding:12px 13px 15px;
+  gap:12px;
+  width:100%;
+ }
+ body.authenticated .topbar .product-mark{
+  grid-area:brand;
+  order:unset;
+  flex:initial;
+  min-width:0;
+  max-width:100%;
+  margin:0;
+ }
+ body.authenticated .topbar .topbar-heading{
+  grid-area:actions;
+  order:unset;
+  min-width:0;
+  width:100%;
+  margin:0;
+  flex:initial;
+  text-align:left;
+ }
+ body.authenticated .topbar .topbar-account{
+  grid-area:account;
+  order:unset;
+  width:100%;
+  min-width:0;
+  max-width:none;
+  flex:initial;
+  padding:10px;
+ }
+ body.authenticated .topbar-account #cloudSignedIn{
+  grid-template-columns:minmax(0,1fr) auto;
+  grid-template-areas:"heading logout" "email logout";
+  column-gap:7px;
+ }
+ body.authenticated .topbar-account .cloud-identity{max-width:100%;font-size:11px}
+ body.authenticated .topbar-account .logout-button{min-height:38px;padding:8px 10px}
+ body.authenticated .topbar .select-row{
+  grid-area:filters;
+  order:unset;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  margin:0;
+  gap:9px;
+ }
+ body.authenticated .topbar .select-row label{
+  min-width:0;
+  width:100%;
+  margin:0;
+ }
+ body.authenticated .topbar .company-search-label{grid-column:1/-1}
+ body.authenticated .topbar .select-row input,
+ body.authenticated .topbar .select-row select{
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  min-height:42px;
+  font-size:13px;
+ }
+ body.authenticated .sidebar nav{scrollbar-width:thin;overscroll-behavior-x:contain}
+ body.authenticated .romeiro-dashboard .romeiro-import-cards{gap:10px}
+ body.authenticated .romeiro-tablewrap{max-width:100%;overflow-x:auto}
+ body.authenticated .romeiro-ledger-board{max-width:100%}
+ body.authenticated .metric-grid,
+ body.authenticated .grid-2{min-width:0}
+}
+@media(max-width:390px){
+ body.authenticated .topbar{grid-template-columns:minmax(0,1fr);grid-template-areas:"brand" "actions" "account" "filters"}
+ body.authenticated .topbar .topbar-account{max-width:100%}
+ body.authenticated .topbar .topbar-heading{display:flex;align-items:center;justify-content:space-between;gap:9px}
+ body.authenticated .topbar .topbar-title{font-size:11px}
+ body.authenticated #restartWorkspace{margin:0}
+ body.authenticated .topbar .select-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+}
