@@ -245,3 +245,9 @@ body.authenticated .romeiro-table-footer>span{white-space:normal;line-height:1.5
  body.authenticated .sidebar nav{display:flex;flex-direction:row;overflow-x:auto;gap:5px}
  body.authenticated .sidebar nav button{flex:0 0 auto;width:auto;white-space:nowrap}
 }
+
+/* Visão geral: somente dois acessos, preservando o visual Romeiro e os formulários originais. */
+body.authenticated #p-visao .romeiro-import-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+body.authenticated #p-visao .romeiro-import-card{align-items:center;min-height:142px}
+body.authenticated #p-visao .romeiro-import-body p{min-height:0}
+@media(max-width:720px){body.authenticated #p-visao .romeiro-import-cards{grid-template-columns:minmax(0,1fr)}body.authenticated #p-visao .romeiro-import-card{min-height:0;align-items:flex-start}}
