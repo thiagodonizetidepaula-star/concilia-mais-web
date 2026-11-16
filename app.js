@@ -753,7 +753,18 @@ if(!account){
  c.accounts.push(account);
  identityWarning=[identityWarning,'Conta bancária ainda sem código validado no plano. Revise antes de exportar para contabilização.'].filter(Boolean).join(' ');
 }
-const parsed=ext==='pdf'?window.ConciliaLayouts.parseStatement(pdf,file.name,account.id,period,Core,bank,()=>Pdf.parseStatementPdf(pdf,file.name,account.id,period,Core,bank)):(ext==='xlsx'||ext==='xls')?parseStatementWorkbook(bytes,file.name,account.id):ext==='ofx'?Core.parseOfx(txt,account.id,file.name):Core.parseStatementCsv(Core.parseCsv(txt),account.id,file.name);
+let parsed;
+if(ext==='pdf'&&bank==='Bradesco'&&window.ConciliaBradesco?.needsOcr(pdf)){
+ // Bradesco Net Empresa: PDFs com fonte Type 3 (sem ToUnicode) parecem ter texto,
+ // mas datas e valores extraídos são ininteligíveis. OCR é exclusivo desse caso.
+ parsed=await window.ConciliaBradesco.parseFile(file,file.name,account.id,period,Core,message=>say(message));
+ if(c.cnpj&&parsed.ocrCnpj&&c.cnpj!==parsed.ocrCnpj)
+  throw Error('O OCR identificou CNPJ diferente da empresa selecionada. Corrija a empresa antes de importar.');
+ if(!parsed.ocrCnpj)
+  parsed.reviews.push({origin:file.name,line:'cabeçalho OCR',content:'CNPJ do Bradesco não identificado com segurança',reason:'Conferir titularidade da empresa antes da contabilização'});
+}else{
+ parsed=ext==='pdf'?window.ConciliaLayouts.parseStatement(pdf,file.name,account.id,period,Core,bank,()=>Pdf.parseStatementPdf(pdf,file.name,account.id,period,Core,bank)):(ext==='xlsx'||ext==='xls')?parseStatementWorkbook(bytes,file.name,account.id):ext==='ofx'?Core.parseOfx(txt,account.id,file.name):Core.parseStatementCsv(Core.parseCsv(txt),account.id,file.name);
+}
 if(!parsed.movements.length){await afterImport('EXTRATO',c,file,parsed,sha);await store('ARQUIVO_REVISAO',file.name+' • nenhuma movimentação reconhecida');throw Error(ext==='pdf'?(pdf?.text?.trim()?'PDF contém texto, mas o formato das movimentações não foi reconhecido. Confira Revisão e informe o modelo do banco.':'PDF sem texto selecionável: é necessário OCR para interpretar o documento digitalizado.'):'Nenhum movimento reconhecido no arquivo. Confira Revisão e o formato das colunas.')}
 let overlaps=0;const fingerprint=m=>m.accountId+'|'+m.date+'|'+m.cents+'|'+Core.norm(m.history),seen=new Set(c.movements.map(fingerprint));for(const m of parsed.movements){const key=fingerprint(m);if(seen.has(key)){m.status='PENDENTE_DUPLICIDADE';overlaps++}/* Não marcar lançamentos repetidos dentro do MESMO arquivo: PIX de mesmo valor e histórico podem ser operações distintas. */if(m.status!=='PENDENTE_DUPLICIDADE')autoSuggest(c,m)}
 if(identityWarning)parsed.reviews.push({origin:file.name,line:'cabeçalho',content:identityWarning,reason:'Conferir identificação bancária antes da contabilização'});
