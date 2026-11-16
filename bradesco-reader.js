@@ -25,6 +25,11 @@
  const iso=x=>{if(!DATE.test(x))return '';const [d,m,y]=x.split('/'),v=y+'-'+m+'-'+d;const dt=new Date(v+'T12:00:00Z');return !Number.isNaN(dt.getTime())&&dt.toISOString().slice(0,10)===v?v:''};
  const review=(origin,page,line,content,reason)=>({origin,line:'p'+page+':'+Math.round(line),content:String(content).slice(0,270),reason});
  function prepare(pdf,origin){
+   if(pdf?.bradescoRaw){
+     const items=(pdf.items||[]).map(i=>({page:i.page,x:Number(i.x),y:-Number(i.y),s:String(i.str||'')}));
+     if(!items.some(i=>/^\d{2}\/\d{2}\/\d{4}$/.test(i.s)))throw Error('Bradesco: dados Type3 recuperados sem datas reconhecíveis.');
+     return {items,legacy:false};
+   }
    const raw=pdf?.items||[];
    if(!raw.length)throw Error('Bradesco: PDF sem itens de texto. Se for imagem digitalizada, solicite OFX/CSV ou um PDF com texto selecionável.');
    const first=raw.filter(x=>x.page===1).slice(0,75).map(x=>x.str??x.s).join(' ');
