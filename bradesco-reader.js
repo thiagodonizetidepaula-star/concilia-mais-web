@@ -62,7 +62,14 @@
      }
      groups.sort((a,b)=>a.y-b.y);
      const dates=it.filter(i=>i.x<87&&DATE.test(i.s.trim())).sort((a,b)=>a.y-b.y);
-     const initialCandidates=it.filter(i=>i.x>=495&&MONEY.test(i.s.trim())&&it.some(d=>d.x>=85&&d.x<245&&Math.abs(d.y-i.y)<8&&norm(d.s).includes('SALDO ANTERIOR')));
+     // Reconstruir o texto do rótulo: no PDF Type3 "SALDO ANTERIOR" é dividido em muitos fragmentos.
+     // O saldo de abertura pode reaparecer em uma nova competência dentro do mesmo arquivo.
+     const initialCandidates=it.filter(i=>{
+       if(i.x<495||!MONEY.test(i.s.trim()))return false;
+       const heading=it.filter(d=>d.x>=85&&d.x<245&&Math.abs(d.y-i.y)<4)
+         .sort((a,b)=>a.x-b.x).map(d=>d.s).join('').replace(/\\s+/g,' ');
+       return /SALDO\\s*ANTERIOR/.test(norm(heading));
+     });
      const openings=initialCandidates.map(i=>({y:i.y,balance:asMoney(i.s.trim())})).sort((a,b)=>a.y-b.y);
      let nextOpen=0,dayIndex=0;
      for(let n=0;n<groups.length;n++){
