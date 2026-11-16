@@ -31,7 +31,7 @@
    const plain=norm(first);
    const isPlain=plain.includes('EXTRATO MENSAL')||plain.includes('LANCAMENTO');
    if(!isPlain&&pdf.pages!==4)throw Error('Bradesco: PDF com fonte sem mapa de caracteres conhecido. Exporte OFX/CSV; não é seguro tentar converter valores automaticamente.');
-   const legacyHeader=raw.filter(x=>x.page===1).slice(0,55).map(x=>decode(x.str??x.s,0)).join(' ');
+   const legacyHeader=raw.filter(x=>x.page===1).slice(0,200).map(x=>decode(x.str??x.s,0)).join('');
    const legacy=(!isPlain&&norm(legacyHeader).includes('EXTRATO')&&norm(legacyHeader).includes('MENSAL')&&norm(legacyHeader).includes('TAZ')&&norm(legacyHeader).includes('ELETRODEPOSICAO'));
    if(!isPlain&&!legacy)throw Error('Bradesco: texto codificado em fonte Type3 desconhecida. Nenhum lançamento foi importado por segurança. Solicite OFX ou CSV.');
    const items=raw.map(x=>{
@@ -51,7 +51,7 @@
    let recognizedHeader=false,malformed=0;
    for(const page of pages){
      const it=items.filter(x=>x.page===page).sort((a,b)=>a.y-b.y||a.x-b.x);
-     const header=it.filter(x=>x.y<125).map(x=>x.s).join(' ');
+     const header=it.filter(x=>x.y<125).map(x=>x.s).join('');
      if(/LANCAMENTO|LANÇAMENTO/i.test(norm(header))&&/SALDO/i.test(norm(header)))recognizedHeader=true;
      const amounts=it.filter(i=>i.x>=322&&i.x<492&&MONEY.test(i.s.trim())).map(i=>({...i,s:i.s.trim()}));
      const groups=[];
@@ -90,8 +90,17 @@
        const balanceItems=it.filter(i=>i.x>=495&&Math.abs(i.y-g.y)<3.4&&MONEY.test(i.s.trim()));
        const nextY=next?next.y-6.2:g.y+24;
        const descriptions=it.filter(i=>i.x>=85&&i.x<245&&i.y>=g.y-6.2&&i.y<nextY&&i.s.trim())
-         .sort((a,b)=>a.y-b.y||a.x-b.x).map(i=>i.s.trim());
-       const history=descriptions.join(' ').replace(/\s+/g,' ').trim();
+         .sort((a,b)=>a.y-b.y||a.x-b.x);
+       // Type3 separa letras e palavras em fragmentos: não inserir espaço entre cada glifo.
+       const descriptionLines=[];
+       for(const part of descriptions){
+         let line=descriptionLines.find(line=>Math.abs(line.y-part.y)<2.5);
+         if(!line){line={y:part.y,parts:[]};descriptionLines.push(line);}
+         line.parts.push(part);
+       }
+       const history=descriptionLines.sort((a,b)=>a.y-b.y)
+         .map(line=>line.parts.sort((a,b)=>a.x-b.x).map(part=>part.s).join('').trim())
+         .filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
        const document=it.filter(i=>i.x>=245&&i.x<322&&Math.abs(i.y-g.y)<4).map(i=>i.s.trim()).join(' ').trim();
        if(!currentDate||!cents||!Number.isFinite(cents)||balanceItems.length!==1||!history||/^(?:TOTAL|SALDO\s+(?:ANTERIOR|DO\s+DIA))/i.test(norm(history))){
          malformed++;
