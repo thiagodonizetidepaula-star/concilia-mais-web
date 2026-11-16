@@ -72,8 +72,8 @@
      const initialCandidates=it.filter(i=>{
        if(i.x<495||!MONEY.test(i.s.trim()))return false;
        const heading=it.filter(d=>d.x>=20&&d.x<245&&Math.abs(d.y-i.y)<4)
-         .sort((a,b)=>a.x-b.x).map(d=>d.s).join('').replace(/\\s+/g,' ');
-       return /SALDO\\s*ANTERIOR/.test(norm(heading));
+         .sort((a,b)=>a.x-b.x).map(d=>d.s).join('').replace(/\s+/g,' ');
+       return /SALDO\s*ANTERIOR/.test(norm(heading));
      });
      const openings=initialCandidates.map(i=>({y:i.y,balance:asMoney(i.s.trim())})).sort((a,b)=>a.y-b.y);
      let nextOpen=0,dayIndex=0;
