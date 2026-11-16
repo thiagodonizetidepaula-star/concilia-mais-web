@@ -245,6 +245,6 @@ function parseSicredi(pdf,origin,accountId,Core){
  if(!movements.length)reviews.push({origin,line:'?',content:'Sicredi',reason:'Nenhum movimento identificado; verificar layout'});
  return {movements,reviews,balanceCheck,format:'PDF_SICREDI',parsedCount:movements.length};
 }
-function parseStatement(pdf,origin,accountId,period,Core,bank,fallback){switch(bank){case'PagBank':return parsePagBank(pdf,origin,accountId,Core);case'Stone':return parseStone(pdf,origin,accountId,Core);case'Nubank':return parseNubank(pdf,origin,accountId,Core);case'Caixa':return parseCaixa(pdf,origin,accountId,Core);case'Sicredi':return parseSicredi(pdf,origin,accountId,Core);case'Inter':return parseInter(pdf,origin,accountId,Core);case'Bradesco':return root.ConciliaBradesco?.parse(pdf,origin,accountId,Core)||fallback();default:return fallback();}}
+function parseStatement(pdf,origin,accountId,period,Core,bank,fallback){switch(bank){case'PagBank':return parsePagBank(pdf,origin,accountId,Core);case'Stone':return parseStone(pdf,origin,accountId,Core);case'Nubank':return parseNubank(pdf,origin,accountId,Core);case'Caixa':return parseCaixa(pdf,origin,accountId,Core);case'Sicredi':return parseSicredi(pdf,origin,accountId,Core);case'Inter':return parseInter(pdf,origin,accountId,Core);case'Bradesco':return globalThis.ConciliaBradesco?.parse(pdf,origin,accountId,Core)||fallback();default:return fallback();}}
 return{bankOf,documentCnpj,parseStatement,parsePagBank,parseStone,parseNubank,parseCaixa,parseSicredi,parseInter,parseDominioLedgerPdf};
 });
