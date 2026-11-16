@@ -469,7 +469,10 @@ function financialMatches(c,ym){
  }
  const candidates=new Map(),referenceCounts=new Map();
  for(const m of moves){
-  let options=protectedIds.has(m.id)?[]:(byBankAmount.get(banks.get(m.accountId)+'|'+m.cents)||[]).filter(e=>Core.dayDistance(e.date,m.date)<=4);
+  let options=protectedIds.has(m.id)?[]:[
+    ...(byBankAmount.get(banks.get(m.accountId)+'|'+m.cents)||[]).filter(e=>Core.dayDistance(e.date,m.date)<=4),
+    ...(byBankAmount.get('|'+m.cents)||[]).filter(e=>e.date===m.date)
+  ];
   if(options.length){const closest=Math.min(...options.map(e=>Core.dayDistance(e.date,m.date)));options=options.filter(e=>Core.dayDistance(e.date,m.date)===closest);}
   candidates.set(m.id,options);
   for(const e of options)referenceCounts.set(e.uniqueKey,(referenceCounts.get(e.uniqueKey)||0)+1);
@@ -637,17 +640,25 @@ c.name=info.name||c.name;c.cnpj=info.cnpj||c.cnpj;c.dominio=info.dominio||c.domi
 
  $('#importFinancial').onsubmit=e=>{e.preventDefault();action(async()=>{
   const c=getCompany(),file=e.currentTarget.elements.file.files[0];
-  if(!file)throw Error('Selecione o Excel financeiro do cliente.');
-  if(!window.XLSX)throw Error('Biblioteca Excel não carregou. Atualize a página e tente novamente.');
-  const sha=await hash(await file.arrayBuffer());
+  if(!file)throw Error('Selecione um documento financeiro do cliente.');
+  const ext=fileExt(file.name),bytes=await file.arrayBuffer(),sha=await hash(bytes);
   const existing=(c.financialControls||[]).find(x=>x.sha===sha&&x.period===period);
-  const workbook=window.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
-  const allRows=financialRows(workbook);
+  let allRows,format='EXCEL',docCnpj='';
+  if(ext==='pdf'){
+    if(!window.ConciliaFinancialPDF)throw Error('Leitor financeiro PDF indisponível. Atualize a página.');
+    const pdf=await Pdf.extractPdf(file);
+    const result=window.ConciliaFinancialPDF.parse(pdf.text,Core);
+    allRows=result.rows;format=result.format;docCnpj=result.cnpj;
+  }else if(['xlsx','xls'].includes(ext)){
+    if(!window.XLSX)throw Error('Biblioteca Excel não carregou. Atualize a página.');
+    allRows=financialRows(window.XLSX.read(bytes,{type:'array',cellDates:false}));
+  }else throw Error('Formato de controle financeiro não suportado. Use PDF, XLSX ou XLS.');
+  if(c.cnpj&&docCnpj&&c.cnpj!==docCnpj)throw Error('O CNPJ do documento financeiro não corresponde ao cliente selecionado.');
   const rows=allRows.filter(x=>x.date.startsWith(period));
-  if(!rows.length)throw Error('O Excel foi lido, mas nenhuma das '+allRows.length+' linhas válidas pertence à competência '+period+'. Verifique o mês, a data e a aba Livro Diário FC.');
+  if(!rows.length)throw Error('Documento lido, mas nenhum dos '+allRows.length+' pagamentos pertence à competência '+period+'. Confira a DATA DO PAGAMENTO, não a data de emissão ou vencimento.');
   c.financialControls=c.financialControls||[];
-  if(existing){existing.rows=rows;existing.at=new Date().toISOString();existing.name=file.name;}
-  else c.financialControls.push({id:Core.id(),sha,period,name:file.name,rows,at:new Date().toISOString()});
+  if(existing){existing.rows=rows;existing.at=new Date().toISOString();existing.name=file.name;existing.format=format;}
+  else c.financialControls.push({id:Core.id(),sha,period,name:file.name,format,rows,at:new Date().toISOString()});
   const result=financialMatches(c,period);
   await store('CONTROLE_FINANCEIRO_IMPORTADO',file.name+': '+rows.length+' linhas, '+result.matched+' correspondências únicas, '+result.ambiguous+' ambíguas');
   $('#financialStatus').textContent=(existing?'Controle reprocessado ':'Controle importado ')+file.name+': '+rows.length+' lançamentos de '+period+'; '+result.matched+' descrições sugeridas, '+result.coded+' novos códigos sugeridos e '+result.ambiguous+' correspondências ambíguas. Confira as contrapartidas antes de contabilizar.';
