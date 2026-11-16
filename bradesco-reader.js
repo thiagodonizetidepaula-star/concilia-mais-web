@@ -71,7 +71,7 @@
      // O saldo de abertura pode reaparecer em uma nova competência dentro do mesmo arquivo.
      const initialCandidates=it.filter(i=>{
        if(i.x<495||!MONEY.test(i.s.trim()))return false;
-       const heading=it.filter(d=>d.x>=85&&d.x<245&&Math.abs(d.y-i.y)<4)
+       const heading=it.filter(d=>d.x>=20&&d.x<245&&Math.abs(d.y-i.y)<4)
          .sort((a,b)=>a.x-b.x).map(d=>d.s).join('').replace(/\\s+/g,' ');
        return /SALDO\\s*ANTERIOR/.test(norm(heading));
      });
