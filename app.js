@@ -777,9 +777,10 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  }else{
    summary=`LOTE PROCESSADO: ${ok.length} novo(s), ${skipped.length} já importado(s), ${bad.length} com falha(s). ${total} novas movimentações, ${existingTotal} no(s) período(s) analisado(s), ${pending} linha(s) em revisão e ${duplicate} possível(is) duplicidade(s). ${totalSuggested} sugestão(ões) de contrapartida existente(s) (${ledgerHits} nova(s) do Razão); ${possibleTransfers} transferência(s) candidata(s), ${ambiguousTransfers} ambígua(s). Nenhuma contrapartida incerta foi confirmada.`;
  }
- setStatementStatus(bad.length?'error':'success',summary+(financeMatched||financeAmbiguous||financeUnmatched?' CONTROLE FINANCEIRO: '+financeMatched+' descrições sugeridas, '+financeAmbiguous+' ambíguas e '+financeUnmatched+' sem correspondência individual.':'')+' DETALHES POR ARQUIVO: '+diagnostics);
+ setStatementStatus(bad.length?'error':'success',(bad.length?'ERRO NO EXTRATO: '+failures+'\n\n':'')+summary+(financeMatched||financeAmbiguous||financeUnmatched?' CONTROLE FINANCEIRO: '+financeMatched+' descrições sugeridas, '+financeAmbiguous+' ambíguas e '+financeUnmatched+' sem correspondência individual.':'')+'\nDETALHES POR ARQUIVO: '+diagnostics);
  if(skipped.length&&!ok.length&&!bad.length)say(`Extrato já importado: ${existingTotal} movimentações preservadas. Abra Classificações.`);
- else say(`${ok.length} novo(s), ${skipped.length} já importado(s), ${bad.length} falha(s). ${total} novas movimentações.`,!!bad.length);
+ else if(bad.length) say(`Falha ao importar ${bad[0].name}: ${bad[0].error}`,true);
+ else say(`${ok.length} novo(s), ${skipped.length} já importado(s), ${bad.length} falha(s). ${total} novas movimentações.`);
  }catch(err){setStatementStatus('error','IMPORTAÇÃO NÃO CONCLUÍDA: '+(err.message||String(err))+'. Confira o arquivo ou a empresa e tente novamente.');throw err;}})};
  $('#importLedger').onsubmit=e=>{e.preventDefault();const form=e.currentTarget;action(async()=>{
  const c=getCompany(),files=Array.from(form.elements.file.files||[]),button=$('#ledgerButton'),status=$('#ledgerStatus'),historic=$('#ledgerMode').value==='reference';

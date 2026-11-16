@@ -62,12 +62,21 @@
      }
      groups.sort((a,b)=>a.y-b.y);
      const dates=it.filter(i=>i.x<87&&DATE.test(i.s.trim())).sort((a,b)=>a.y-b.y);
-     const initialCandidates=it.filter(i=>i.x>=495&&MONEY.test(i.s.trim())&&it.some(d=>d.x>=85&&d.x<245&&Math.abs(d.y-i.y)<8&&norm(d.s).includes('SALDO ANTERIOR')));
+     // Reconstruir o texto do rótulo: no PDF Type3 "SALDO ANTERIOR" é dividido em muitos fragmentos.
+     // O saldo de abertura pode reaparecer em uma nova competência dentro do mesmo arquivo.
+     const initialCandidates=it.filter(i=>{
+       if(i.x<495||!MONEY.test(i.s.trim()))return false;
+       const heading=it.filter(d=>d.x>=85&&d.x<245&&Math.abs(d.y-i.y)<4)
+         .sort((a,b)=>a.x-b.x).map(d=>d.s).join('').replace(/\\s+/g,' ');
+       return /SALDO\\s*ANTERIOR/.test(norm(heading));
+     });
      const openings=initialCandidates.map(i=>({y:i.y,balance:asMoney(i.s.trim())})).sort((a,b)=>a.y-b.y);
      let nextOpen=0,dayIndex=0;
      for(let n=0;n<groups.length;n++){
        const g=groups[n],next=groups[n+1];
-       if(page===1&&g.y<150)continue; // "Total Disponível" do cabeçalho não é lançamento
+       // O eixo Y já está invertido (y = -PDF.y). Comparar com 150 descartava TODAS as linhas da página 1.
+       // Ignorar valores no cabeçalho apenas quando ainda não existe uma data de lançamento acima da linha.
+       if(page===1&&!dates.some(d=>d.y<=g.y+2))continue;
        // Resumos "Total" nas últimas linhas são somas, nunca movimentações individuais.
        if(it.some(x=>x.x<85&&Math.abs(x.y-g.y)<5&&/^TOTAL\b/i.test(norm(x.s.trim()))))continue;
        while(nextOpen<openings.length&&openings[nextOpen].y<g.y){previousBalance=openings[nextOpen].balance;openingCount++;if(firstBalance===null)firstBalance=previousBalance;nextOpen++;}
