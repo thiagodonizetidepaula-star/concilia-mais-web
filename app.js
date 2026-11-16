@@ -726,6 +726,15 @@ function parseStatementWorkbook(fileBytes, origin, accountId){
  $('#importStatement').onsubmit=e=>{e.preventDefault();action(async()=>{try{setStatementStatus('working','Lendo o extrato. Aguarde a confirmação da quantidade de movimentações.');const c=getCompany(),f=e.currentTarget;if(!canImport(c))throw Error('Importe primeiro o plano de contas.');const files=Array.from(f.elements.file.files);if(!files.length)throw Error('Selecione pelo menos um extrato.');if(files.length>20)throw Error('Importe até 20 extratos por lote para evitar lentidão no celular.');const selectedAccount=f.elements.accountId.value;const batchResults=[];for(const file of files){try{setStatementStatus('working',`Processando ${batchResults.length+1} de ${files.length}: ${file.name}...`);const ext=fileExt(file.name);if(!['pdf','csv','txt','ofx','xlsx','xls'].includes(ext))throw Error('Use PDF digital, Excel XLSX/XLS, CSV, TXT ou OFX.');const bytes=await file.arrayBuffer(),sha=await hash(bytes);const previous=c.imports.find(x=>x.type==='EXTRATO'&&x.sha===sha);if(previous){batchResults.push({ok:false,skipped:true,name:file.name,periods:previous.periods||[],count:previous.movementCount||0});continue;}
 let txt='',pdf=null;if(ext==='pdf'){say('Extraindo movimentações do PDF digital...');try{pdf=await Pdf.extractPdf(file);txt=pdf.text}catch(err){throw Error('PDF não interpretado: '+err.message+'; tente CSV ou OFX.')}}else if(ext!=='xlsx'&&ext!=='xls')txt=(await asText(file)).txt;
 const bank=ext==='pdf'?(window.ConciliaLayouts.bankOf(pdf,file.name)||Pdf.detectBank(txt,file.name)):(ext==='xlsx'||ext==='xls')?({'caixa':'Caixa Econômica Federal','stone':'Stone','sicredi':'Sicredi','itau':'Itaú','santander':'Santander','nubank':'Nubank','pagbank':'PagBank','inter':'Banco Inter','brasil':'Banco do Brasil'}[financialBank(file.name)]||Pdf.detectBank('',file.name)):Pdf.detectBank(txt,file.name);
+if(ext==='pdf'&&bank==='Bradesco'&&window.ConciliaBradescoRaw){
+ try{
+  const raw=await window.ConciliaBradescoRaw.recover(new Uint8Array(bytes));
+  pdf={...pdf,...raw};
+ }catch(rawError){
+  // Se for o modelo Type3 comprovado, exibir a causa da falha; não aceitar lançamentos inventados.
+  if(!/EXTRATO MENSAL|LANÇAMENTO|LANCAMENTO/i.test(pdf.text||''))throw Error('Bradesco Type3: '+rawError.message);
+ }
+}
 // A empresa selecionada e seu plano definem o destino da importação.
 // Identificadores de PDFs podem faltar: nesses casos, registrar alerta, não bloquear a leitura.
 let identityWarning='';
