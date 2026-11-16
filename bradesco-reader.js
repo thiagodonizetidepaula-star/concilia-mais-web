@@ -45,7 +45,7 @@
  function parse(pdf,origin,accountId,Core){
    const {items,legacy}=prepare(pdf,origin);
    const movements=[],reviews=[],balances=[];
-   let currentDate='',previousBalance=null,firstBalance=null,lastBalance=null,checked=0;
+   let currentDate='',previousBalance=null,firstBalance=null,lastBalance=null,checked=0,openingCount=0;
    const periods=new Set();
    const pages=[...new Set(items.map(x=>x.page))].sort((a,b)=>a-b);
    let recognizedHeader=false,malformed=0;
@@ -68,7 +68,9 @@
      for(let n=0;n<groups.length;n++){
        const g=groups[n],next=groups[n+1];
        if(page===1&&g.y<150)continue; // "Total Disponível" do cabeçalho não é lançamento
-       while(nextOpen<openings.length&&openings[nextOpen].y<g.y){previousBalance=openings[nextOpen].balance;if(firstBalance===null)firstBalance=previousBalance;nextOpen++;}
+       // Resumos "Total" nas últimas linhas são somas, nunca movimentações individuais.
+       if(it.some(x=>x.x<85&&Math.abs(x.y-g.y)<5&&/^TOTAL\b/i.test(norm(x.s.trim()))))continue;
+       while(nextOpen<openings.length&&openings[nextOpen].y<g.y){previousBalance=openings[nextOpen].balance;openingCount++;if(firstBalance===null)firstBalance=previousBalance;nextOpen++;}
        while(dayIndex<dates.length&&dates[dayIndex].y<=g.y+2){currentDate=iso(dates[dayIndex].s.trim());dayIndex++;}
        const credit=g.items.filter(x=>x.x<410),debit=g.items.filter(x=>x.x>=410);
        if(credit.length+debit.length!==1){
@@ -106,7 +108,7 @@
    if(malformed>0)throw Error('Bradesco: '+malformed+' linha(s) com leitura ou saldos inconsistentes. Importação interrompida para evitar lançar valores incorretos. Solicite OFX/CSV.');
    if(legacy)reviews.push(review(origin,1,0,'Fonte Type3 com caracteres sem mapa Unicode; leitura recuperada a partir do modelo fornecido.','Bradesco: confira os lançamentos e o período antes de contabilizar.'));
    if(periods.size>1)reviews.push(review(origin,1,0,[...periods].join(', '),'Bradesco: PDF contém mais de uma competência. Selecione o mês correto antes de conciliar.'));
-   const balanceCheck=firstBalance===null||checked===0?{status:'INDETERMINADO',reason:'Bradesco: conferir saldos de abertura e fechamento',final:lastBalance,count:movements.length}:{status:'OK',initial:firstBalance,final:lastBalance,net:movements.reduce((v,m)=>v+m.cents,0),count:movements.length,reason:'Bradesco: continuidade dos saldos conferida por linha; verificar cortes entre competências'};
+   const balanceCheck=firstBalance===null||checked===0||openingCount>1||periods.size>1?{status:'INDETERMINADO',reason:'Bradesco: saldos por lançamento conferidos, mas existem competências ou seções de extrato diferentes. Confirme os saldos por período.',initial:firstBalance,final:lastBalance,count:movements.length}:{status:'OK',initial:firstBalance,final:lastBalance,net:movements.reduce((v,m)=>v+m.cents,0),count:movements.length,reason:'Bradesco: continuidade dos saldos conferida por linha'};
    return {movements,reviews,balances,balanceCheck,format:legacy?'PDF_BRADESCO_TYPE3':'PDF_BRADESCO_COLUNAS',parsedCount:movements.length};
  }
  return {parse,decode};
