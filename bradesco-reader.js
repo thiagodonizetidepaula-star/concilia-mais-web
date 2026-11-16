@@ -67,7 +67,9 @@
      let nextOpen=0,dayIndex=0;
      for(let n=0;n<groups.length;n++){
        const g=groups[n],next=groups[n+1];
-       if(page===1&&g.y<150)continue; // "Total Disponível" do cabeçalho não é lançamento
+       // O eixo Y já está invertido (y = -PDF.y). Comparar com 150 descartava TODAS as linhas da página 1.
+       // Ignorar valores no cabeçalho apenas quando ainda não existe uma data de lançamento acima da linha.
+       if(page===1&&!dates.some(d=>d.y<=g.y+2))continue;
        // Resumos "Total" nas últimas linhas são somas, nunca movimentações individuais.
        if(it.some(x=>x.x<85&&Math.abs(x.y-g.y)<5&&/^TOTAL\b/i.test(norm(x.s.trim()))))continue;
        while(nextOpen<openings.length&&openings[nextOpen].y<g.y){previousBalance=openings[nextOpen].balance;openingCount++;if(firstBalance===null)firstBalance=previousBalance;nextOpen++;}
