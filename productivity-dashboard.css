@@ -1,0 +1,35 @@
+/* Dashboard de produtividade - estilos isolados */
+#p-produtividade{padding:0 0 30px}
+#productivityPanel{color:#163050}
+.prod-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:22px}
+.prod-heading h2{font-size:27px;line-height:1.25;margin:7px 0;color:#102c4b}
+.prod-heading p,.prod-section p{color:#66778e;line-height:1.6;margin:4px 0 14px}
+.prod-kicker{font-size:11px;font-weight:800;letter-spacing:1.4px;color:#1876ac}
+.prod-status{background:#e9f4fb;border:1px solid #c9e7f6;color:#13597c;font-size:12px;font-weight:700;padding:10px 14px;border-radius:30px;white-space:nowrap}
+.prod-context{margin:0 0 15px;color:#45627c}
+.prod-notice{border-radius:12px;padding:15px;background:#fff8e6;color:#765318;margin-bottom:18px}
+.prod-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px;margin:0 0 18px}
+.prod-card,.prod-section{background:#fff;border:1px solid #e0e8f0;border-radius:17px;box-shadow:0 6px 24px #12345b0a}
+.prod-card{padding:20px 21px;display:flex;flex-direction:column;gap:9px;min-height:143px}
+.prod-card span{color:#53697f;font-size:13px;font-weight:650}
+.prod-card strong{font-size:28px;line-height:1.1;color:#12385d;font-weight:800;letter-spacing:-.7px}
+.prod-card strong em{font-style:normal;color:#9a6172}
+.prod-card small{color:#75879a;font-size:11px;line-height:1.45}
+.prod-columns{display:grid;grid-template-columns:1.1fr 1fr;gap:18px}
+.prod-section{padding:23px}
+.prod-section h3{margin:0 0 14px;color:#173b5c;font-size:18px}
+.prod-actions{display:flex;flex-wrap:wrap;gap:9px;margin:20px 0}
+.prod-actions button{font-size:13px}
+.prod-label{display:flex;flex-direction:column;gap:9px;font-size:12px;font-weight:700;color:#526980}
+.prod-label input{max-width:170px;border:1px solid #bdcde0;border-radius:9px;padding:11px;font:inherit}
+.prod-disclaimer,.prod-footnote{font-size:12px;color:#778698;line-height:1.6}
+.prod-progress{display:flex;justify-content:space-between;font-size:13px;color:#567086;margin-bottom:9px}
+.prod-track{background:#e8eff5;border-radius:12px;height:10px;overflow:hidden}
+.prod-track div{background:linear-gradient(90deg,#19b2a5,#2b82cf);height:100%;border-radius:12px}
+.prod-section dl{margin:18px 0}
+.prod-section dl div{display:flex;justify-content:space-between;align-items:center;gap:15px;border-bottom:1px solid #e7edf3;padding:10px 0}
+.prod-section dt{font-size:12px;color:#60748a}
+.prod-section dd{margin:0;font-size:14px;font-weight:750;color:#213c58;text-align:right}
+.prod-footnote{margin-top:14px}
+@media(max-width:950px){.prod-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.prod-columns{grid-template-columns:1fr}}
+@media(max-width:540px){.prod-heading{display:block}.prod-status{display:inline-block;margin-top:8px}.prod-grid{grid-template-columns:1fr 1fr;gap:9px}.prod-card{padding:14px;min-height:121px}.prod-card strong{font-size:20px}.prod-card span{font-size:12px}.prod-section{padding:16px}.prod-heading h2{font-size:22px}}
