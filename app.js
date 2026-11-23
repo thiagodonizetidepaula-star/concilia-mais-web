@@ -346,10 +346,21 @@ function autoSuggest(c,m){
  // Só indica conta se houver UM candidato inequívoco dentro do plano da própria empresa.
  // Boleto e PIX genéricos nunca determinam automaticamente a contrapartida.
  let candidates=[];
- if(/tarifa|tarif|pacoteservico|tarliq/.test(h))candidates=matches(['tarifabancaria','despesasbancarias','tarifasbancarias']);
- else if(/rendimentosrendpagoaplic|rendimentodeaplicacao|rendimentosaplic/.test(h))candidates=matches(['receitafinanceira','rendimentodeaplicacao','rendimentosdeaplicacoes']);
+ // RES APLIC AUT MAIS é resgate de aplicação financeira, nunca rendimento.
+ const isAplicacao=/RES\\s+APLIC\\s+AUT\\s+MAIS/i.test(String(m.history||''))||h.includes('resaplicautmais');
+ // REND isolado identifica rendimento (sem confundir com parte de outra palavra).
+ const isRendimento=/\\bREND\\b/i.test(String(m.history||''))||/rendimentosrendpagoaplic|rendimentodeaplicacao|rendimentosaplic/.test(h);
+ if(isAplicacao){
+   candidates=matches(['aplicacaofinanceira','aplicacoesfinanceiras','aplicacaoautomatica','aplicacoesautomaticas','aplicacaodeliquidez','resgatedeaplicacao']);
+ }else if(isRendimento){
+   candidates=matches(['rendimentodeaplicacao','rendimentosdeaplicacoes','rendimentosfinanceiros','receitafinanceira','receitasfinanceiras','rendimentosdeaplicacoesfinanceiras']);
+ }else if(/tarifa|tarif|pacoteservico|tarliq/.test(h)){
+   candidates=matches(['tarifabancaria','despesasbancarias','tarifasbancarias']);
+ }
  if(candidates.length===1){m.suggested=String(candidates[0].code);m.confidence='Sugestão por histórico e plano de contas — exige confirmação';}
- applyLearnedCode(c,m);
+ // Não substituir essas categorias com aprendizados de outros históricos.
+ // Sem conta analítica única no plano da empresa, a operação fica pendente.
+ if(!isAplicacao&&!isRendimento)applyLearnedCode(c,m);
 }
 
 function financialDate(v){
