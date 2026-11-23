@@ -79,6 +79,7 @@ function parseStone(pdf,origin,accountId,Core){
  const final=balances.length?balances[0].cents:undefined; // PDF Stone é ordenado do mais recente ao mais antigo
  return {movements,reviews,balances,balanceCheck:{status:'INDETERMINADO',final,reason:'Stone: saldos extraídos, conferir abertura e fechamento do período'},format:'PDF_STONE_MULTI_LAYOUT',parsedCount:movements.length};
 }
+const months={JAN:1,FEV:2,MAR:3,ABR:4,MAI:5,JUN:6,JUL:7,AGO:8,SET:9,OUT:10,NOV:11,DEZ:12};
 function parseNubank(pdf,origin,accountId,Core){const movements=[],reviews=[],rows=linesOf(pdf);let currentDate='',direction=0,pending=null;
  const flush=()=>{if(!pending)return;const p=pending;pending=null;const matches=[...p.text.matchAll(/(?:\+|-)?\s*(?:\d{1,3}(?:\.\d{3})+|\d+),\d{2}/g)];if(!matches.length){reviews.push({origin,line:p.line,content:p.text,reason:'Nubank: sem valor no histórico'});return}
  // Valor da transação é o último valor monetário na primeira linha; informações de agência não contam.

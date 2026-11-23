@@ -10,7 +10,11 @@ function audit(Core,company,period){
  const accounts=(company.accounts||[]).slice(),byId=new Map(accounts.map(a=>[a.id,a]));
  const movements=Core.periodMovements(company,period).slice();
  const versions=(company.ledger||[]).filter(v=>v.period===period);
- const events=[],summary=[],mappedLedger=new Set();
+ const events=[],summary=[];
+ const comparison=Core.reconcile(company,period);
+ const checkedByMovement=new Map(comparison.checked.flatMap(row=>row.sources.map(id=>[id,row])));
+ const matchedLedger=new Set(comparison.checked.filter(row=>row.recon==='CONCILIADO').map(row=>row.matchedId));
+ const canCompareByHistory=m=>m.status!=='CONFIRMADO'&&m.status!=='PENDENTE_DUPLICIDADE'&&!checkedByMovement.has(m.id);
  const knownCode=x=>plan.has(String(x||''))?String(x):'';
  const identifier=(m)=>m?.id||m?.line||'';
  const detail=(m)=>[m.history,m.party].filter(Boolean).join(' • ').slice(0,400);
@@ -32,21 +36,21 @@ function audit(Core,company,period){
   const code=String(account.chartCode||''),codeSafe=knownCode(code),bank=account.bank||account.label||'Banco',statement=movements.filter(m=>m.accountId===account.id).sort(byDate),ledgerData=latestFor(code);
   const lm=ledgerData?.entries||[],amountKey=(dt,cent,side)=>[dt,abs(cent),side].join('|');
   const mg=new Map(),lg=new Map();
-  for(const m of statement){const key=amountKey(m.date,m.cents,m.cents>0?'D':'C');mg.set(key,[...(mg.get(key)||[]),m]);}
-  for(const l of lm){const side=String(l.debit)===code?'D':String(l.credit)===code?'C':'';if(!side)continue;const key=amountKey(l.date,l.cents,side);lg.set(key,[...(lg.get(key)||[]),l]);}
-  let matched=0,missingBank=0,missingLedger=0,ambiguous=0;
+  for(const m of statement){if(checkedByMovement.get(m.id)?.recon==='CONCILIADO')continue;const key=amountKey(m.date,m.cents,m.cents>0?'D':'C');mg.set(key,[...(mg.get(key)||[]),m]);}
+  for(const l of lm){if(matchedLedger.has(l.id))continue;const side=String(l.debit)===code?'D':String(l.credit)===code?'C':'';if(!side)continue;const key=amountKey(l.date,l.cents,side);lg.set(key,[...(lg.get(key)||[]),l]);}
+  let matched=statement.filter(m=>checkedByMovement.get(m.id)?.recon==='CONCILIADO').length,missingBank=0,missingLedger=0,ambiguous=0;
   if(!ledgerData){if(statement.length)add({type:'RAZAO_AUSENTE',tone:'yellow',bank,bankCode:codeSafe,evidence:statement.length+' movimentações sem Razão importado para esta conta.',action:'Importe o Razão da conta '+code+' do mês '+period+'.'});}
   else{
    const keys=new Set([...mg.keys(),...lg.keys()]);
    for(const key of keys){
     const ms=mg.get(key)||[],ls=lg.get(key)||[];
-    if(ms.length===1&&ls.length===1){matched++;mappedLedger.add(ls[0].id);continue;}
     if(ms.length&&ls.length){
      const simplify=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
      const nameTokens=m=>simplify(m.party||'').split(' ').filter(t=>t.length>=4);
      const pendingM=[...ms],pendingL=[...ls];
      const matchedPairs=[];
      for(const m of ms){
+      if(!canCompareByHistory(m))continue;
       const tokens=nameTokens(m);
       if(tokens.length<2)continue;
       const possible=pendingL.filter(l=>tokens.every(t=>simplify(l.history).split(' ').includes(t)));
@@ -54,7 +58,8 @@ function audit(Core,company,period){
       const ledger=possible[0];
       const competing=pendingM.filter(other=>other!==m&&nameTokens(other).length>=2&&nameTokens(other).every(t=>simplify(ledger.history).split(' ').includes(t)));
       if(competing.length)continue;
-      pendingM.splice(pendingM.indexOf(m),1);pendingL.splice(pendingL.indexOf(ledger),1);matchedPairs.push([m,ledger]);matched++;mappedLedger.add(ledger.id);
+      pendingM.splice(pendingM.indexOf(m),1);pendingL.splice(pendingL.indexOf(ledger),1);matchedPairs.push([m,ledger]);
+      add({type:'CORRESPONDENCIA_PARA_REVISAO',bank,bankCode:codeSafe,date:m.date,cents:m.cents,history:detail(m),document:m.origin||'',evidence:'Nome, data e valor compatíveis. Falta validar a contrapartida.',action:'Confira o documento e confirme a classificação para conciliar.'});
      }
      if(pendingM.length===1&&pendingL.length===0){
       const m=pendingM[0],codes=candidateOf(m);missingLedger++;

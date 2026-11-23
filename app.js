@@ -14,9 +14,7 @@ function say(msg,error=false){const t=$('#toast');t.textContent=msg;t.className=
 function action(fn){Promise.resolve().then(fn).catch(e=>{console.error(e);say(e.message||String(e),true)})}
 function openDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open('ConciliaMaisBrowserDB',1);r.onupgradeneeded=()=>r.result.createObjectStore('app');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
 function loadDB(){return new Promise((resolve,reject)=>{const tx=db.transaction('app','readonly');const req=tx.objectStore('app').get('workspace');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
-// Importações operacionais pertencem exclusivamente à sessão atual.
- // Salvar somente cadastros, planos, regras e Razões históricos de referência.
- // Não reutilizar extratos/razão definitivo/documentos financeiros de sessões anteriores.
+// O payload da nuvem contém apenas cadastros e referências.
 function durableWorkspace(workspace){
  const copy=JSON.parse(JSON.stringify(workspace||blankState()));
  for(const c of copy.companies||[]){
@@ -25,12 +23,76 @@ function durableWorkspace(workspace){
   c.ledger=[];
   c.transfers=[];
   c.financialControls=[];
+  delete c.reconciliationReview;
  }
- copy.reviews=(copy.reviews||[]).filter(r=>!r.importId);
+ copy.reviews=(copy.reviews||[]).filter(r=>!r.importId&&!r.operational);
  copy.audit=(copy.audit||[]).filter(a=>!/(EXTRATO|RAZAO|RAZÕES|RAZOES|CONTROLE_FINANCEIRO|CRUZAMENTO_FINANCEIRO|TRIAGEM_AUTOMATICA|SUGESTOES_GERADAS|IMPORTACAO|RESTAURACAO)/i.test(String(a.action||'')));
  return copy;
 }
-function saveDB(){return new Promise((resolve,reject)=>{const tx=db.transaction('app','readwrite');tx.objectStore('app').put(durableWorkspace(state),'workspace');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
+const draftFields=['imports','movements','ledger','transfers','financialControls','reconciliationReview'];
+let draftRevision=0;
+
+function draftKey(){
+ const accountId=window.ConciliaCloud?.accountId?.();
+ return accountId?'reconciliation-draft:'+accountId:'';
+}
+
+function loadDraft(workspace){
+ const key=draftKey();
+ draftRevision=0;
+ if(!key)return Promise.resolve(null);
+ return new Promise((resolve,reject)=>{
+  const request=db.transaction('app','readonly').objectStore('app').get(key);
+  request.onerror=()=>reject(request.error);
+  request.onsuccess=()=>{
+   const draft=request.result;
+   if(!draft)return resolve(null);
+   draftRevision=draft.revision;
+   const recognized=new Set(workspace.companies.map(company=>company.id));
+   for(const company of workspace.companies){
+    const saved=draft.companies.find(item=>item.id===company.id);
+    if(saved)for(const field of draftFields)company[field]=saved[field]||(field==='reconciliationReview'?{}:[]);
+   }
+   workspace.reviews.push(...draft.reviews.filter(review=>recognized.has(review.companyId)));
+   const selected=draft.companies.find(item=>item.id===draft.companyId);
+   const hasWork=selected&&draftFields.some(field=>Object.keys(selected[field]||[]).length);
+   resolve(hasWork&&recognized.has(draft.companyId)&&/^\d{4}-(0[1-9]|1[0-2])$/.test(draft.period)?draft:null);
+  };
+ });
+}
+
+function saveDB({operational=true}={}){
+ const key=operational&&authReady?draftKey():'';
+ const draft=key?{
+  companyId,period,
+  companies:state.companies.map(company=>Object.fromEntries([
+   ['id',company.id],...draftFields.map(field=>[field,company[field]||(field==='reconciliationReview'?{}:[])])
+  ])),
+  reviews:state.reviews.filter(review=>review.importId||review.operational)
+ }:null;
+ const snapshot=draft?structuredClone(draft):null;
+ return new Promise((resolve,reject)=>{
+  const tx=db.transaction('app','readwrite');
+  const bucket=tx.objectStore('app');
+  let conflict=false,nextRevision;
+  tx.oncomplete=()=>{
+   if(nextRevision&&key===draftKey())draftRevision=nextRevision;
+   resolve();
+  };
+  tx.onabort=()=>reject(conflict
+   ?Error('O rascunho foi atualizado em outra aba. Recarregue a página para recuperar a versão salva.')
+   :tx.error||Error('Não foi possível salvar o rascunho neste navegador.'));
+  bucket.put(durableWorkspace(state),'workspace');
+  if(!snapshot)return;
+  const existing=bucket.get(key);
+  existing.onsuccess=()=>{
+   const revision=existing.result?.revision||0;
+   if(revision!==draftRevision){conflict=true;tx.abort();return;}
+   nextRevision=revision+1;
+   bucket.put({...snapshot,revision:nextRevision},key);
+  };
+ });
+}
 function log(type,detail){state.audit.push({at:new Date().toISOString(),companyId,action:type,detail});}
 async function store(type,detail){if(!['EXTRATO_REFAZER','IMPORTACAO_EXCLUIDA','RESTAURACAO_IMPORTACOES'].includes(type))ultimoExcluido=null;log(type,detail);await saveDB();render();if(cloudSyncEnabled&&window.ConciliaCloud?.authenticated()){try{await window.ConciliaCloud.serializedSave(durableWorkspace(state));cloudMessage('Alterações salvas na nuvem e cópia local atualizada.');}catch(err){cloudSyncEnabled=false;cloudMessage('Falha ao sincronizar: '+err.message+'. Cópia local preservada. Faça backup JSON antes de continuar.',true)}}}
 function table(headers,rows){if(!rows.length)return empty('Nenhum registro para exibir.');return `<div class="tablewrap"><table><thead><tr>${headers.map(h=>`<th>${safe(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${v??''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
@@ -75,18 +137,22 @@ async function activateCloud(){
   await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});
  }
  state=durableWorkspace(remote||blankState());
- companyId='';ultimoExcluido=null;cloudSyncEnabled=true;authReady=true;
+ const draft=await loadDraft(state);
+ companyId=draft?.companyId||'';
+ if(draft){period=draft.period;$('#period').value=period;}
+ ultimoExcluido=null;cloudSyncEnabled=true;authReady=true;
  // Limpar automaticamente dados operacionais legados já salvos no workspace.
  // A eventual falha de limpeza remota não traz lançamentos antigos à sessão.
- await saveDB();
+ await saveDB({operational:false});
  const hasOldImports=(remote?.companies||[]).some(c=>(c.imports||[]).length||(c.movements||[]).length||(c.ledger||[]).length||(c.financialControls||[]).length||(c.transfers||[]).length);
  if(hasOldImports){
   try{await cloud.serializedSave(durableWorkspace(state));}
   catch(err){cloudSyncEnabled=false;cloudMessage('Histórico antigo ignorado nesta sessão, mas a limpeza na nuvem falhou: '+err.message+'. Confira a conexão.',true);}
  }
- $('#companySearch').value='';renderSelection();showPage('empresas');
+ $('#companySearch').value='';renderSelection();showPage(draft?'importar':'empresas');
  cloudDisplay();
- if(cloudSyncEnabled)cloudMessage(remote?'Cadastros e Razões de referência carregados. Importações anteriores não serão reutilizadas.':'Conta conectada. Nenhum extrato anterior será reutilizado. Se necessário, migre os cadastros em Configurações.');
+ if(draft)say('Rascunho local recuperado. Confira a empresa e a competência no cabeçalho.');
+ if(cloudSyncEnabled)cloudMessage('Cadastros sincronizados. Os rascunhos operacionais ficam neste navegador.');
 }
 async function initializeCloud(){
  const cloud=window.ConciliaCloud;authReady=false;cloudDisplay();
@@ -159,8 +225,8 @@ function renderSelection(){
  if(sel.value!==prev)companyId=sel.value;
 }
 
-function showPage(page){currentPage=page;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('visible',x.id==='p-'+page));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===page));const titles={visao:['Visão geral','PAINEL OPERACIONAL','Selecione uma empresa e acompanhe o andamento da competência.'],empresas:['Empresas e plano de contas','CONFIGURAÇÃO INICIAL','Cada empresa utiliza seu próprio plano, seus bancos e suas regras.'],importar:['Importar extratos e Razão','PROCESSAMENTO DE DOCUMENTOS','O plano de contas é obrigatório antes dos extratos.'],movimentos:['Classificações','MOVIMENTAÇÕES','Conferência das contrapartidas e regras da empresa selecionada.'],transferencias:['Transferências entre contas','CRUZAMENTO DE BANCOS','Propostas que exigem confirmação da titularidade.'],conciliacao:['Conciliação e exportação','RAZÃO CONTÁBIL','Somente lançamentos confirmados e não encontrados no Razão.'],revisao:['Revisão de leitura','CONTROLE DE PENDÊNCIAS','Nenhuma linha ilegível deve desaparecer.']} ;const [title,eye,sub]=titles[page]||titles.visao;$('#pageTitle').textContent=title;$('#eyebrow').textContent=eye;$('#subtitle').textContent=sub;render()}
-function render(){const c=current();$('#statementButton').disabled=!canImport(c);$('#importPlanButton').disabled=false;$('#addBank').disabled=!c||!c.plan.length;$('#addRule').disabled=!c||!c.plan.length;$('#ledgerButton').disabled=!c;$('#financialButton').disabled=!c;$('#matchFinancial').disabled=!c;$('#downloadCsv').disabled=!c;$('#downloadExcel').disabled=!c;$('#downloadStatement').disabled=!c;const resetButton=$('#resetAll');if(resetButton)resetButton.disabled=!c;renderSetup();renderDashboard();renderImport();renderMovements();renderTransfers();renderRecon();renderAuditoria();renderReviews();renderAssistente();}
+function showPage(page){currentPage=page;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('visible',x.id==='p-'+page));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===page));const titles={pendencias:['Central de pendências','REVISÃO','Investigue as ocorrências da empresa e competência selecionadas.'],controle:['Controle de conciliações','ACOMPANHAMENTO','Registre e consulte os trabalhos por empresa e competência.'],visao:['Visão geral','PAINEL OPERACIONAL','Selecione uma empresa e acompanhe o andamento da competência.'],empresas:['Empresas e plano de contas','CONFIGURAÇÃO INICIAL','Cada empresa utiliza seu próprio plano, seus bancos e suas regras.'],importar:['Importar extratos e Razão','PROCESSAMENTO DE DOCUMENTOS','O plano de contas é obrigatório antes dos extratos.'],movimentos:['Classificações','MOVIMENTAÇÕES','Conferência das contrapartidas e regras da empresa selecionada.'],transferencias:['Transferências entre contas','CRUZAMENTO DE BANCOS','Propostas que exigem confirmação da titularidade.'],conciliacao:['Conciliação e exportação','RAZÃO CONTÁBIL','Somente lançamentos confirmados e não encontrados no Razão.'],revisao:['Revisão de leitura','CONTROLE DE PENDÊNCIAS','Nenhuma linha ilegível deve desaparecer.']} ;const [title,eye,sub]=titles[page]||titles.visao;$('#pageTitle').textContent=title;$('#eyebrow').textContent=eye;$('#subtitle').textContent=sub;render()}
+function render(){const c=current();$('#statementButton').disabled=!canImport(c);$('#importPlanButton').disabled=false;$('#addBank').disabled=!c||!c.plan.length;$('#addRule').disabled=!c||!c.plan.length;$('#ledgerButton').disabled=!c;$('#financialButton').disabled=!c;$('#matchFinancial').disabled=!c;$('#downloadCsv').disabled=!c;$('#downloadExcel').disabled=!c;$('#downloadStatement').disabled=!c;const resetButton=$('#resetAll');if(resetButton)resetButton.disabled=!c;renderSetup();renderDashboard();renderImport();renderMovements();renderTransfers();renderRecon();renderAuditoria();renderReviews();renderAssistente();window.ConciliaTracking?.render();window.ConciliaReview?.render();}
 function renderDashboard(){const c=current();if(!c){$('#stepBanner').innerHTML='<strong>Primeiro passo:</strong> importe o plano de contas; a empresa será criada automaticamente.';$('#metrics').innerHTML='';$('#steps').innerHTML='';$('#recentFiles').innerHTML=empty('Sem empresas cadastradas.');return}
   const mv=Core.periodMovements(c,period);const balance=Core.reconcile(c,period);const acc=new Set(mv.map(x=>x.accountId));const confirmed=balance.checked.filter(x=>x.recon==='CONCILIADO').length;
   const availablePeriods=[...new Set(c.imports.filter(x=>x.type==='EXTRATO').flatMap(x=>x.periods||[]))].sort().reverse();
@@ -256,7 +322,7 @@ function renderAuditoria(){
  if(!c||!Core.periodMovements(c,period).length){main.innerHTML=empty('Importe o extrato e o Razão definitivo para identificar os lançamentos faltantes.');stats.innerHTML='';return;}
  const analysis=api.audit(Core,c,period);
  const missing=analysis.events.filter(e=>e.type==='EXTRATO_SEM_RAZAO');
- const uncertain=analysis.events.filter(e=>e.type==='AMBIGUIDADE');
+ const uncertain=analysis.events.filter(e=>['AMBIGUIDADE','CORRESPONDENCIA_PARA_REVISAO'].includes(e.type));
  stats.innerHTML='<div class="pills">'+badge(missing.length+' lançamento(s) do extrato sem Razão')+(uncertain.length?badge(uncertain.length+' ocorrência(s) ainda sem identificação segura'):'')+'</div>';
  const rows=missing.map(e=>[
   safe(e.date?api.dateBR(e.date):'—'),
@@ -269,7 +335,7 @@ function renderAuditoria(){
  main.innerHTML=rows.length?table(['Data','Banco','Nome / histórico do extrato','Valor','Movimento','Débito e crédito no Domínio'],rows):empty(uncertain.length?'Não há lançamento individual comprovadamente faltante. Existem correspondências ambíguas; confira os favorecidos no Razão.':'Nenhum lançamento do extrato sem correspondência identificado no Razão importado.');
 }
 function renderReviews(){const c=current();$('#reviewTable').innerHTML=c?table(['Arquivo','Linha','Conteúdo original','Motivo'],state.reviews.filter(r=>r.companyId===companyId).slice(-300).reverse().map(r=>[safe(r.origin),safe(r.line),`<div class="fiscal">${safe(r.content)}</div>`,safe(r.reason)])):empty('Selecione uma empresa.');}
-async function afterImport(type,c,file,result,sha,importId=''){const rr=result.reviews||[];state.reviews.push(...rr.map(r=>({...r,companyId:c.id,importId})));return {reviewCount:rr.length}}
+async function afterImport(type,c,file,result,sha,importId=''){const rr=result.reviews||[];state.reviews.push(...rr.map(r=>({...r,companyId:c.id,importId,period:importId?'':period,operational:type!=='PLANO'})));return {reviewCount:rr.length}}
 function putFile(file,name,content){const blob=new Blob([content],{type:'text/plain;charset=utf-8'});const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)}
 
 function planSource(text){const rows=String(text).replace(/^\uFEFF/,'').split(/\r?\n/);const index=rows.findIndex(x=>/(?:codigo|c[oó]digo|classificacao|classifica[cç][aã]o)/i.test(x)&&/(?:descricao|descri[cç][aã]o|nome)/i.test(x));if(index<0)throw Error('O plano precisa de colunas Código e Descrição. Exporte para CSV/TXT pelo Domínio.');return {table:rows.slice(index).join('\n'),metadata:rows.slice(0,Math.max(index,1)).join('\n')}}
@@ -767,6 +833,7 @@ if(ext==='pdf'){
    throw Error('O PDF contém CNPJ diferente do cliente selecionado. Selecione a empresa correta.');
  if(!header.cnpj)identityWarning='PDF sem CNPJ identificável. Confira titular e conta bancária da empresa selecionada.';
 }
+let newAccount=false;
 let account=c.accounts.find(a=>a.id===selectedAccount);
 if(account&&bank&&Core.norm(account.bank)!==Core.norm(bank))
  throw Error('Banco selecionado difere do encontrado no extrato.');
@@ -776,17 +843,34 @@ if(!account){
 }
 if(!account){
  const code=guessBankAccount(c,bank);
- if(bank&&code){account={id:Core.id(),bank,label:'Identificação automática do extrato',chartCode:code};c.accounts.push(account);}
+ if(bank&&code){account={id:Core.id(),bank,label:'Identificação automática do extrato',chartCode:code};newAccount=true;}
 }
 if(!account){
  // Conta não classificada: permitir leitura e revisão, sem associar código contábil falso.
  account={id:Core.id(),bank:bank||'Banco não identificado',label:'Conta pendente de identificação contábil',chartCode:''};
- c.accounts.push(account);
+ newAccount=true;
  identityWarning=[identityWarning,'Conta bancária ainda sem código validado no plano. Revise antes de exportar para contabilização.'].filter(Boolean).join(' ');
 }
 const parsed=ext==='pdf'?window.ConciliaLayouts.parseStatement(pdf,file.name,account.id,period,Core,bank,()=>Pdf.parseStatementPdf(pdf,file.name,account.id,period,Core,bank)):(ext==='xlsx'||ext==='xls')?parseStatementWorkbook(bytes,file.name,account.id):ext==='ofx'?Core.parseOfx(txt,account.id,file.name):Core.parseStatementCsv(Core.parseCsv(txt),account.id,file.name);
 if(!parsed.movements.length){await afterImport('EXTRATO',c,file,parsed,sha);await store('ARQUIVO_REVISAO',file.name+' • nenhuma movimentação reconhecida');throw Error(ext==='pdf'?(pdf?.text?.trim()?'PDF contém texto, mas o formato das movimentações não foi reconhecido. Confira Revisão e informe o modelo do banco.':'PDF sem texto selecionável: é necessário OCR para interpretar o documento digitalizado.'):'Nenhum movimento reconhecido no arquivo. Confira Revisão e o formato das colunas.')}
-let overlaps=0;const fingerprint=m=>m.accountId+'|'+m.date+'|'+m.cents+'|'+Core.norm(m.history),seen=new Set(c.movements.map(fingerprint));for(const m of parsed.movements){const key=fingerprint(m);if(seen.has(key)){m.status='PENDENTE_DUPLICIDADE';overlaps++}/* Não marcar lançamentos repetidos dentro do MESMO arquivo: PIX de mesmo valor e histórico podem ser operações distintas. */if(m.status!=='PENDENTE_DUPLICIDADE')autoSuggest(c,m)}
+if(newAccount)c.accounts.push(account);
+let overlaps=0;
+const fingerprint=m=>m.accountId+'|'+m.date+'|'+m.cents+'|'+Core.norm(m.history);
+const existingByFingerprint=new Map(),knownFitIds=new Set();
+for(const m of c.movements){
+ const key=fingerprint(m);
+ if(!existingByFingerprint.has(key))existingByFingerprint.set(key,[]);
+ existingByFingerprint.get(key).push(m);
+ if(m.fitid)knownFitIds.add(JSON.stringify([m.accountId,m.fitid]));
+}
+for(const m of parsed.movements){
+ const fitKey=m.fitid?JSON.stringify([m.accountId,m.fitid]):'';
+ const sameHistory=existingByFingerprint.get(fingerprint(m))||[];
+ const duplicate=(fitKey&&knownFitIds.has(fitKey))||sameHistory.some(prior=>!m.fitid||!prior.fitid);
+ if(fitKey)knownFitIds.add(fitKey);
+ if(duplicate){m.status='PENDENTE_DUPLICIDADE';overlaps++;}
+ else autoSuggest(c,m);
+}
 if(identityWarning)parsed.reviews.push({origin:file.name,line:'cabeçalho',content:identityWarning,reason:'Conferir identificação bancária antes da contabilização'});
 const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core.id();for(const m of parsed.movements)m.importId=importId;c.movements.push(...parsed.movements);c.imports.push({id:importId,type:'EXTRATO',name:file.name,sha,accountId:account.id,bank:account.bank,periods,movementCount:parsed.movements.length,reviewCount:parsed.reviews.length,balanceCheck:parsed.balanceCheck||null,at:new Date().toISOString(),format:parsed.format||ext.toUpperCase(),identityConfirmation:ext==='pdf'&&!Pdf.identity(pdf.lines.slice(0,18).map(x=>x.content).join('\n')).cnpj&&!window.ConciliaLayouts.documentCnpj(pdf)?'CONFIRMADA_MANUALMENTE':'DOCUMENTO_COM_CNPJ'});await afterImport('EXTRATO',c,file,parsed,sha,importId);if(periods.length===1){period=periods[0];$('#period').value=period}await store('EXTRATO_IMPORTADO',file.name+': '+parsed.movements.length+' movimentos, '+parsed.reviews.length+' revisões; saldos '+(parsed.balanceCheck?.status||'indeterminado'));batchResults.push({ok:true,name:file.name,count:parsed.movements.length,review:parsed.reviews.length,duplicate:overlaps,periods});
  }catch(fileError){console.warn('Extrato não importado',file.name,fileError);batchResults.push({ok:false,name:file.name,error:fileError.message||String(fileError)});} }
@@ -947,15 +1031,16 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
    if(obj.format!=='concilia-plus-demo-backup-v1'||!Array.isArray(obj.state?.companies))throw Error('Arquivo de backup inválido');
    if(!confirm('ATENÇÃO: restaurar o JSON substituirá os dados atuais desta conta também na nuvem. Faça antes um backup JSON dos dados atuais. Deseja continuar?'))return;
    await window.ConciliaCloud.waitWrites();
-   await window.ConciliaCloud.serializedSave(JSON.parse(JSON.stringify(obj.state)));
-   state=obj.state;companyId='';ultimoExcluido=null;renderSelection();showPage('empresas');
+   await window.ConciliaCloud.serializedSave(durableWorkspace(obj.state));
+   state=obj.state;companyId='';ultimoExcluido=null;await saveDB();renderSelection();showPage('empresas');
    cloudMessage('Backup recuperado na nuvem. Selecione a empresa para continuar.');
   }finally{field.value='';}
  })};
  document.addEventListener('click',e=>{const b=e.target.closest('button[data-classify],button[data-transfer]');if(!b)return;
- if(b.dataset.classify){action(async()=>{const c=getCompany(),m=c.movements.find(m=>m.id===b.dataset.classify);if(!m)throw Error('Movimento não encontrado');if(m.status==='PENDENTE_DUPLICIDADE')throw Error('Resolva suspeita de duplicidade antes de classificar');const cp=$('#cp_'+CSS.escape(m.id))?.value||m.suggested;if(!c.plan.some(p=>p.code===cp&&p.analytic))throw Error('Escolha uma contrapartida analítica válida.');if(!confirm(`Confirma que o código ${cp} é a contrapartida correta deste lançamento?`))return;m.counterpart=cp;m.status='CONFIRMADO';learnConfirmed(c,m,cp);await store('CLASSIFICACAO_CONFIRMADA',`${m.date}, ${m.cents}, ${cp}`);say('Classificação confirmada.')})}
+ if(b.dataset.classify){action(async()=>{const c=getCompany(),m=c.movements.find(m=>m.id===b.dataset.classify);if(!m)throw Error('Movimento não encontrado');if(m.status==='PENDENTE_DUPLICIDADE')throw Error('Resolva suspeita de duplicidade antes de classificar');const cp=$('#cp_'+CSS.escape(m.id))?.value||m.suggested;if(!c.plan.some(p=>p.code===cp&&p.analytic))throw Error('Escolha uma contrapartida analítica válida.');if(String(c.accounts.find(a=>a.id===m.accountId)?.chartCode)===String(cp))throw Error('A contrapartida deve ser diferente da conta bancária.');if(!confirm(`Confirma que o código ${cp} é a contrapartida correta deste lançamento?`))return;m.counterpart=cp;m.status='CONFIRMADO';learnConfirmed(c,m,cp);await store('CLASSIFICACAO_CONFIRMADA',`${m.date}, ${m.cents}, ${cp}`);say('Classificação confirmada.')})}
  if(b.dataset.transfer){action(async()=>{const c=getCompany(),[outId,inId]=b.dataset.transfer.split('|'),decision=b.dataset.decision;const mv=new Map(c.movements.map(m=>[m.id,m])),out=mv.get(outId),inn=mv.get(inId);if(!out||!inn)throw Error('Movimentação não encontrada');const src=c.accounts.find(a=>a.id===out.accountId),dst=c.accounts.find(a=>a.id===inn.accountId);if(!src||!dst||src.id===dst.id)throw Error('Contas de origem/destino inválidas');if(decision==='CONFIRMADA'){
    if(out.status==='PENDENTE_DUPLICIDADE'||inn.status==='PENDENTE_DUPLICIDADE')throw Error('Existe duplicidade pendente neste par');
+   if(String(src.chartCode)===String(dst.chartCode))throw Error('As contas da transferência devem ter códigos contábeis distintos.');
    if(out.cents!==-inn.cents||out.cents>=0||Core.dayDistance(out.date,inn.date)>2)throw Error('Par não atende às condições de conferência');
    const conflicts=c.transfers.some(t=>t.status==='CONFIRMADA'&&([t.outId,t.inId].includes(outId)||[t.outId,t.inId].includes(inId)));if(conflicts)throw Error('Uma destas movimentações já foi vinculada');
    if(!confirm(`Você verificou nos extratos que ${src.bank} (${src.label}) e ${dst.bank} (${dst.label}) pertencem à mesma empresa? Confirmar lançamento único?`))return;

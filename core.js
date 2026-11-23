@@ -99,12 +99,14 @@ function proposedJournal(company,period){let lines=[],errors=[];const mv=periodM
     for(const t of company.transfers.filter(t=>t.status==='CONFIRMADA')){
       const out=mv.find(m=>m.id===t.outId),inn=mv.find(m=>m.id===t.inId);if(!out||!inn)continue;const src=accountMap.get(out.accountId),dst=accountMap.get(inn.accountId);
       if(!src||!dst||src.id===dst.id||out.cents>=0||inn.cents<=0||out.cents!==-inn.cents){errors.push('Transferência inválida '+t.outId);continue;}
+      if(String(src.chartCode)===String(dst.chartCode)){errors.push('Transferência com débito e crédito iguais');continue;}
       if(!planMap.get(src.chartCode)?.analytic||!planMap.get(dst.chartCode)?.analytic){errors.push('Código de banco inválido na transferência');continue;}
       confirmed.add(out.id);confirmed.add(inn.id);
       lines.push({id:'T-'+t.outId+'-'+t.inId,date:inn.date,debit:dst.chartCode,credit:src.chartCode,cents:inn.cents,history:`Transferência entre contas próprias • ${src.bank} → ${dst.bank}`,sources:[out.id,inn.id]});
     }
     for(const m of mv){if(confirmed.has(m.id)||m.status!=='CONFIRMADO')continue;const bank=accountMap.get(m.accountId);const cp=planMap.get(m.counterpart);
       if(!bank||!planMap.get(bank.chartCode)?.analytic||!cp?.analytic){errors.push('Conta não analítica ou inexistente para movimento '+m.id);continue;}
+      if(String(bank.chartCode)===String(m.counterpart)){errors.push('Débito e crédito iguais para movimento '+m.id);continue;}
       lines.push({id:m.id,date:m.date,debit:m.cents>0?bank.chartCode:m.counterpart,credit:m.cents>0?m.counterpart:bank.chartCode,cents:Math.abs(m.cents),history:m.history,sources:[m.id]});
     }
     return {lines,errors};

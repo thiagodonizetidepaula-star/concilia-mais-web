@@ -33,5 +33,5 @@
  }
  function serializedSave(payload){queue=queue.catch(()=>{}).then(()=>saveWorkspace(payload));return queue;}
  async function waitWrites(){await queue;}
- window.ConciliaCloud={connect,signIn,signUp,signOut,session,identity,fetchWorkspace,saveWorkspace,serializedSave,waitWrites,revision:()=>revision,authenticated:()=>!!user};
+ window.ConciliaCloud={connect,signIn,signUp,signOut,session,identity,accountId:()=>user?.id||null,fetchWorkspace,saveWorkspace,serializedSave,waitWrites,revision:()=>revision,authenticated:()=>!!user};
 })();
