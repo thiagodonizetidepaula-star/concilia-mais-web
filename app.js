@@ -347,9 +347,9 @@ function autoSuggest(c,m){
  // Boleto e PIX genéricos nunca determinam automaticamente a contrapartida.
  let candidates=[];
  // RES APLIC AUT MAIS é resgate de aplicação financeira, nunca rendimento.
- const isAplicacao=/RES\\s+APLIC\\s+AUT\\s+MAIS/i.test(String(m.history||''))||h.includes('resaplicautmais');
+ const isAplicacao=/RES\s+APLIC\s+AUT\s+MAIS/i.test(String(m.history||''))||h.includes('resaplicautmais');
  // REND isolado identifica rendimento (sem confundir com parte de outra palavra).
- const isRendimento=/\\bREND\\b/i.test(String(m.history||''))||/rendimentosrendpagoaplic|rendimentodeaplicacao|rendimentosaplic/.test(h);
+ const isRendimento=/\bREND\b/i.test(String(m.history||''))||/rendimentosrendpagoaplic|rendimentodeaplicacao|rendimentosaplic/.test(h);
  if(isAplicacao){
    candidates=matches(['aplicacaofinanceira','aplicacoesfinanceiras','aplicacaoautomatica','aplicacoesautomaticas','aplicacaodeliquidez','resgatedeaplicacao']);
  }else if(isRendimento){
