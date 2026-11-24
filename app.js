@@ -1181,7 +1181,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
    await store('SEPARACAO_TRIBUTARIA_DESFEITA',entry.id);taxReset();
   });
  });
- $('#taxReceiptForm').onsubmit=e=>{e.preventDefault();action(async()=>{
+ const analyzeTaxReceipts=async()=>{
   const c=getCompany(),Tax=window.ConciliaTax,form=e.currentTarget,files=[...form.elements.file.files||[]];
   taxReset();
   if(!files.length)throw Error('Selecione ao menos um comprovante.');
@@ -1226,7 +1226,8 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
   if(!allowed.length)return;
   taxDraft={companyId:c.id,period:ym,proposals:allowed,receiptIds:receipts.map(r=>r.id)};
   $('#taxConfirmButton').hidden=false;$('#taxConfirmButton').disabled=false;
- })};
+ };
+ $('#taxReceiptForm').onsubmit=e=>{e.preventDefault();action(analyzeTaxReceipts)};
  $('#taxConfirmButton').onclick=()=>action(async()=>{
   const c=getCompany(),Tax=window.ConciliaTax,draft=taxDraft;
   if(!draft||draft.companyId!==c.id||draft.period!==period)throw Error('Empresa ou competência mudou. Gere a prévia novamente.');
@@ -1390,7 +1391,15 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  const history=suggestFromHistoricalLedger(c,period);
  const ledger={applied:0,ambiguous:0},pairs=Core.transferSuggestions(c,period);const totalSuggested=moves.filter(m=>!!m.suggested&&!m.counterpart).length;await store('TRIAGEM_AUTOMATICA',`Competência ${period}: ${moves.length} movimentos; ${rules} novas regras; ${totalSuggested} sugestões presentes; ${ledger.applied} novas sugestões Razão; ${pairs.proposals.length} transferências possíveis`);
  setStatementStatus('success',`TRIAGEM AUTOMÁTICA ${period}: ${moves.length} movimentos já importados; ${finance.matched} descrições do controle financeiro; ${finance.ambiguous} correspondências ambíguas; ${totalSuggested} sugestões de contrapartida no total (${rules} por regras, ${history.applied} pelo histórico e ${ledger.applied} pelo Razão atual); ${ledger.ambiguous} registros do Razão ambíguos; ${pairs.proposals.length} transferências candidatas e ${pairs.ambiguous.length} ambiguidades. Sugestões não são confirmações: confira Classificações.`);
- say('Triagem concluída. Confira Classificações e Transferências antes de exportar.');});
+ const pdfFiles=$('#taxReceiptForm')?.elements?.file?.files;
+ if(pdfFiles?.length){
+  await analyzeTaxReceipts();
+  say('Triagem e conferência dos comprovantes concluídas. Revise a separação tributária antes de confirmar.');
+ }else{
+  taxShow('Triagem concluída. Para conferir tributos, selecione também os comprovantes DARF/DAS em PDF. Nenhum lançamento foi separado automaticamente.');
+  say('Triagem concluída. Confira Classificações e Transferências antes de exportar.');
+ }
+});
  $('#findTransfers').onclick=()=>action(async()=>{const c=getCompany(),s=Core.transferSuggestions(c,period);say(`${s.proposals.length} par(es) com correspondência única; ${s.ambiguous.length} ambíguos. Nenhuma transferência foi confirmada automaticamente.`);renderTransfers()});
  $('#runRecon').onclick=()=>action(()=>{const c=getCompany();renderRecon();renderAuditoria();showPage('conciliacao');$('#auditTable')?.scrollIntoView({behavior:'smooth',block:'start'});const rec=Core.reconcile(c,period);say(`${rec.checked.filter(x=>x.recon==='CONCILIADO').length} lançamento(s) conciliados; ${rec.missingLedger.length} registros do Razão sem vínculo.`)});
  $('#downloadStatement').onclick=()=>action(()=>{const c=getCompany();autoLinkBankCodes(c);const data=window.ConciliaExcel.reportStatement(Core,c,period);const filename='EXTRATO_CODIFICADO_'+(c.cnpj||Core.norm(c.name)).replace(/[^A-Za-z0-9]/g,'')+'_'+period+'.xlsx';window.ConciliaExcel.download(data,filename);say('Extrato gerado sem Razão. Confira os códigos pendentes antes de lançar no Domínio.');});
