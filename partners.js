@@ -17,22 +17,36 @@ function find(company,movement){
  const chart=new Set((company.plan||[]).filter(p=>p.analytic).map(p=>String(p.code)));
  const bank=String((company.accounts||[]).find(a=>a.id===movement.accountId)?.chartCode||'');
  const source=[movement.history,movement.party,movement.financialDescription].filter(Boolean).join(' ');
- const hits=(company.partners||[]).filter(p=>matchName(p.name,source)&&chart.has(String(p.code))&&String(p.code)!==bank);
- const codes=[...new Set(hits.map(p=>String(p.code)))];
- if(hits.length!==1||codes.length!==1)return {type:hits.length>1?'AMBIGUO':'SEM_CORRESPONDENCIA',matches:hits.length};
- return {type:'SOCIO',name:hits[0].name,code:codes[0]};
+ const matches=[
+  ...(company.partners||[]).map(p=>({...p,kind:'SOCIO'})),
+  ...(company.relatedCompanies||[]).map(p=>({...p,kind:'EMPRESA_RELACIONADA'}))
+ ].filter(p=>matchName(p.name,source)&&chart.has(String(p.code))&&String(p.code)!==bank);
+ // Nenhuma escolha arbitrária entre sócios, empresas, códigos ou nomes que se sobrepõem.
+ if(matches.length!==1)return {type:matches.length>1?'AMBIGUO':'SEM_CORRESPONDENCIA',matches:matches.length};
+ const hit=matches[0];
+ return {type:hit.kind,name:hit.name,code:String(hit.code)};
 }
 function suggest(company,movement){
  if(movement.status==='CONFIRMADO'||movement.status==='PENDENTE_DUPLICIDADE')return false;
  const found=find(company,movement);
- if(found.type!=='SOCIO')return false;
+ if(found.type==='AMBIGUO'){
+  movement.partnerSuggestionConflict=['Vários cadastros correspondem ao histórico'];
+  return false;
+ }
+ if(found.type!=='SOCIO'&&found.type!=='EMPRESA_RELACIONADA')return false;
  if(movement.suggested&&String(movement.suggested)!==String(found.code)){
   movement.partnerSuggestionConflict=[String(movement.suggested),String(found.code)];
   return false;
  }
  movement.suggested=found.code;
- movement.partnerName=found.name;
- movement.confidence='Sócio cadastrado: '+found.name+' — código sugerido; conferir natureza da operação';
+ if(found.type==='SOCIO'){
+  movement.partnerName=found.name;
+  delete movement.relatedCompanyName;
+ }else{
+  movement.relatedCompanyName=found.name;
+  delete movement.partnerName;
+ }
+ movement.confidence=(found.type==='SOCIO'?'Sócio cadastrado: ':'Empresa relacionada cadastrada: ')+found.name+' — código sugerido; exige confirmação';
  delete movement.partnerSuggestionConflict;
  return true;
 }
