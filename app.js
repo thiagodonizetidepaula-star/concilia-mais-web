@@ -924,7 +924,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
      const txt=(await asText(file)).txt;
      parsed=Core.parseLedger(Core.parseCsv(txt),file.name);
     }
-    if(!parsed.entries?.length)throw Error('Nenhum lançamento reconhecido. Confira se é um Razão legível.');
+    if(!parsed.entries?.length){const partial=parsed.partialEntries||[];if(partial.length)throw Error(`${partial.length} lançamento(s) identificado(s), porém sem código de contrapartida (coluna Cta.C.Part. vazia no PDF). Nenhum lançamento foi descartado silenciosamente ou considerado conciliado. Gere no Domínio um Razão com contrapartidas ou revise os registros originais. Datas: ${partial.slice(0,4).map(x=>x.date.split('-').reverse().join('/')+' (doc. '+x.documentNo+')').join(', ')}.`);throw Error('Nenhum lançamento reconhecido. Confira se é um Razão legível.');}
     const periods=[...new Set(parsed.entries.map(l=>month(l.date)))];
     if(!historic&&accountCode){
      const overlapping=periods.filter(p=>(c.ledger||[]).some(l=>l.period===p&&String(l.accountCode||'')===accountCode));
