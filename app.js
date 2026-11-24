@@ -246,7 +246,13 @@ function renderSetup(){const c=current();const count=c?.plan.length||0;$('#planS
   $('#companyIdentity').innerHTML=c?'<div class="hint"><strong>'+safe(c.name)+'</strong><br>CNPJ: '+safe(c.cnpj||'não identificado')+' • Domínio: '+safe(c.dominio||'não informado')+(c.identityVerified?'':'<br>⚠ Identificação provisória: confirme o titular antes de usar.')+'</div>':'';$('#planCount').textContent=`${count} contas`;
   analyticalSelect('#bankCode','Primeiro importe o plano');analyticalSelect('#ruleCode','Primeiro importe o plano');
   $('#planTable').innerHTML=c?table(['Código','Classificação','Descrição','Tipo','Editar'],c.plan.map(p=>[safe(p.code),safe(p.classification||'—'),safe(p.description),badge(p.analytic?'A — analítica':'S — sintética'),`<button type="button" data-edit-plan="${safe(p.code)}" class="secondary">Editar</button>`])):empty('Sem empresa selecionada.');
-  $('#bankTable').innerHTML=c?table(['Banco','Identificação','Código'],c.accounts.map(a=>[safe(a.bank),safe(a.label),`${safe(a.chartCode)}${c.plan.some(p=>p.code===a.chartCode&&p.analytic)?'':' ⚠'}`])):empty('Cadastre uma empresa.');
+  $('#bankTable').innerHTML=c?table(['Banco','Identificação','Código','Corrigir vínculo'],c.accounts.map(a=>{
+   const valid=c.plan.some(p=>String(p.code)===String(a.chartCode)&&p.analytic);
+   const known=bankPlanCandidates(c,a.bank);
+   const hint=known.length===1?'Sugestão única no plano: '+known[0].code:known.length>1?known.length+' contas deste banco no plano — selecione a correta':'Selecione a conta correta no plano';
+   return [safe(a.bank),safe(a.label),valid?safe(a.chartCode):'<span class="flag">SEM CÓDIGO VÁLIDO</span>',
+     '<div class="inline-actions"><select aria-label="Código da conta bancária '+safe(a.bank)+'" data-bank-link="'+safe(a.id)+'">'+optionsFor(c,valid?a.chartCode:known.length===1?known[0].code:'')+'</select><button type="button" class="secondary" data-save-bank-link="'+safe(a.id)+'">Vincular</button></div><small>'+safe(hint)+'</small>'];
+  })):empty('Cadastre uma empresa.');
   $('#ruleTable').innerHTML=c?table(['Termo','Contrapartida'],c.rules.map(r=>[safe(r.term),safe(r.counterpart)])):empty('Cadastre uma empresa.');
   const bankSelect=$('#statementAccount');const previous=bankSelect.value;bankSelect.innerHTML='<option value="">Identificar automaticamente no extrato</option>'+(c?validBankAccounts(c).map(a=>`<option value="${safe(a.id)}">${safe(a.bank)} • ${safe(a.label)} • código ${safe(a.chartCode)}</option>`).join(''):'');if([...bankSelect.options].some(o=>o.value===previous))bankSelect.value=previous;
 }
@@ -339,28 +345,23 @@ async function afterImport(type,c,file,result,sha,importId=''){const rr=result.r
 function putFile(file,name,content){const blob=new Blob([content],{type:'text/plain;charset=utf-8'});const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)}
 
 function planSource(text){const rows=String(text).replace(/^\uFEFF/,'').split(/\r?\n/);const index=rows.findIndex(x=>/(?:codigo|c[oó]digo|classificacao|classifica[cç][aã]o)/i.test(x)&&/(?:descricao|descri[cç][aã]o|nome)/i.test(x));if(index<0)throw Error('O plano precisa de colunas Código e Descrição. Exporte para CSV/TXT pelo Domínio.');return {table:rows.slice(index).join('\n'),metadata:rows.slice(0,Math.max(index,1)).join('\n')}}
-function guessBankAccount(c,bank){
- if(!bank)return '';
+function bankPlanCandidates(c,bank){
  const n=Core.norm(bank);
- const isBankAccount=a=>{
+ if(!n)return [];
+ const aliases=n.includes('itau')?['itau']:n.includes('caixa')?['caixaeconomica','bancocaixa']:n.includes('sicredi')?['sicredi']:n.includes('stone')?['stone']:n.includes('bradesco')?['bradesco']:n.includes('santander')?['santander']:n.includes('nubank')?['nubank','nuconta']:n.includes('pagbank')||n.includes('pagseguro')?['pagbank','pagseguro']:n.includes('bancodobrasil')?['bancodobrasil']:n.includes('inter')?['bancointer']:null;
+ if(!aliases)return [];
+ return (c.plan||[]).filter(a=>{
   if(!a.analytic)return false;
-  const classification=String(a.classification||'');
-  const desc=Core.norm(a.description);
-  if(classification&& !classification.startsWith('1.1.1.02.'))return false;
-  return !/(emprestimo|financiamento|cartao|credito|aplicacao|rendimento|tarifa|despesa|caixageral|fundofixo)/.test(desc);
- };
- const candidates=c.plan.filter(isBankAccount).filter(a=>{
-  const desc=Core.norm(a.description);
-  if(n.includes('caixa'))return desc==='caixaeconomicafederal'||desc==='bancocaixaeconomicafederal'||desc==='caixaeconomica'||desc==='bancocaixa';
-  if(n.includes('itau'))return desc==='bancoitau'||desc==='itau'||desc==='itauunibanco'||desc==='bancoitauunibanco';
-  if(n.includes('sicredi'))return desc==='bancosicredi'||desc==='sicredi'||desc==='cooperativasicredi';
-  if(n.includes('stone'))return desc==='bancostone'||desc==='stone'||desc==='stoneinstituicaodepagamento';
-  if(n.includes('santander'))return desc==='bancosantander'||desc==='santander';
-  if(n.includes('inter'))return desc==='bancointer'||desc==='inter';
-  if(n.includes('bancodobrasil'))return desc==='bancodobrasil';
-  return desc.includes(n);
+  const d=Core.norm(a.description),classification=String(a.classification||'');
+  if(classification&&!classification.startsWith('1.1.1.02.'))return false;
+  if(/emprestimo|financiamento|cartao|aplicacao|rendimento|tarifa|despesa|fundofixo/.test(d))return false;
+  return aliases.some(x=>d.includes(x));
  });
- return candidates.length===1?String(candidates[0].code):'';
+}
+function guessBankAccount(c,bank){
+ const matches=bankPlanCandidates(c,bank);
+ // Nunca escolher uma conta ao acaso se houver múltiplas contas analíticas do banco.
+ return matches.length===1?String(matches[0].code):'';
 }
 // Memória de classificações confirmadas. Apenas padrões específicos da empresa e banco;
 // PIX/boletos genéricos sem identificação de contraparte nunca viram aprendizado automático.
@@ -723,6 +724,23 @@ c.name=info.name||c.name;c.cnpj=info.cnpj||c.cnpj;c.dominio=info.dominio||c.domi
    form.scrollIntoView({behavior:'smooth',block:'center'});
  });
  $('#bankForm').onsubmit=e=>{e.preventDefault();action(async()=>{const c=getCompany(),f=e.currentTarget,v=asData(f);if(!c.plan.some(a=>a.code===v.chartCode&&a.analytic))throw Error('O código do banco deve existir como conta analítica neste plano.');if(c.accounts.some(a=>a.bank===v.bank&&a.label===v.label.trim()))throw Error('Esta conta já foi vinculada');c.accounts.push({id:Core.id(),bank:v.bank,label:v.label.trim(),chartCode:v.chartCode});await store('BANCO_VINCULADO',`${v.bank}, ${v.label}, código ${v.chartCode}`);f.reset();say('Banco vinculado. Importar extratos foi liberado.')})};
+ // Corrige vínculos de contas já importadas SEM reimportar extratos, mexer em valores ou IDs.
+ document.addEventListener('click',e=>{const btn=e.target.closest('button[data-save-bank-link]');if(!btn)return;
+  action(async()=>{
+   const c=getCompany(),acc=c.accounts.find(a=>a.id===btn.dataset.saveBankLink);
+   if(!acc)throw Error('Conta bancária não encontrada.');
+   const chosen=document.querySelector('select[data-bank-link="'+CSS.escape(acc.id)+'"]')?.value||'';
+   const record=c.plan.find(p=>p.analytic&&String(p.code)===String(chosen));
+   if(!record)throw Error('Selecione um código analítico válido do plano de contas.');
+   const affected=c.movements.filter(m=>m.accountId===acc.id).length;
+   const other=c.accounts.find(a=>a.id!==acc.id&&String(a.chartCode)===String(chosen));
+   if(other&&!confirm('O código '+chosen+' já está vinculado à conta '+other.bank+' ('+other.label+'). Confirma que se trata da mesma conta contábil?'))return;
+   if(!confirm('Vincular '+acc.bank+' ('+acc.label+') ao código '+chosen+' — '+record.description+'? '+affected+' movimentação(ões) existentes usarão esse código bancário nas colunas corretas. Nenhuma contrapartida será confirmada automaticamente.'))return;
+   acc.chartCode=String(chosen);
+   await store('BANCO_CODIGO_VINCULADO',acc.bank+' • '+acc.label+' → '+chosen+'; '+affected+' movimentos preservados');
+   say('Código do banco atualizado para '+chosen+'. Reabra o relatório PDF para conferir.');
+  });
+ });
  $('#ruleForm').onsubmit=e=>{e.preventDefault();action(async()=>{const c=getCompany(),v=asData(e.currentTarget);if(!c.plan.some(a=>a.code===v.counterpart&&a.analytic))throw Error('Contrapartida deve existir no plano analítico da empresa.');if(c.rules.some(r=>Core.norm(r.term)===Core.norm(v.term)))throw Error('Regra já cadastrada.');c.rules.push({id:Core.id(),term:v.term.trim(),counterpart:v.counterpart});await store('REGRA_CRIADA',`${v.term} → ${v.counterpart}`);e.currentTarget.reset();say('Regra salva. Ela sugerirá classificações para confirmação humana.')})};
 
  $('#importFinancial').onsubmit=e=>{e.preventDefault();action(async()=>{
