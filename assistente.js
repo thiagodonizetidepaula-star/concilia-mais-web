@@ -25,7 +25,14 @@ function analisar(core,c,period){
  const transferred=new Set((c.transfers||[]).filter(t=>t.status==='CONFIRMADA'&&mids.has(t.outId)&&mids.has(t.inId)).flatMap(t=>[t.outId,t.inId]));
  const valid=new Set(c.plan.filter(x=>x.analytic).map(x=>String(x.code)));
  const bankCodes=new Set((c.accounts||[]).map(a=>String(a.chartCode)));
- const manual=movements.filter(m=>!transferred.has(m.id)&&!(m.status==='CONFIRMADO'&&valid.has(String(m.counterpart))));
+ const separated=new Set((c.taxSplits||[]).filter(split=>{
+  const m=movements.find(x=>x.id===split.movementId);
+  if(!m||m.cents>=0||split.status!=='CONFIRMADA')return false;
+  const acc=c.accounts.find(a=>a.id===m.accountId);
+  const bank=String(acc?.chartCode||'');
+  return valid.has(bank)&&String(split.bankCode)===bank&&split.lines?.length>0&&split.lines.every(l=>valid.has(String(l.code))&&String(l.code)!==bank&&Number.isInteger(l.cents)&&l.cents>0)&&split.lines.reduce((n,l)=>n+l.cents,0)===-m.cents;
+ }).map(x=>x.movementId));
+ const manual=movements.filter(m=>!transferred.has(m.id)&&!separated.has(m.id)&&!(m.status==='CONFIRMADO'&&valid.has(String(m.counterpart))));
  const imported=(c.imports||[]).filter(i=>i.type==='EXTRATO'&&(i.periods||[]).includes(period));
  const checkedBalances=imported.filter(i=>['OK','MANUAL_OK'].includes(i.balanceCheck?.status)).length;
  const unverified=imported.length-checkedBalances;
@@ -69,8 +76,17 @@ function contasLinhas(core,c,period){
  const paired=new Map();
  for(const t of c.transfers||[]){if(t.status!=='CONFIRMADA')continue;const o=mv.find(m=>m.id===t.outId),i=mv.find(m=>m.id===t.inId);if(!o||!i)continue;const src=map.get(o.accountId),dst=map.get(i.accountId);if(!src||!dst||src.id===dst.id)continue;paired.set(o.id,{debit:String(dst.chartCode),credit:String(src.chartCode),part:'origem'});paired.set(i.id,{debit:String(dst.chartCode),credit:String(src.chartCode),part:'destino'});}
  const recon=core.reconcile(c,period),jrn=new Map();for(const x of recon.checked)for(const id of x.sources||[])jrn.set(id,x);
- return mv.map(m=>{
+ return mv.flatMap(m=>{
   const bank=map.get(m.accountId),bankCode=String(bank?.chartCode||''),hasBank=plan.get(bankCode)?.analytic;
+  const split=(c.taxSplits||[]).find(x=>x.status==='CONFIRMADA'&&x.movementId===m.id);
+  if(split&&hasBank&&String(split.bankCode)===bankCode&&m.cents<0&&split.lines?.length&&
+     split.lines.every(l=>plan.get(String(l.code))?.analytic&&String(l.code)!==bankCode&&Number.isInteger(l.cents)&&l.cents>0)&&
+     split.lines.reduce((n,l)=>n+l.cents,0)===-m.cents){
+   return split.lines.map(l=>({date:m.date,bank:bank?.bank||'',debit:String(l.code),credit:bankCode,cents:-l.cents,
+     history:l.description,party:m.party||'',origin:m.origin||'',status:'TRIBUTO SEPARADO',tone:'green',
+     detail:'Documento RFB '+l.receiptId+' • parte do pagamento original de '+(Math.abs(m.cents)/100).toFixed(2)+' • não duplicar o total',
+     recon:'COMPROVANTE CONFERIDO'}));
+  }
   const validated=m.status==='CONFIRMADO'&&plan.get(String(m.counterpart))?.analytic;
   const proposed=!validated&&plan.get(String(m.suggested))?.analytic;
   const transfer=paired.get(m.id),journal=jrn.get(m.id);
@@ -81,7 +97,7 @@ function contasLinhas(core,c,period){
   else if(validated||proposed){const cp=String(validated?m.counterpart:m.suggested);debit=m.cents>0?bankCode:cp;credit=m.cents>0?cp:bankCode;status=validated?'CÓDIGOS CONFIRMADOS':'SUGESTÃO A CONFERIR';tone=validated?'green':'yellow';detail=validated?'Contrapartida aprovada pelo operador':'Código sugerido; exige confirmação manual';}
   else {debit=m.cents>0?bankCode:'';credit=m.cents<0?bankCode:'';}
   if(journal?.recon==='AMBIGUO'){status='DIVERGÊNCIA NO RAZÃO';tone='red';detail='Há mais de um lançamento contábil com a mesma chave';}
-  return {date:m.date,bank:bank?.bank||'',debit,credit,cents:m.cents,history:['SUGERIDA','CATEGORIA_COMPARTILHADA','AGRUPADA'].includes(m.financialMatch)&&(m.financialCategory||m.financialDescription)?String(m.financialCategory||m.financialDescription).replace(/^\s*(?:Controle(?: financeiro)?\s*:\s*)?/i,'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.]?\s*/,'').trim():m.history,party:m.party||'',origin:m.origin||'',status,tone,detail,recon:journal?.recon||'NÃO COMPARADO'};
+  return [{date:m.date,bank:bank?.bank||'',debit,credit,cents:m.cents,history:['SUGERIDA','CATEGORIA_COMPARTILHADA','AGRUPADA'].includes(m.financialMatch)&&(m.financialCategory||m.financialDescription)?String(m.financialCategory||m.financialDescription).replace(/^\s*(?:Controle(?: financeiro)?\s*:\s*)?/i,'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.]?\s*/,'').trim():m.history,party:m.party||'',origin:m.origin||'',status,tone,detail,recon:journal?.recon||'NÃO COMPARADO'}];
  });
 }
 function relatorioHtml(core,c,period){
