@@ -305,10 +305,13 @@ function renderMovements(){
  const rows=list.map(m=>[
   datePT(m.date),safe(accounts.get(m.accountId)?.bank||'Conta excluída'),`<span title="${safe(movementOriginLabel(m,imports,accounts))}">${safe(imports.get(m.importId)?.name||m.origin||'Origem não identificada')}</span>`,
   `<span class="fiscal">${safe(m.history)}<div class="subtle">${safe(m.financialDescription?('Controle financeiro: '+String(m.financialDescription||'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.]?\s*/,'').trim()+' ['+(m.financialMatch||'SUGERIDA')+']'):(m.financialMatch==='AMBIGUA'?'Controle financeiro: múltiplas correspondências — revisar':m.party||'Sem contraparte informada'))}${m.historicalDescriptionMatch?'<div class="subtle">'+safe(m.historicalDescriptionMatch)+'</div>':''}</div></span>`,
-  `<span class="${m.cents<0?'flag':''}">${currency(m.cents)}</span>`,badge(matched.has(m.id)?'TRANSFERÊNCIA':m.status),
+  `<span class="${m.cents<0?'flag':''}">${currency(m.cents)}</span>`,
+  (()=>{const acc=accounts.get(m.accountId),code=c.plan.some(p=>p.analytic&&String(p.code)===String(acc?.chartCode))?String(acc.chartCode):'';return code&&m.cents>0?safe(code):'—'})(),
+  (()=>{const acc=accounts.get(m.accountId),code=c.plan.some(p=>p.analytic&&String(p.code)===String(acc?.chartCode))?String(acc.chartCode):'';return code&&m.cents<0?safe(code):'—'})(),
+  badge(matched.has(m.id)?'TRANSFERÊNCIA':m.status),
   matched.has(m.id)?'<small>Vínculo confirmado</small>':`<div class="inline-actions"><select id="cp_${safe(m.id)}" ${m.status==='PENDENTE_DUPLICIDADE'?'disabled':''}>${optionsFor(c,m.counterpart||m.suggested)}</select><button data-classify="${safe(m.id)}" ${m.status==='PENDENTE_DUPLICIDADE'?'disabled':''}>Confirmar</button></div>`
  ]);
- $('#movementTable').innerHTML=table(['Data','Banco','Extrato de origem','Histórico','Valor','Situação','Contrapartida'],rows);
+ $('#movementTable').innerHTML=table(['Data','Banco','Extrato de origem','Histórico','Valor','Débito banco','Crédito banco','Situação','Contrapartida'],rows);
  $('#movementTable').querySelectorAll('tbody tr').forEach((row,i)=>{const m=list[i];if(!m)return;row.classList.add(m.status==='PENDENTE_DUPLICIDADE'?'row-red':matched.has(m.id)||m.status==='CONFIRMADO'?'row-green':'row-yellow');});
 }
 function renderTransfers(){const c=current();if(!c){$('#transferTable').innerHTML=empty('Selecione uma empresa.');$('#transferSummary').innerHTML='';return}const mv=new Map(Core.periodMovements(c,period).map(m=>[m.id,m]));const accounts=new Map(c.accounts.map(a=>[a.id,a]));const suggestions=Core.transferSuggestions(c,period);const stored=c.transfers.filter(t=>mv.has(t.outId)&&mv.has(t.inId));const present=new Set(stored.map(t=>t.outId+'|'+t.inId));const all=stored.concat(suggestions.proposals.filter(t=>!present.has(t.outId+'|'+t.inId)));
@@ -361,13 +364,13 @@ function bankPlanCandidates(c,bank){
 }
 function bankAccountDigits(value){
  const t=String(value||'');
- const match=t.match(/(?:C\/?C|CONTA(?:\s+CORRENTE)?|CTA)\s*[:.\-]?\s*(\d[\d.\-\/ ]{2,18}\d)/i);
+ const match=t.match(/(?:C\/?C|CONTA(?:\s+CORRENTE)?|CTA)\s*[:.\-]*\s*(\d[\d.\-\/ ]{2,18}\d)/i);
  const raw=match?.[1]||'';
  return raw.replace(/\D/g,'');
 }
 function bankStatementDigits(text){
  const t=String(text||'').slice(0,1800);
- const match=t.match(/(?:CONTA(?:\s+CORRENTE)?|C\/?C|CTA)\s*[:.\-]?\s*(\d[\d.\-\/ ]{2,18}\d)/i);
+ const match=t.match(/(?:CONTA(?:\s+CORRENTE)?|C\/?C|CTA)\s*[:.\-]*\s*(\d[\d.\-\/ ]{2,18}\d)/i);
  return (match?.[1]||'').replace(/\D/g,'');
 }
 function bankCodeFromPlan(c,bank,identity=''){
