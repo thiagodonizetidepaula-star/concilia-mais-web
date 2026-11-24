@@ -2,7 +2,17 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;root.ConciliaPartners=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
 'use strict';
 function words(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim().replace(/\s+/g,' ');}
-function matchName(name,history){const n=words(name),h=words(history);return n.split(' ').length>=2&&n.length>=7&&(' '+h+' ').includes(' '+n+' ');}
+function matchName(name,history){
+ const n=words(name),h=words(history);
+ if(n.split(' ').length<2||n.length<7)return false;
+ const padded=' '+h+' ',needle=' '+n+' ';
+ const i=padded.indexOf(needle);
+ if(i<0)return false;
+ const tail=padded.slice(i+needle.length).trim().split(/\s+/)[0]||'';
+ // Sufixo de parentesco não cadastrado diferencia pessoas com mesmo nome-base.
+ if(/^(JUNIOR|JR|FILHO|NETO|SOBRINHO)$/.test(tail))return false;
+ return true;
+}
 function find(company,movement){
  const chart=new Set((company.plan||[]).filter(p=>p.analytic).map(p=>String(p.code)));
  const bank=String((company.accounts||[]).find(a=>a.id===movement.accountId)?.chartCode||'');
