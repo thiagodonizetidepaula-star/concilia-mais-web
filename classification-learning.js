@@ -3,7 +3,7 @@
 'use strict';
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const text=x=>String(x??'').trim();
-const date=s=>{const t=text(s);const m=t.match(/^(\d\d)\/(\d\d)\/(\d{4})$/);return m?m[3]+'-'+m[2]+'-'+m[1]:/^\d{4}-\d\d-\d\d$/.test(t)?t:'';};
+const date=s=>{if(typeof s==='number'&&s>20000&&s<90000)return new Date(Date.UTC(1899,11,30)+Math.round(s)*86400000).toISOString().slice(0,10);const t=text(s);const m=t.match(/^(\d\d)\/(\d\d)\/(\d{4})$/);return m?m[3]+'-'+m[2]+'-'+m[1]:/^\d{4}-\d\d-\d\d$/.test(t)?t:'';};
 const cents=s=>{if(typeof s==='number')return Math.round(s*100);const t=text(s).replace(/R\$\s*/g,'').replace(/\s/g,'');if(!t)return NaN;const sign=t.startsWith('-')?-1:1;const raw=t.replace(/^[-+]/,'');const x=raw.includes(',')?raw.replace(/\./g,'').replace(',','.'):raw;return sign*Math.round(Number(x)*100);};
 const historyKey=s=>norm(text(s).replace(/^\s*(?:Controle(?: financeiro)?\s*:\s*)?/i,'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.:]?\s*/,'').replace(/\d+/g,''));
 function parseExcel(book){
@@ -15,6 +15,29 @@ function parseExcel(book){
  const meta=book.Sheets?.Concilia_Identificadores?XLSX.utils.sheet_to_json(book.Sheets.Concilia_Identificadores,{header:1,defval:'',raw:true}):[];
  if(!rows.length||norm(rows[0][0])!=='data')throw Error('Cabeçalho do extrato classificado não reconhecido.');
  return rows.slice(1).map((r,i)=>({line:i+2,id:meta[i+1]?.[0]||'',metaDate:date(meta[i+1]?.[1]),metaCents:cents(meta[i+1]?.[2]),metaBank:text(meta[i+1]?.[3]),metaHistory:text(meta[i+1]?.[4]),date:date(r[0]),debit:text(r[1]),credit:text(r[2]),amount:cents(r[3]),history:text(r[4])})).filter(x=>x.date&&(x.debit||x.credit||x.history));
+}
+function parseLedgerExcel(book){
+ const XLSX=globalThis.XLSX;
+ if(!XLSX?.utils?.sheet_to_json)throw Error('Leitor de Excel não disponível.');
+ const collected=[],issues=[];
+ for(const sheetName of book.SheetNames||[]){
+  if(['Extrato_Classificado','Concilia_Identificadores'].includes(sheetName))continue;
+  const raw=XLSX.utils.sheet_to_json(book.Sheets[sheetName],{header:1,defval:'',raw:true});
+  const idx=raw.findIndex(row=>{
+   const n=row.map(norm);return n.includes('data')&&n.some(x=>x.includes('debito'))&&n.some(x=>x.includes('credito'))&&n.some(x=>x.includes('valor'));
+  });
+  if(idx<0)continue;
+  const header=raw[idx].map(norm);
+  const field=(row,term)=>{const pos=header.findIndex(x=>x===term||x.includes(term));return pos<0?'':row[pos];};
+  for(let i=idx+1;i<raw.length;i++){
+   const row=raw[i],dt=date(field(row,'data')),deb=text(field(row,'debito')),cred=text(field(row,'credito')),amount=Math.abs(cents(field(row,'valor')));
+   if(!row.some(x=>text(x)))continue;
+   if(!dt||!deb||!cred||!Number.isFinite(amount)||!amount){issues.push(sheetName+' linha '+(i+1)+': data, código ou valor inválido.');continue;}
+   collected.push({date:dt,debit:deb,credit:cred,cents:amount,history:text(field(row,'historico')||field(row,'descricao')||''),origin:sheetName,line:i+1});
+  }
+ }
+ if(!collected.length)throw Error('Razão Excel sem linhas válidas. São necessárias colunas Data, Débito, Crédito, Valor e, preferencialmente, Histórico.');
+ return {entries:collected,issues};
 }
 function proposals(company,period,rows,source='EXCEL'){
  const plan=new Set((company.plan||[]).filter(p=>p.analytic).map(p=>String(p.code)));
@@ -88,5 +111,5 @@ function historicalLedgerExamples(company,selectedPeriod,entries){
  }
  return {examples,issues};
 }
-return {parseExcel,proposals,ledgerProposals,historicalLedgerExamples,historyKey};
+return {parseExcel,parseLedgerExcel,proposals,ledgerProposals,historicalLedgerExamples,historyKey};
 });
