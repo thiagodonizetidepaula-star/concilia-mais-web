@@ -39,6 +39,77 @@ function parseLedgerExcel(book){
  if(!collected.length)throw Error('Razão Excel sem linhas válidas. São necessárias colunas Data, Débito, Crédito, Valor e, preferencialmente, Histórico.');
  return {entries:collected,issues};
 }
+// Texto copiado de células do Excel: colunas separadas por TAB e linhas por quebra de linha.
+// Aceita o cabeçalho da aba Extrato_Classificado; Banco e ID são opcionais.
+function parsePastedExcel(raw){
+ const input=String(raw||'').replace(/^\uFEFF/,'').trim();
+ if(!input)throw Error('Cole as células copiadas do Excel antes de conferir.');
+ const lines=input.split(/\r?\n/).filter(line=>line.trim());
+ if(lines.length>5001)throw Error('Cole até 5.000 lançamentos por conferência.');
+ const rows=lines.map(line=>line.split('\t').map(cell=>cell.trim().replace(/^"([\s\S]*)"$/,'$1').replace(/""/g,'"')));
+ const aliases={
+  date:['data'],debit:['codcontadebito','codigodebito','coddebito','debito'],
+  credit:['codcontacredito','codigocredito','codcredito','credito'],
+  amount:['valorextrators','valor','valorbrl','valorrs'],history:['complementohistorico','historico','descricao','descricaohistorico'],
+  bank:['banco','codigobanco','codigodobanco','codigocontabanco','contabancaria'],id:['idlancamento','idmovimento','id']
+ };
+ const normalized=rows[0].map(norm);
+ const positions={};
+ for(const [field, names] of Object.entries(aliases))positions[field]=normalized.findIndex(n=>names.includes(n));
+ const hasHeader=positions.date>=0&&positions.debit>=0&&positions.credit>=0&&positions.amount>=0&&positions.history>=0;
+ if(!hasHeader){
+  // Sem cabeçalho, a ordem deve ser: Data, Débito, Crédito, Valor, Histórico, [Banco].
+  if(rows[0].length<5||rows[0].length>7)throw Error('Selecione as colunas Data, Débito, Crédito, Valor, Histórico e, se houver, Banco.');
+  Object.assign(positions,{date:0,debit:1,credit:2,amount:3,history:4,bank:rows[0].length>=6?5:-1,id:rows[0].length>=7?6:-1});
+ }
+ const result=[],issues=[];
+ const start=hasHeader?1:0;
+ for(let i=start;i<rows.length;i++){
+  const cells=rows[i];
+  const at=field=>positions[field]>=0?text(cells[positions[field]]):'';
+  const day=date(at('date')),amount=cents(at('amount'));
+  if(!day||!Number.isFinite(amount)||!amount||!at('history')){
+   issues.push('Linha '+(i+1)+': data, valor ou histórico ausente/inválido.');continue;
+  }
+  result.push({line:i+1,date:day,debit:at('debit'),credit:at('credit'),amount,history:at('history'),bankHint:at('bank'),id:at('id')});
+ }
+ return {rows:result,issues,hasHeader};
+}
+function pastedProposals(company,period,rows){
+ const plan=new Set((company.plan||[]).filter(p=>p.analytic).map(p=>String(p.code)));
+ const banks=new Map((company.accounts||[]).map(a=>[a.id,a]));
+ const moves=(company.movements||[]).filter(m=>m.date?.startsWith(period));
+ const byId=new Map(moves.map(m=>[String(m.id),m]));
+ const proposals=[],issues=[],used=new Set();
+ for(const row of rows){
+  const matches=row.id?[byId.get(String(row.id))].filter(Boolean):moves.filter(m=>m.date===row.date&&m.cents===row.amount&&historyKey(m.history)===historyKey(row.history));
+  const filtered=matches.filter(m=>{
+   const account=banks.get(m.accountId),code=String(account?.chartCode||'');
+   const hint=norm(row.bankHint);
+   if(!hint)return true;
+   return hint===norm(code)||hint===norm(account?.bank)||hint===norm(account?.label)||hint===norm(account?.bank+' '+account?.label);
+  });
+  if(filtered.length!==1){issues.push('Linha '+row.line+': '+(filtered.length?'mais de um lançamento corresponde aos dados (informe Banco ou ID)':'movimentação não encontrada com data, valor, histórico e banco')+'.');continue;}
+  const m=filtered[0],account=banks.get(m.accountId),bankCode=String(account?.chartCode||'');
+  if(row.id&&(m.date!==row.date||m.cents!==row.amount||historyKey(m.history)!==historyKey(row.history))){
+   issues.push('Linha '+row.line+': ID não corresponde à data, valor e histórico.');continue;
+  }
+  if(used.has(m.id)){issues.push('Linha '+row.line+': lançamento repetido nas células coladas.');continue;}
+  used.add(m.id);
+  if(!plan.has(bankCode)){issues.push('Linha '+row.line+': conta '+(account?.bank||'')+' sem código válido no plano.');continue;}
+  if(m.status==='PENDENTE_DUPLICIDADE'){issues.push('Linha '+row.line+': lançamento com duplicidade pendente.');continue;}
+  const pastedBank=String(m.cents>0?row.debit:row.credit),cp=String(m.cents>0?row.credit:row.debit);
+  if(pastedBank!==bankCode){issues.push('Linha '+row.line+': código bancário no lado errado; esperado '+bankCode+'.');continue;}
+  if(!cp)continue;
+  if(cp===bankCode||!plan.has(cp)){issues.push('Linha '+row.line+': contrapartida '+cp+' ausente ou inválida no plano da empresa.');continue;}
+  if(m.status==='CONFIRMADO'){
+   if(String(m.counterpart)!==cp)issues.push('Linha '+row.line+': classificação já confirmada com outro código.');
+   continue;
+  }
+  proposals.push({movementId:m.id,code:cp,bank:bankCode,bankName:account.bank||'',history:m.history,date:m.date,amount:m.cents,source:'COLAGEM'});
+ }
+ return {proposals,issues};
+}
 function proposals(company,period,rows,source='EXCEL'){
  const plan=new Set((company.plan||[]).filter(p=>p.analytic).map(p=>String(p.code)));
  const banks=new Map((company.accounts||[]).map(a=>[a.id,String(a.chartCode||'')]));
@@ -111,5 +182,5 @@ function historicalLedgerExamples(company,selectedPeriod,entries){
  }
  return {examples,issues};
 }
-return {parseExcel,parseLedgerExcel,proposals,ledgerProposals,historicalLedgerExamples,historyKey};
+return {parseExcel,parseLedgerExcel,parsePastedExcel,pastedProposals,proposals,ledgerProposals,historicalLedgerExamples,historyKey};
 });
