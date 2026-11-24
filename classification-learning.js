@@ -4,15 +4,15 @@
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const text=x=>String(x??'').trim();
 const date=s=>{const t=text(s);const m=t.match(/^(\d\d)\/(\d\d)\/(\d{4})$/);return m?m[3]+'-'+m[2]+'-'+m[1]:/^\d{4}-\d\d-\d\d$/.test(t)?t:'';};
-const cents=s=>{if(typeof s==='number')return Math.round(s*100);const t=text(s).replace(/R\$\s*/g,'').replace(/\s/g,'');if(!t)return NaN;const sign=t.startsWith('-')?-1:1;const x=t.replace(/^[-+]/,'').replace(/\./g,'').replace(',','.');return sign*Math.round(Number(x)*100);};
+const cents=s=>{if(typeof s==='number')return Math.round(s*100);const t=text(s).replace(/R\$\s*/g,'').replace(/\s/g,'');if(!t)return NaN;const sign=t.startsWith('-')?-1:1;const raw=t.replace(/^[-+]/,'');const x=raw.includes(',')?raw.replace(/\./g,'').replace(',','.'):raw;return sign*Math.round(Number(x)*100);};
 const historyKey=s=>norm(text(s).replace(/^\s*(?:Controle(?: financeiro)?\s*:\s*)?/i,'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.:]?\s*/,'').replace(/\d+/g,''));
 function parseExcel(book){
  const sheet=book.Sheets?.Extrato_Classificado||book.Sheets?.Aprendizado_Concilia;
  if(!sheet)throw Error('A planilha precisa da aba Extrato_Classificado gerada pelo ConCiliar+.');
  const XLSX=globalThis.XLSX;
  if(!XLSX?.utils?.sheet_to_json)throw Error('Leitor de Excel não disponível.');
- const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:false});
- const meta=book.Sheets?.Concilia_Identificadores?XLSX.utils.sheet_to_json(book.Sheets.Concilia_Identificadores,{header:1,defval:'',raw:false}):[];
+ const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:'',raw:true});
+ const meta=book.Sheets?.Concilia_Identificadores?XLSX.utils.sheet_to_json(book.Sheets.Concilia_Identificadores,{header:1,defval:'',raw:true}):[];
  if(!rows.length||norm(rows[0][0])!=='data')throw Error('Cabeçalho do extrato classificado não reconhecido.');
  return rows.slice(1).map((r,i)=>({line:i+2,id:meta[i+1]?.[0]||'',metaDate:date(meta[i+1]?.[1]),metaCents:cents(meta[i+1]?.[2]),metaBank:text(meta[i+1]?.[3]),metaHistory:text(meta[i+1]?.[4]),date:date(r[0]),debit:text(r[1]),credit:text(r[2]),amount:cents(r[3]),history:text(r[4])})).filter(x=>x.date&&(x.debit||x.credit||x.history));
 }
