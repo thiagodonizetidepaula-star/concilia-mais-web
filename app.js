@@ -23,13 +23,14 @@ function durableWorkspace(workspace){
   c.ledger=[];
   c.transfers=[];
   c.financialControls=[];
+  c.taxSplits=[];
   delete c.reconciliationReview;
  }
  copy.reviews=(copy.reviews||[]).filter(r=>!r.importId&&!r.operational);
  copy.audit=(copy.audit||[]).filter(a=>!/(EXTRATO|RAZAO|RAZÕES|RAZOES|CONTROLE_FINANCEIRO|CRUZAMENTO_FINANCEIRO|TRIAGEM_AUTOMATICA|SUGESTOES_GERADAS|IMPORTACAO|RESTAURACAO)/i.test(String(a.action||'')));
  return copy;
 }
-const draftFields=['imports','movements','ledger','transfers','financialControls','reconciliationReview'];
+const draftFields=['imports','movements','ledger','transfers','financialControls','reconciliationReview','taxSplits'];
 let draftRevision=0;
 
 function draftKey(){
@@ -764,7 +765,7 @@ function binds(){
  $('#importPlan').onsubmit=e=>{e.preventDefault();action(async()=>{const f=e.currentTarget,file=f.elements.file.files[0];if(!file)throw Error('Selecione o plano de contas');const ext=fileExt(file.name);if(!['pdf','csv','txt'].includes(ext))throw Error('Plano: selecione PDF, CSV ou TXT do Domínio.');const bytes=await file.arrayBuffer(),sha=await hash(bytes);const pdf=ext==='pdf'?await Pdf.extractPdf(file):null;const parts=ext==='pdf'?null:planSource((await asText(file)).txt);const parsed=ext==='pdf'?Pdf.parsePlanPdf(pdf,file.name):Core.parsePlan(Core.parseCsv(parts.table));if(!parsed.accounts.length||!parsed.accounts.some(p=>p.analytic))throw Error('Plano inválido: falta Código, Descrição ou contas marcadas como Analítica=Sim.');const info=ext==='pdf'?parsed.identity:Pdf.identity(parts.metadata,file.name);const old=current();let c=info.cnpj?state.companies.find(x=>x.cnpj===info.cnpj):null;
 if(!c&&old&&old.identitySha===sha)c=old;if(!c&&old&&info.name&&Core.norm(old.name)===Core.norm(info.name))c=old;
 if(c&&c.plan.length&&!confirm('Atualizar o plano desta empresa preservando o anterior no histórico?'))return;
-if(!c){c={id:Core.id(),name:info.name||'Plano: '+file.name.replace(/\.(csv|txt|pdf)$/i,'').replace(/[_-]/g,' ').slice(0,70),cnpj:info.cnpj||'',dominio:info.dominio||'',identityVerified:!!info.cnpj,identitySha:sha,plan:[],plansHistory:[],accounts:[],rules:[],partners:[],relatedCompanies:[],movements:[],imports:[],ledger:[],transfers:[]};state.companies.push(c)}
+if(!c){c={id:Core.id(),name:info.name||'Plano: '+file.name.replace(/\.(csv|txt|pdf)$/i,'').replace(/[_-]/g,' ').slice(0,70),cnpj:info.cnpj||'',dominio:info.dominio||'',identityVerified:!!info.cnpj,identitySha:sha,plan:[],plansHistory:[],accounts:[],rules:[],partners:[],relatedCompanies:[],taxRules:[],taxSplits:[],movements:[],imports:[],ledger:[],transfers:[]};state.companies.push(c)}
 c.name=info.name||c.name;c.cnpj=info.cnpj||c.cnpj;c.dominio=info.dominio||c.dominio;c.identitySha=sha;c.identityVerified=!!c.cnpj;c.plansHistory.push({at:new Date().toISOString(),name:file.name,hash:sha,accounts:c.plan});c.plan=parsed.accounts;companyId=c.id;await afterImport('PLANO',c,file,parsed,sha);await store('PLANO_IMPORTADO',file.name+' • '+c.plan.length+' contas');renderSelection();f.reset();showPage('importar');say('Plano importado: '+c.plan.length+' contas. Importe agora os extratos bancários.')})};
  // Cadastro manual e edição segura de contas do plano, separado por empresa.
  const clearPlanEditor=()=>{const form=$('#manualPlanForm');form.reset();form.dataset.original='';$('#manualPlanCode').readOnly=false;$('#manualPlanSave').textContent='Salvar conta';};
