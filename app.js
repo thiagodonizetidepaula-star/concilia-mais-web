@@ -225,8 +225,8 @@ function renderSelection(){
  if(sel.value!==prev)companyId=sel.value;
 }
 
-function showPage(page){currentPage=page;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('visible',x.id==='p-'+page));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===page));const titles={pendencias:['Central de pendências','REVISÃO','Investigue as ocorrências da empresa e competência selecionadas.'],controle:['Controle de conciliações','ACOMPANHAMENTO','Registre e consulte os trabalhos por empresa e competência.'],visao:['Visão geral','PAINEL OPERACIONAL','Selecione uma empresa e acompanhe o andamento da competência.'],empresas:['Empresas e plano de contas','CONFIGURAÇÃO INICIAL','Cada empresa utiliza seu próprio plano, seus bancos e suas regras.'],importar:['Importar extratos e Razão','PROCESSAMENTO DE DOCUMENTOS','O plano de contas é obrigatório antes dos extratos.'],movimentos:['Classificações','MOVIMENTAÇÕES','Conferência das contrapartidas e regras da empresa selecionada.'],transferencias:['Transferências entre contas','CRUZAMENTO DE BANCOS','Propostas que exigem confirmação da titularidade.'],conciliacao:['Conciliação e exportação','RAZÃO CONTÁBIL','Somente lançamentos confirmados e não encontrados no Razão.'],revisao:['Revisão de leitura','CONTROLE DE PENDÊNCIAS','Nenhuma linha ilegível deve desaparecer.']} ;const [title,eye,sub]=titles[page]||titles.visao;$('#pageTitle').textContent=title;$('#eyebrow').textContent=eye;$('#subtitle').textContent=sub;render()}
-function render(){const c=current();if(c)autoLinkBankCodes(c);$('#statementButton').disabled=!canImport(c);$('#importPlanButton').disabled=false;$('#addBank').disabled=!c||!c.plan.length;$('#addRule').disabled=!c||!c.plan.length;$('#ledgerButton').disabled=!c;$('#financialButton').disabled=!c;$('#matchFinancial').disabled=!c;$('#downloadCsv').disabled=!c;$('#downloadExcel').disabled=!c;$('#downloadStatement').disabled=!c;const resetButton=$('#resetAll');if(resetButton)resetButton.disabled=!c;renderSetup();renderDashboard();renderImport();renderMovements();renderTransfers();renderRecon();renderAuditoria();renderReviews();renderAssistente();window.ConciliaTracking?.render();window.ConciliaReview?.render();}
+function showPage(page){currentPage=page;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('visible',x.id==='p-'+page));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===page));const titles={pendencias:['Central de pendências','REVISÃO','Investigue as ocorrências da empresa e competência selecionadas.'],controle:['Controle de conciliações','ACOMPANHAMENTO','Registre e consulte os trabalhos por empresa e competência.'],visao:['Visão geral','PAINEL OPERACIONAL','Selecione uma empresa e acompanhe o andamento da competência.'],empresas:['Empresas e plano de contas','CONFIGURAÇÃO INICIAL','Cada empresa utiliza seu próprio plano, seus bancos e suas regras.'],importar:['Importar extratos e Razão','PROCESSAMENTO DE DOCUMENTOS','O plano de contas é obrigatório antes dos extratos.'],movimentos:['Classificações','MOVIMENTAÇÕES','Conferência das contrapartidas e regras da empresa selecionada.'],tributos:['Tributos e separação','RECEITA FEDERAL','Consulta rápida, comprovantes DARF/DAS e conferência de separações sem duplicidade.'],transferencias:['Transferências entre contas','CRUZAMENTO DE BANCOS','Propostas que exigem confirmação da titularidade.'],conciliacao:['Conciliação e exportação','RAZÃO CONTÁBIL','Somente lançamentos confirmados e não encontrados no Razão.'],revisao:['Revisão de leitura','CONTROLE DE PENDÊNCIAS','Nenhuma linha ilegível deve desaparecer.']} ;const [title,eye,sub]=titles[page]||titles.visao;$('#pageTitle').textContent=title;$('#eyebrow').textContent=eye;$('#subtitle').textContent=sub;render()}
+function render(){const c=current();if(c)autoLinkBankCodes(c);$('#statementButton').disabled=!canImport(c);$('#importPlanButton').disabled=false;$('#addBank').disabled=!c||!c.plan.length;$('#addRule').disabled=!c||!c.plan.length;$('#ledgerButton').disabled=!c;$('#financialButton').disabled=!c;$('#matchFinancial').disabled=!c;$('#downloadCsv').disabled=!c;$('#downloadExcel').disabled=!c;$('#downloadStatement').disabled=!c;const resetButton=$('#resetAll');if(resetButton)resetButton.disabled=!c;renderSetup();renderDashboard();renderImport();renderTaxes();renderMovements();renderTransfers();renderRecon();renderAuditoria();renderReviews();renderAssistente();window.ConciliaTracking?.render();window.ConciliaReview?.render();}
 function renderDashboard(){const c=current();if(!c){$('#stepBanner').innerHTML='<strong>Primeiro passo:</strong> importe o plano de contas; a empresa será criada automaticamente.';$('#metrics').innerHTML='';$('#steps').innerHTML='';$('#recentFiles').innerHTML=empty('Sem empresas cadastradas.');return}
   const mv=Core.periodMovements(c,period);const balance=Core.reconcile(c,period);const acc=new Set(mv.map(x=>x.accountId));const confirmed=balance.checked.filter(x=>x.recon==='CONCILIADO').length;
   const availablePeriods=[...new Set(c.imports.filter(x=>x.type==='EXTRATO').flatMap(x=>x.periods||[]))].sort().reverse();
@@ -272,6 +272,27 @@ function renderAssistente(){
  if(banner&&status.withoutLedger?.length)banner.innerHTML+='<p><b>Razão faltante para banco(s) de código: '+safe(status.withoutLedger.join(', '))+'</b>. A conferência não poderá ser finalizada sem esses documentos.</p>';
  $('#downloadPdf').disabled=!status.total;
  const undo=$('#undoRemove');if(undo)undo.hidden=!ultimoExcluido;
+}
+function renderTaxes(){
+ const c=current(),Tax=window.ConciliaTax;
+ if(!Tax)return;
+ const input=$('#taxRuleCode');
+ if(input){
+  const previous=input.value;
+  input.innerHTML='<option value="">Escolha a conta do plano</option>'+(c||{plan:[]}).plan.filter(p=>p.analytic).map(p=>'<option value="'+safe(p.code)+'">'+safe(p.code)+' — '+safe(p.description)+'</option>').join('');
+  if([...input.options].some(o=>o.value===previous))input.value=previous;
+ }
+ const query=Core.norm($('#taxCodeSearch')?.value||'');
+ const rules=(c?.taxRules||[]).filter(r=>!query||Core.norm(r.key+' '+r.description+' '+r.code).includes(query));
+ $('#taxCodeList').innerHTML=c?rules.length?table(['Receita / Identificação','Descrição','Código no plano','Situação',''],rules.map(r=>{
+  const valid=c.plan.some(p=>p.analytic&&String(p.code)===String(r.code));
+  return [safe(r.key),safe(r.description),safe(r.code),r.referenceOnly?'SOMENTE CONSULTA':valid?'CÓDIGO VÁLIDO':'NÃO CONSTA NO PLANO','<button type="button" class="secondary" data-remove-tax-rule="'+safe(r.key)+'">Excluir</button>'];
+ })):'<p>Nenhum código encontrado. Clique em Cadastrar minhas referências tributárias para começar.</p>':'<p>Selecione uma empresa.</p>';
+ const splits=(c?.taxSplits||[]).filter(x=>x.period===period&&x.status==='CONFIRMADA');
+ $('#taxConfirmedList').innerHTML=c?splits.length?table(['Pagamento bancário','Documentos','Componentes','Total',''],splits.map(x=>{
+  const movement=c.movements.find(m=>m.id===x.movementId);
+  return [safe(movement?datePT(movement.date)+' • '+movement.history:'Movimento original indisponível'),safe((x.receiptIds||[]).join(', ')),x.lines.length,currency(Math.abs(x.cents)),'<button type="button" class="secondary" data-remove-tax-split="'+safe(x.id)+'">Desfazer separação</button>'];
+ })):'<p>Nenhuma separação tributária confirmada para esta competência.</p>':'<p>Selecione uma empresa.</p>';
 }
 function renderImport(){const c=current();$('#allImports').innerHTML=c?table(['Arquivo','Tipo','Competência(s)','Movimentos','Saldos','Situação','Ações'],c.imports.slice().reverse().map(i=>[
  safe(i.name),badge(i.type),safe((i.periods||[]).join(', ')),i.movementCount??i.count??0,
@@ -1111,6 +1132,114 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
   $('#pasteClassificationsStatus').textContent=applied+' lançamento(s) atualizado(s) e '+learned+' histórico(s) aprendido(s) para '+c.name+'. No próximo mês, o ConCiliar+ poderá sugerir esses códigos para conferência.';
   say('Classificações coladas e aprendizado registrados.');
  });
+ let taxDraft=null;
+ const taxShow=(message,level='')=>{const el=$('#taxReceiptStatus');el.textContent=message;el.className='import-status '+level;};
+ const taxReset=()=>{taxDraft=null;$('#taxConfirmButton').hidden=true;$('#taxConfirmButton').disabled=true;$('#taxReceiptPreview').innerHTML='';};
+ $('#taxCodeSearch').oninput=()=>renderTaxes();
+ $('#taxLoadDefaults').onclick=()=>action(async()=>{
+  const c=getCompany(),Tax=window.ConciliaTax;
+  const existing=c.taxRules||[];
+  const additions=Tax.defaults().filter(r=>!existing.some(x=>x.key===r.key));
+  if(!additions.length){say('As referências tributárias já estão cadastradas nesta empresa.');return;}
+  if(!confirm('Adicionar '+additions.length+' referências de códigos tributários à empresa '+c.name+'? Os códigos só serão utilizados automaticamente se existirem no plano analítico.'))return;
+  c.taxRules=[...existing,...additions];
+  taxReset();
+  await store('CODIGOS_TRIBUTARIOS_CADASTRADOS',additions.length+' referências para '+c.name);
+  say('Biblioteca de códigos tributários cadastrada somente nesta empresa.');
+ });
+ $('#taxRuleForm').onsubmit=e=>{e.preventDefault();action(async()=>{
+  const c=getCompany(),form=e.currentTarget,values=asData(form);
+  const key=String(values.key||'').trim().toUpperCase(),description=String(values.description||'').trim(),code=String(values.code||'').trim();
+  if(!key||!description||!code)throw Error('Preencha identificador, descrição e código.');
+  if(!c.plan.some(p=>p.analytic&&String(p.code)===code))throw Error('Este código não é uma conta analítica do plano da empresa.');
+  c.taxRules=c.taxRules||[];
+  const existing=c.taxRules.find(r=>r.key===key);
+  if(existing&&!confirm('Atualizar a referência tributária '+key+' de '+existing.code+' para '+code+'?'))return;
+  if(existing){existing.description=description;existing.code=code;existing.referenceOnly=false;}
+  else c.taxRules.push({id:Core.id(),key,description,code});
+  taxReset();
+  await store('CODIGO_TRIBUTARIO_SALVO',key+' → '+code);
+  form.reset();say('Código tributário registrado na empresa.');
+ })};
+ document.addEventListener('click',e=>{
+  const button=e.target.closest('[data-remove-tax-rule]');
+  if(!button)return;action(async()=>{
+   const c=getCompany(),key=button.dataset.removeTaxRule;
+   if(!confirm('Remover a referência tributária '+key+' da empresa? Separações já confirmadas serão preservadas.'))return;
+   c.taxRules=(c.taxRules||[]).filter(r=>r.key!==key);
+   taxReset();await store('CODIGO_TRIBUTARIO_EXCLUIDO',key);
+  });
+ });
+ document.addEventListener('click',e=>{
+  const button=e.target.closest('[data-remove-tax-split]');
+  if(!button)return;action(async()=>{
+   const c=getCompany(),entry=(c.taxSplits||[]).find(x=>x.id===button.dataset.removeTaxSplit);
+   if(!entry)return;
+   if(!confirm('Desfazer separação do pagamento de '+currency(Math.abs(entry.cents))+'? O lançamento original do extrato continuará preservado.'))return;
+   c.taxSplits=c.taxSplits.filter(x=>x.id!==entry.id);
+   await store('SEPARACAO_TRIBUTARIA_DESFEITA',entry.id);taxReset();
+  });
+ });
+ $('#taxReceiptForm').onsubmit=e=>{e.preventDefault();action(async()=>{
+  const c=getCompany(),Tax=window.ConciliaTax,form=e.currentTarget,files=[...form.elements.file.files||[]];
+  taxReset();
+  if(!files.length)throw Error('Selecione ao menos um comprovante.');
+  if(files.length>15)throw Error('Selecione até 15 arquivos PDF por análise.');
+  const company=c.id,ym=period,receipts=[],issues=[];
+  taxShow('Lendo comprovantes e conferindo totais...', 'working');
+  for(const file of files){
+   if(fileExt(file.name)!=='pdf')throw Error('Envie comprovantes PDF da Receita Federal.');
+   const pdf=await Pdf.extractPdf(file);
+   const parsed=Tax.parseReceipts(pdf,file.name);
+   for(const r of parsed.receipts){
+    if(receipts.some(x=>x.id===r.id)){issues.push('Documento '+r.id+' repetido em arquivos diferentes.');continue;}
+    receipts.push(r);
+   }
+   issues.push(...parsed.reviews);
+  }
+  if(company!==companyId||ym!==period)throw Error('Empresa ou competência alterada. Refaça a análise.');
+  const result=Tax.matches(c,ym,receipts);
+  issues.push(...result.issues);
+  const proposals=result.proposals;
+  const rows=proposals.flatMap(p=>p.lines.map(l=>[
+   safe(datePT(p.date)),safe(p.history),safe(p.receipts.map(r=>r.id).join(', ')),
+   safe(l.description),safe(l.revenueCode),l.code?safe(l.code):'<span class="flag">SEM CÓDIGO VÁLIDO'+(l.registered?' ('+safe(l.registered)+')':'')+'</span>',
+   currency(l.cents)
+  ]));
+  const sum=proposals.map(p=>{
+   const total=p.lines.reduce((n,l)=>n+l.cents,0);
+   const valid=p.lines.every(l=>l.code)&&total===-p.cents;
+   return {movementId:p.movementId,valid};
+  });
+  const good=sum.filter(x=>x.valid).length;
+  $('#taxReceiptPreview').innerHTML=
+   '<p><strong>'+receipts.length+'</strong> comprovante(s) identificado(s), <strong>'+proposals.length+'</strong> pagamento(s) bancário(s) com correspondência única; <strong>'+good+'</strong> apto(s) à confirmação.</p>'+
+   (rows.length?table(['Data','Histórico do extrato','Documento RFB','Tributo','Receita','Código contábil','Valor'],rows):'<p>Não foram localizados pagamentos com correspondência única nesta competência.</p>')+
+   proposals.map(p=>{
+    const total=p.lines.reduce((n,l)=>n+l.cents,0);
+    return '<p><strong>'+safe(datePT(p.date))+' | '+safe(p.history)+'</strong>: extrato '+currency(Math.abs(p.cents))+' • separados '+currency(total)+' • diferença '+currency(Math.abs(p.cents)-total)+(p.lines.some(l=>!l.code)?' • há código pendente':'')+'</p>';
+   }).join('')+
+   (issues.length?'<details open><summary>'+issues.length+' ocorrência(s) para revisão (não aplicadas)</summary><pre style="white-space:pre-wrap">'+safe(issues.slice(0,80).join('\n'))+'</pre></details>':'');
+  taxShow('Empresa: '+c.name+' | Competência: '+ym+' | '+good+' pagamento(s) apto(s). A prévia não altera o extrato.');
+  const allowed=result.proposals.filter(p=>sum.some(x=>x.movementId===p.movementId&&x.valid));
+  if(!allowed.length)return;
+  taxDraft={companyId:c.id,period:ym,proposals:allowed,receiptIds:receipts.map(r=>r.id)};
+  $('#taxConfirmButton').hidden=false;$('#taxConfirmButton').disabled=false;
+ })};
+ $('#taxConfirmButton').onclick=()=>action(async()=>{
+  const c=getCompany(),Tax=window.ConciliaTax,draft=taxDraft;
+  if(!draft||draft.companyId!==c.id||draft.period!==period)throw Error('Empresa ou competência mudou. Gere a prévia novamente.');
+  if(!confirm('Confirmar '+draft.proposals.length+' separação(ões) com totais e códigos válidos? O extrato original permanecerá preservado; o Excel substituirá as linhas totais pelos tributos.'))return;
+  let count=0;
+  for(const p of draft.proposals){
+   Tax.confirm(c,p);count++;
+  }
+  taxReset();
+  await store('TRIBUTOS_SEPARADOS',count+' pagamento(s) conferido(s) e separado(s) em '+c.name+' | '+period);
+  taxShow(count+' pagamento(s) separado(s) com sucesso. Consulte o Excel codificado para visualizar os tributos sem duplicidade.','success');
+  formClearTax();
+ });
+ const formClearTax=()=>{$('#taxReceiptForm').reset();};
  $('#learnClassificationsForm').onsubmit=e=>{e.preventDefault();const form=e.currentTarget;action(async()=>{
   const c=getCompany(),file=form.elements.file.files?.[0],status=$('#learnClassificationsStatus'),button=$('#learnClassificationsButton');
   if(!file)throw Error('Selecione o Excel preenchido ou o Razão atualizado.');
