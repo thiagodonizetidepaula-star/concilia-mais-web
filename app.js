@@ -1213,8 +1213,10 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
    return {movementId:p.movementId,valid};
   });
   const good=sum.filter(x=>x.valid).length;
+  const missingLibrary=!(c.taxRules||[]).some(r=>r.key==='DAS');
   $('#taxReceiptPreview').innerHTML=
    '<p><strong>'+receipts.length+'</strong> comprovante(s) identificado(s), <strong>'+proposals.length+'</strong> pagamento(s) bancário(s) com correspondência única; <strong>'+good+'</strong> apto(s) à confirmação.</p>'+
+   (missingLibrary?'<p class="status-red"><strong>Atenção:</strong> os códigos tributários desta empresa ainda não foram cadastrados. Abra a Consulta rápida de códigos tributários na etapa 3 e clique em Cadastrar minhas referências tributárias; depois analise novamente.</p>':'')+
    (rows.length?table(['Data','Histórico do extrato','Documento RFB','Tributo','Receita','Código contábil','Valor'],rows):'<p>Não foram localizados pagamentos com correspondência única nesta competência.</p>')+
    proposals.map(p=>{
     const total=p.lines.reduce((n,l)=>n+l.cents,0);
