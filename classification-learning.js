@@ -50,7 +50,7 @@ function parsePastedExcel(raw){
  const aliases={
   date:['data'],debit:['codcontadebito','codigodebito','coddebito','debito'],
   credit:['codcontacredito','codigocredito','codcredito','credito'],
-  amount:['valorextrators','valor','valorbrl','valorrs'],history:['complementohistorico','historico','descricao','descricaohistorico'],
+  amount:['valorextrator','valorextrators','valorextrato','valor','valorbrl','valorrs'],history:['complementohistorico','historico','descricao','descricaohistorico'],
   bank:['banco','codigobanco','codigodobanco','codigocontabanco','contabancaria'],id:['idlancamento','idmovimento','id']
  };
  const normalized=rows[0].map(norm);
