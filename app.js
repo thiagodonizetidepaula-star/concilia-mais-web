@@ -406,7 +406,7 @@ function learningKey(c,m){
  const description=String(m.financialDescription||'').replace(/\s*\(identificação individual pendente\)/i,'').trim();
  const raw=description||String(m.history||'').trim();
  const normalized=raw.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
- if(!bank||!normalized||normalized.length<8)return '';
+ if(!bank||!normalized||(normalized.length<8&&!/^(?:iof|juros|rend|tarifa|tarifas|cesta)$/.test(normalized)))return '';
  if(!description&&/^(?:cre pix ch|cred pix|deb pix ch|envio pix|pag boleto|compra|transferencia|pagamento|recebimento|pix recebido|pix enviado)$/.test(normalized))return '';
  if(m.financialMatch&&m.financialMatch!=='SUGERIDA'&&description)return '';
  const direction=m.cents>0?'ENTRADA':'SAIDA';
@@ -993,7 +993,8 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
   try{
    const ext=fileExt(file.name),Learning=window.ConciliaLearning;
    if(!Learning)throw Error('Módulo de aprendizado não carregado. Atualize o navegador.');
-   let result;
+   autoLinkBankCodes(c);
+   let result,priorExamples=[],fileSha='';
    if(ext==='xlsx'||ext==='xls'){
     if(!window.XLSX?.read)throw Error('Leitor XLSX indisponível.');
     const workbook=window.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
@@ -1003,17 +1004,27 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
     const docCnpj=window.ConciliaLayouts.documentCnpj(doc);
     if(!docCnpj||!c.cnpj||docCnpj!==c.cnpj)throw Error('CNPJ do Razão ausente ou diferente da empresa selecionada.');
     const parsed=window.ConciliaLayouts.parseDominioLedgerPdf(doc,file.name,Core);
-    result=Learning.ledgerProposals(c,activePeriod,parsed.entries||[]);
+    const bytes=await file.arrayBuffer();
+    fileSha=await hash(bytes);
+    const ledgerRows=parsed.entries||[];
+    result=Learning.ledgerProposals(c,activePeriod,ledgerRows.filter(row=>row.date?.startsWith(activePeriod)));
+    const history=Learning.historicalLedgerExamples(c,activePeriod,ledgerRows);
+    priorExamples=history.examples;
+    result.issues.push(...history.issues);
+    if(priorExamples.length&&(c.learningImports||[]).some(entry=>entry.sha===fileSha)){
+     result.issues.push('Este Razão histórico já ensinou seus códigos à empresa. A aprendizagem não será duplicada.');
+     priorExamples=[];
+    }
     if(parsed.partialEntries?.length)result.issues.push(parsed.partialEntries.length+' lançamento(s) do PDF sem contrapartida não serão aprendidos.');
    }else throw Error('Importe XLSX, XLS ou PDF do Razão.');
    const examples=result.issues.slice(0,10).join('\n');
-   if(!result.proposals.length){
+   if(!result.proposals.length&&!priorExamples.length){
     show('error','Nenhuma classificação segura encontrada para a empresa e competência atuais.'+(examples?'\nRevisões:\n'+examples:''));
     return;
    }
    if(activeCompany!==companyId||activePeriod!==period)throw Error('Empresa ou competência alterada. Inicie a importação novamente.');
-   const sample=result.proposals.slice(0,8).map(x=>x.date+' | '+(x.amount/100).toFixed(2)+' | '+x.history+' → '+x.code).join('\n');
-   const message='CONCILIAR+ — APRENDER CLASSIFICAÇÕES\n\nEmpresa: '+c.name+'\nCompetência: '+activePeriod+'\nArquivo: '+file.name+'\n\n'+result.proposals.length+' classificação(ões) com correspondência única.\n'+result.issues.length+' linha(s) exigem revisão e serão ignoradas.\n\nExemplos:\n'+sample+'\n\nConfirmar códigos encontrados e gravar o aprendizado para esta empresa?';
+   const sample=result.proposals.slice(0,5).map(x=>x.date+' | '+(x.amount/100).toFixed(2)+' | '+x.history+' → '+x.code).concat(priorExamples.slice(0,5).map(x=>x.date+' | '+x.history+' → '+x.code+' (histórico)')).join('\n');
+   const message='CONCILIAR+ — APRENDER CLASSIFICAÇÕES\n\nEmpresa: '+c.name+'\nCompetência: '+activePeriod+'\nArquivo: '+file.name+'\n\n'+result.proposals.length+' classificação(ões) com correspondência única.\n'+priorExamples.length+' referência(s) históricas com código válido para aprender.\n'+result.issues.length+' linha(s) exigem revisão e serão ignoradas.\n\nExemplos:\n'+sample+'\n\nConfirmar códigos encontrados e gravar o aprendizado para esta empresa?';
    if(!confirm(message)){show('working','Importação cancelada. Nenhum lançamento foi modificado.');return;}
    let updated=0,learned=0;
    for(const item of result.proposals){
@@ -1026,8 +1037,17 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
     if(learnConfirmed(c,m,item.code,'IMPORTACAO_VALIDADA'))learned++;
     updated++;
    }
-   await store('CLASSIFICACOES_APRENDIDAS',file.name+' • '+updated+' lançamentos confirmados, '+learned+' históricos aprendidos, '+result.issues.length+' revisões');
-   show(result.issues.length?'working':'success',updated+' lançamento(s) classificados e '+learned+' histórico(s) aprendido(s) para '+c.name+'. '+result.issues.length+' linha(s) ignoradas para revisão.'+(examples?'\n'+examples:'')+'\nO aprendizado dos próximos meses gera sugestões para conferência.');
+   let historyCount=0;
+   for(const item of priorExamples){
+    const sampleMovement={accountId:item.accountId,history:item.history,cents:item.cents,financialDescription:''};
+    if(learnConfirmed(c,sampleMovement,item.code,'IMPORTACAO_VALIDADA'))historyCount++;
+   }
+   if(priorExamples.length&&fileSha){
+    c.learningImports=c.learningImports||[];
+    c.learningImports.push({sha:fileSha,file:file.name,at:new Date().toISOString(),count:historyCount});
+   }
+   await store('CLASSIFICACOES_APRENDIDAS',file.name+' • '+updated+' lançamentos confirmados, '+(learned+historyCount)+' históricos aprendidos, '+result.issues.length+' revisões');
+   show(result.issues.length?'working':'success',updated+' lançamento(s) classificados e '+(learned+historyCount)+' histórico(s) aprendido(s) para '+c.name+'. '+result.issues.length+' linha(s) ignoradas para revisão.'+(examples?'\n'+examples:'')+'\nO aprendizado dos próximos meses gera sugestões para conferência.');
    form.reset();
   }finally{button.disabled=false;}
  })};
