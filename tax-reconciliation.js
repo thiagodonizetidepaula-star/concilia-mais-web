@@ -94,7 +94,8 @@ function matches(company,period,receipts){
  const existing=(company.taxSplits||[]).filter(x=>x.period===period&&x.status==='CONFIRMADA'&&liveMovements.has(x.movementId));
  const already=new Set(existing.flatMap(x=>x.receiptIds||[]));
  const accounts=new Map((company.accounts||[]).map(a=>[a.id,a]));
- const bankMovements=(company.movements||[]).filter(m=>m.date?.startsWith(period)&&m.cents<0&&m.status!=='PENDENTE_DUPLICIDADE');
+ const transferred=new Set((company.transfers||[]).filter(t=>t.status==='CONFIRMADA').flatMap(t=>[t.outId,t.inId]));
+ const bankMovements=(company.movements||[]).filter(m=>m.date?.startsWith(period)&&m.cents<0&&m.status!=='PENDENTE_DUPLICIDADE'&&m.status!=='CONFIRMADO'&&!transferred.has(m.id));
  const valid=receipts.filter(r=>r.valid&&!already.has(r.id)&&r.cnpj===cnpj(company.cnpj)&&r.paymentDate.startsWith(period));
  const proposals=[],issues=[];
  if(!company.cnpj||cnpj(company.cnpj).length!==14)return {proposals,issues:['A empresa precisa ter CNPJ válido para cruzar comprovantes.']};
@@ -133,7 +134,7 @@ function matches(company,period,receipts){
 }
 function confirm(company,p){
  const movement=(company.movements||[]).find(m=>m.id===p.movementId);
- if(!movement||movement.status==='PENDENTE_DUPLICIDADE'||movement.cents>=0)throw Error('Movimento bancário inválido.');
+ if(!movement||movement.status==='PENDENTE_DUPLICIDADE'||movement.status==='CONFIRMADO'||movement.cents>=0||(company.transfers||[]).some(t=>t.status==='CONFIRMADA'&&(t.outId===movement.id||t.inId===movement.id)))throw Error('O pagamento já está classificado, em transferência ou tem duplicidade. Revise a classificação anterior antes de separar.');
  if((company.taxSplits||[]).some(x=>x.movementId===movement.id&&x.status==='CONFIRMADA'))throw Error('Este pagamento já foi separado.');
  const account=(company.accounts||[]).find(a=>a.id===movement.accountId),bank=String(account?.chartCode||'');
  if(!bank||bank!==p.bankCode||!company.plan.some(x=>x.analytic&&String(x.code)===bank))throw Error('Código bancário divergente do plano.');
