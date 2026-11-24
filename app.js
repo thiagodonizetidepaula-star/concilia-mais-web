@@ -983,6 +983,72 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  else if(bad.length) say(`Falha ao importar ${bad[0].name}: ${bad[0].error}`,true);
  else say(`${ok.length} novo(s), ${skipped.length} já importado(s), ${bad.length} falha(s). ${total} novas movimentações.`);
  }catch(err){setStatementStatus('error','IMPORTAÇÃO NÃO CONCLUÍDA: '+(err.message||String(err))+'. Confira o arquivo ou a empresa e tente novamente.');throw err;}})};
+ let pasteClassificationDraft=null;
+ const resetPastePreview=()=>{
+  pasteClassificationDraft=null;
+  $('#pasteConfirmButton').hidden=true;
+  $('#pasteConfirmButton').disabled=true;
+  $('#pasteClassificationsPreview').innerHTML='';
+ };
+ $('#pasteClearButton').onclick=()=>{
+  $('#pasteClassificationsText').value='';
+  resetPastePreview();
+  $('#pasteClassificationsStatus').textContent='Área limpa. Cole novas linhas do Excel para conferir.';
+ };
+ $('#pasteClassificationsText').addEventListener('input',()=>{
+  if(pasteClassificationDraft){
+   resetPastePreview();
+   $('#pasteClassificationsStatus').textContent='O texto foi alterado. Clique em Conferir códigos colados para gerar uma nova prévia.';
+  }
+ });
+ $('#pasteClassificationsForm').onsubmit=e=>{e.preventDefault();action(async()=>{
+  resetPastePreview();
+  const c=getCompany(),Learning=window.ConciliaLearning;
+  if(!Learning)throw Error('Módulo de aprendizado não carregado. Atualize a página.');
+  autoLinkBankCodes(c);
+  const content=$('#pasteClassificationsText').value;
+  const parsed=Learning.parsePastedExcel(content);
+  const result=Learning.pastedProposals(c,period,parsed.rows);
+  const issues=[...parsed.issues,...result.issues];
+  const valid=result.proposals;
+  const headers=['Data','Banco','Débito','Crédito','Valor','Histórico','Contrapartida'];
+  const rows=valid.slice(0,100).map(item=>[
+   safe(datePT(item.date)),safe(item.bankName),safe(item.amount>0?item.bank:item.code),
+   safe(item.amount<0?item.bank:item.code),currency(item.amount),safe(item.history),safe(item.code)
+  ]);
+  $('#pasteClassificationsPreview').innerHTML=
+   (valid.length?'<h3>Prévia: '+valid.length+' classificação(ões) pronta(s) para confirmação</h3>'+table(headers,rows)+(valid.length>100?'<p>Exibindo os primeiros 100 lançamentos válidos.</p>':''):'<p>Nenhuma classificação segura identificada para confirmar.</p>')+
+   (issues.length?'<details open><summary>'+issues.length+' linha(s) para revisão — não serão aplicadas</summary><div class="import-status">'+safe(issues.slice(0,60).join('\n'))+(issues.length>60?' (e mais '+(issues.length-60)+' linha(s))':'')+'</div></details>':'');
+  $('#pasteClassificationsStatus').textContent='Empresa: '+c.name+' • Competência: '+period+'. '+valid.length+' classificação(ões) válidas; '+issues.length+' linha(s) em revisão. Nada foi gravado ainda.';
+  if(!valid.length)return;
+  pasteClassificationDraft={companyId:c.id,period,text:content,records:valid.map(x=>({...x}))};
+  $('#pasteConfirmButton').hidden=false;
+  $('#pasteConfirmButton').disabled=false;
+ })};
+ $('#pasteConfirmButton').onclick=()=>action(async()=>{
+  const draft=pasteClassificationDraft,c=getCompany(),Learning=window.ConciliaLearning;
+  if(!draft||draft.companyId!==c.id||draft.period!==period||draft.text!==$('#pasteClassificationsText').value)
+   throw Error('Empresa, competência ou texto mudou. Gere a prévia novamente.');
+  const checked=Learning.pastedProposals(c,period,Learning.parsePastedExcel(draft.text).rows).proposals;
+  if(JSON.stringify(checked)!==JSON.stringify(draft.records))throw Error('Os lançamentos mudaram desde a prévia. Confira novamente.');
+  if(!confirm('Confirmar '+checked.length+' classificação(ões) para '+c.name+' e gravar o aprendizado somente nesta empresa?'))return;
+  let applied=0,learned=0;
+  for(const item of checked){
+   const m=c.movements.find(x=>x.id===item.movementId),acc=c.accounts.find(a=>a.id===m?.accountId);
+   if(!m||m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||String(acc?.chartCode)!==String(item.bank)||
+      !c.plan.some(p=>p.analytic&&String(p.code)===String(item.code)))continue;
+   m.counterpart=String(item.code);
+   m.suggested=String(item.code);
+   m.status='CONFIRMADO';
+   m.confidence='Classificação colada do Excel, validada e confirmada';
+   if(learnConfirmed(c,m,item.code,'IMPORTACAO_VALIDADA'))learned++;
+   applied++;
+  }
+  resetPastePreview();
+  await store('CLASSIFICACOES_COLADAS',applied+' códigos confirmados; '+learned+' históricos aprendidos para '+c.name+' na competência '+period);
+  $('#pasteClassificationsStatus').textContent=applied+' lançamento(s) atualizado(s) e '+learned+' histórico(s) aprendido(s) para '+c.name+'. No próximo mês, o ConCiliar+ poderá sugerir esses códigos para conferência.';
+  say('Classificações coladas e aprendizado registrados.');
+ });
  $('#learnClassificationsForm').onsubmit=e=>{e.preventDefault();const form=e.currentTarget;action(async()=>{
   const c=getCompany(),file=form.elements.file.files?.[0],status=$('#learnClassificationsStatus'),button=$('#learnClassificationsButton');
   if(!file)throw Error('Selecione o Excel preenchido ou o Razão atualizado.');
