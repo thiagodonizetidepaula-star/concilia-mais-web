@@ -69,5 +69,24 @@ function ledgerProposals(company,period,entries){
  }
  return {proposals,issues};
 }
-return {parseExcel,proposals,ledgerProposals,historyKey};
+function historicalLedgerExamples(company,selectedPeriod,entries){
+ const valid=new Set((company.plan||[]).filter(p=>p.analytic).map(p=>String(p.code)));
+ const banks=new Map((company.accounts||[]).filter(a=>valid.has(String(a.chartCode))).map(a=>[String(a.chartCode),a.id]));
+ const examples=[],issues=[],seen=new Set();
+ for(const [i,row] of entries.entries()){
+  if(!row.date||row.date.slice(0,7)>=selectedPeriod)continue;
+  const debit=String(row.debit||''),credit=String(row.credit||'');
+  const bankIn=banks.has(debit),bankOut=banks.has(credit);
+  if(bankIn===bankOut){issues.push('Razão histórico linha '+(i+1)+': não há banco e contrapartida únicos.');continue;}
+  const accountId=banks.get(bankIn?debit:credit),code=bankIn?credit:debit;
+  const history=text(row.history);
+  if(!valid.has(code)||!history||historyKey(history).length<3){issues.push('Razão histórico linha '+(i+1)+': código ou descrição inválido.');continue;}
+  const signed=bankIn?Math.abs(row.cents):-Math.abs(row.cents);
+  const key=[accountId,bankIn?'E':'S',historyKey(history),code,row.date,Math.abs(row.cents)].join('|');
+  if(seen.has(key))continue;
+  seen.add(key);examples.push({accountId,history,cents:signed,code,date:row.date});
+ }
+ return {examples,issues};
+}
+return {parseExcel,proposals,ledgerProposals,historicalLedgerExamples,historyKey};
 });
