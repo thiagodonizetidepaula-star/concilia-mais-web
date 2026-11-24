@@ -245,6 +245,9 @@ function renderDashboard(){const c=current();if(!c){$('#stepBanner').innerHTML='
 function renderSetup(){const c=current();const count=c?.plan.length||0;$('#planStatus').textContent=c?count?`${count} contas cadastradas para ${c.name}. ${c.plan.filter(p=>p.analytic).length} marcadas como analíticas.`:'Nenhum plano nesta empresa. Use o botão abaixo para importar o arquivo do Domínio.':'Importe um plano de contas primeiro.';
   $('#companyIdentity').innerHTML=c?'<div class="hint"><strong>'+safe(c.name)+'</strong><br>CNPJ: '+safe(c.cnpj||'não identificado')+' • Domínio: '+safe(c.dominio||'não informado')+(c.identityVerified?'':'<br>⚠ Identificação provisória: confirme o titular antes de usar.')+'</div>':'';$('#planCount').textContent=`${count} contas`;
   analyticalSelect('#bankCode','Primeiro importe o plano');analyticalSelect('#ruleCode','Primeiro importe o plano');
+  analyticalSelect('#partnerCode','Selecione um código analítico do plano');
+  const partners=c?.partners||[];
+  $('#partnerList').innerHTML=c?partners.length?table(['Nome do sócio','Código','Ações'],partners.map(p=>[safe(p.name),safe(p.code),'<button class="secondary" type="button" data-delete-partner="'+safe(p.id)+'">Excluir</button>'])):'<p class="subtle">Nenhum sócio cadastrado nesta empresa.</p>':empty('Selecione uma empresa.');
   $('#planTable').innerHTML=c?table(['Código','Classificação','Descrição','Tipo','Editar'],c.plan.map(p=>[safe(p.code),safe(p.classification||'—'),safe(p.description),badge(p.analytic?'A — analítica':'S — sintética'),`<button type="button" data-edit-plan="${safe(p.code)}" class="secondary">Editar</button>`])):empty('Sem empresa selecionada.');
   $('#bankTable').innerHTML=c?table(['Banco','Identificação','Código','Corrigir vínculo'],c.accounts.map(a=>{
    const valid=c.plan.some(p=>String(p.code)===String(a.chartCode)&&p.analytic);
@@ -478,6 +481,7 @@ function autoSuggest(c,m){
  // Não substituir essas categorias com aprendizados de outros históricos.
  // Sem conta analítica única no plano da empresa, a operação fica pendente.
  if(!isAplicacao&&!isRendimento)applyLearnedCode(c,m);
+ window.ConciliaPartners?.suggest(c,m);
 }
 
 function financialDate(v){
@@ -736,7 +740,7 @@ function binds(){
  $('#importPlan').onsubmit=e=>{e.preventDefault();action(async()=>{const f=e.currentTarget,file=f.elements.file.files[0];if(!file)throw Error('Selecione o plano de contas');const ext=fileExt(file.name);if(!['pdf','csv','txt'].includes(ext))throw Error('Plano: selecione PDF, CSV ou TXT do Domínio.');const bytes=await file.arrayBuffer(),sha=await hash(bytes);const pdf=ext==='pdf'?await Pdf.extractPdf(file):null;const parts=ext==='pdf'?null:planSource((await asText(file)).txt);const parsed=ext==='pdf'?Pdf.parsePlanPdf(pdf,file.name):Core.parsePlan(Core.parseCsv(parts.table));if(!parsed.accounts.length||!parsed.accounts.some(p=>p.analytic))throw Error('Plano inválido: falta Código, Descrição ou contas marcadas como Analítica=Sim.');const info=ext==='pdf'?parsed.identity:Pdf.identity(parts.metadata,file.name);const old=current();let c=info.cnpj?state.companies.find(x=>x.cnpj===info.cnpj):null;
 if(!c&&old&&old.identitySha===sha)c=old;if(!c&&old&&info.name&&Core.norm(old.name)===Core.norm(info.name))c=old;
 if(c&&c.plan.length&&!confirm('Atualizar o plano desta empresa preservando o anterior no histórico?'))return;
-if(!c){c={id:Core.id(),name:info.name||'Plano: '+file.name.replace(/\.(csv|txt|pdf)$/i,'').replace(/[_-]/g,' ').slice(0,70),cnpj:info.cnpj||'',dominio:info.dominio||'',identityVerified:!!info.cnpj,identitySha:sha,plan:[],plansHistory:[],accounts:[],rules:[],movements:[],imports:[],ledger:[],transfers:[]};state.companies.push(c)}
+if(!c){c={id:Core.id(),name:info.name||'Plano: '+file.name.replace(/\.(csv|txt|pdf)$/i,'').replace(/[_-]/g,' ').slice(0,70),cnpj:info.cnpj||'',dominio:info.dominio||'',identityVerified:!!info.cnpj,identitySha:sha,plan:[],plansHistory:[],accounts:[],rules:[],partners:[],movements:[],imports:[],ledger:[],transfers:[]};state.companies.push(c)}
 c.name=info.name||c.name;c.cnpj=info.cnpj||c.cnpj;c.dominio=info.dominio||c.dominio;c.identitySha=sha;c.identityVerified=!!c.cnpj;c.plansHistory.push({at:new Date().toISOString(),name:file.name,hash:sha,accounts:c.plan});c.plan=parsed.accounts;companyId=c.id;await afterImport('PLANO',c,file,parsed,sha);await store('PLANO_IMPORTADO',file.name+' • '+c.plan.length+' contas');renderSelection();f.reset();showPage('importar');say('Plano importado: '+c.plan.length+' contas. Importe agora os extratos bancários.')})};
  // Cadastro manual e edição segura de contas do plano, separado por empresa.
  const clearPlanEditor=()=>{const form=$('#manualPlanForm');form.reset();form.dataset.original='';$('#manualPlanCode').readOnly=false;$('#manualPlanSave').textContent='Salvar conta';};
@@ -750,7 +754,7 @@ c.name=info.name||c.name;c.cnpj=info.cnpj||c.cnpj;c.dominio=info.dominio||c.domi
    const found=c.plan.find(p=>String(p.code)===code);
    if(found&&!original)throw Error('Este código já existe. Clique em Editar na tabela para atualizar a descrição ou o tipo.');
    if(original&&!found)throw Error('A conta em edição não foi encontrada no plano.');
-   const inUse=c.accounts.some(x=>String(x.chartCode)===code)||c.rules.some(x=>String(x.counterpart)===code)||c.movements.some(x=>String(x.counterpart)===code||String(x.suggested)===code)||(c.learnedCodes||[]).some(x=>Object.hasOwn(x.codes||{},code));
+   const inUse=c.accounts.some(x=>String(x.chartCode)===code)||c.rules.some(x=>String(x.counterpart)===code)||(c.partners||[]).some(x=>String(x.code)===code)||c.movements.some(x=>String(x.counterpart)===code||String(x.suggested)===code)||(c.learnedCodes||[]).some(x=>Object.hasOwn(x.codes||{},code));
    if(found&&!analytic&&inUse)throw Error('Este código está em uso em bancos, classificações ou aprendizados. Mantenha como analítico.');
    if(found){found.description=description;found.classification=classification;found.analytic=analytic;found.rawAnalytic=analytic?'A':'S';}
    else c.plan.push({code,description,classification,analytic,rawAnalytic:analytic?'A':'S',manual:true});
@@ -791,6 +795,31 @@ c.name=info.name||c.name;c.cnpj=info.cnpj||c.cnpj;c.dominio=info.dominio||c.domi
    say('Código do banco atualizado para '+chosen+'. Reabra o relatório PDF para conferir.');
   });
  });
+ $('#partnerForm').onsubmit=e=>{e.preventDefault();action(async()=>{
+   const c=getCompany(),form=e.currentTarget,values=asData(form),name=String(values.name||'').trim().replace(/\s+/g,' '),code=String(values.code||'').trim();
+   if(!window.ConciliaPartners?.words)throw Error('Leitor de sócios indisponível. Atualize a página.');
+   if(name.length<7||name.split(/\s+/).length<2)throw Error('Informe o nome completo do sócio, com pelo menos nome e sobrenome.');
+   if(!c.plan.some(p=>p.analytic&&String(p.code)===code))throw Error('Selecione um código analítico válido do plano desta empresa.');
+   if(c.accounts.some(a=>String(a.chartCode)===code))throw Error('O código do sócio não pode ser a própria conta do banco.');
+   c.partners=c.partners||[];
+   const normalized=window.ConciliaPartners.words(name);
+   if(c.partners.some(p=>window.ConciliaPartners.words(p.name)===normalized))throw Error('Este sócio já está cadastrado para a empresa.');
+   c.partners.push({id:Core.id(),name,code});
+   let count=0;
+   for(const m of c.movements||[]){if(window.ConciliaPartners.suggest(c,m))count++;}
+   await store('SOCIO_CADASTRADO',name+' → '+code+'; '+count+' sugestões em extratos existentes');
+   form.reset();
+   say('Sócio cadastrado. '+count+' movimentação(ões) receberam sugestão para conferência.');
+ })};
+ document.addEventListener('click',e=>{const button=e.target.closest('button[data-delete-partner]');if(!button)return;action(async()=>{
+   const c=getCompany(),p=(c.partners||[]).find(x=>x.id===button.dataset.deletePartner);
+   if(!p)return;
+   if(!confirm('Excluir o sócio '+p.name+' do cadastro desta empresa? As classificações já confirmadas permanecerão.'))return;
+   c.partners=c.partners.filter(x=>x.id!==p.id);
+   for(const m of c.movements||[]){if(m.status==='CONFIRMADO'||m.partnerName!==p.name)continue;if(String(m.suggested)===String(p.code)&&String(m.confidence||'').startsWith('Sócio cadastrado:')){delete m.suggested;delete m.confidence;}delete m.partnerName;}
+   await store('SOCIO_EXCLUIDO',p.name+' ('+p.code+')');
+   say('Sócio excluído do cadastro da empresa.');
+ })});
  $('#ruleForm').onsubmit=e=>{e.preventDefault();action(async()=>{const c=getCompany(),v=asData(e.currentTarget);if(!c.plan.some(a=>a.code===v.counterpart&&a.analytic))throw Error('Contrapartida deve existir no plano analítico da empresa.');if(c.rules.some(r=>Core.norm(r.term)===Core.norm(v.term)))throw Error('Regra já cadastrada.');c.rules.push({id:Core.id(),term:v.term.trim(),counterpart:v.counterpart});await store('REGRA_CRIADA',`${v.term} → ${v.counterpart}`);e.currentTarget.reset();say('Regra salva. Ela sugerirá classificações para confirmação humana.')})};
 
  $('#importFinancial').onsubmit=e=>{e.preventDefault();action(async()=>{
