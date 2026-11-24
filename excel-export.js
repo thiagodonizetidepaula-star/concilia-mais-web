@@ -26,6 +26,15 @@ function report(core,company,period){
  if(!/^\d{4}-\d{2}$/.test(period))throw Error('Selecione uma competência válida.');
  const plan=new Map(company.plan.map(a=>[String(a.code),a]));
  const accounts=new Map((company.accounts||[]).map(a=>[a.id,a]));
+ const taxSplits=new Map((company.taxSplits||[]).filter(x=>x.period===period&&x.status==='CONFIRMADA').map(x=>[x.movementId,x]));
+ const approvedTaxSplit=(m)=>{
+  const split=taxSplits.get(m.id),bank=accounts.get(m.accountId),bankCode=String(bank?.chartCode||'');
+  if(!split||String(split.bankCode)!==bankCode||!plan.get(bankCode)?.analytic)return null;
+  if(!split.lines?.length||split.lines.some(l=>!l.code||String(l.code)===bankCode||!plan.get(String(l.code))?.analytic||!Number.isInteger(l.cents)||l.cents<=0))return null;
+  if(split.lines.reduce((sum,l)=>sum+l.cents,0)!==-m.cents||m.cents>=0)return null;
+  return split;
+ };
+
  const moves=core.periodMovements(company,period).slice().sort((a,b)=>a.date.localeCompare(b.date)||a.history.localeCompare(b.history));
  if(!moves.length)throw Error('Nenhuma movimentação nesta competência. Importe o extrato antes de exportar Excel.');
  const transferPairs=new Map();
@@ -38,6 +47,12 @@ function report(core,company,period){
  const confer=[headers];
  let blocked=0,suggested=0,confirmed=0;
  for(const m of moves){
+   const split=approvedTaxSplit(m);
+   if(split){
+    const bank=accounts.get(m.accountId);
+    for(const line of split.lines)confer.push([dateBR(m.date),String(line.code),String(split.bankCode),number(-line.cents/100),formulaText(line.description),'TRIBUTO SEPARADO — CONFIRMADO','COMPROVANTE RFB CONFERIDO',bank?.bank||'',String(split.bankCode),'',formulaText(m.origin||''),'Documento '+line.receiptId+' • pagamento original '+(Math.abs(m.cents)/100).toFixed(2)+'; não contabilizar novamente a linha total.']);
+    confirmed++;continue;
+   }
    const bank=accounts.get(m.accountId);
    const bankCode=bank&&plan.get(String(bank.chartCode))?.analytic?String(bank.chartCode):'';
    const cp=String(m.counterpart||'');
@@ -71,23 +86,28 @@ function report(core,company,period){
   detalhamento.push([dateBR(m.date),bank?.bank||'',bankCode,formulaText(m.origin||''),number(m.cents/100),m.cents>=0?'ENTRADA':'SAÍDA',formulaText(m.history),formulaText(m.financialDescription||''),formulaText(m.financialCategory||''),formulaText(m.financialSourceFile||''),m.financialSourceRow||'',match,debit,credit,status,formulaText(m.confidence||''),formulaText(possible),formulaText((m.historicalCodeConflict||[]).join(' / '))]);
  }
  const bankOnly=[['Data','Cód. Conta Débito','Cód. Conta Crédito','Valor Extrato (R$)','Complemento Histórico']];
+ const learningMeta=[['ID Lançamento','Data Original','Valor Original (R$)','Código Banco','Histórico Original']];
+ const taxAudit=[['Data','Histórico no Extrato','Pagamento Original (R$)','Nº Comprovante','Descrição Tributo','Código Receita','Código Débito','Código Crédito','Parcela (R$)','Situação']];
  for(const m of moves){
   const bank=accounts.get(m.accountId),bankCode=bank&&plan.get(String(bank.chartCode))?.analytic?String(bank.chartCode):'';
+  const split=approvedTaxSplit(m);
+  if(split){
+   // Uma única saída bancária produz N linhas de contrapartida. O pagamento
+   // original NÃO entra novamente no Excel classificado.
+   for(const line of split.lines){
+    bankOnly.push([dateBR(m.date),String(line.code),bankCode,number(-line.cents/100),formulaText(line.description)]);
+    learningMeta.push([String(m.id),dateBR(m.date),number(m.cents/100),bankCode,formulaText(m.history)]);
+    taxAudit.push([dateBR(m.date),formulaText(m.history),number(m.cents/100),String(line.receiptId),formulaText(line.description),String(line.revenueCode),String(line.code),bankCode,number(-line.cents/100),'CONFIRMADO — LINHA TOTAL SUBSTITUÍDA']);
+   }
+   continue;
+  }
   const cp=String(m.counterpart||''),valid=!!plan.get(cp)?.analytic;
   const confirmed=m.status==='CONFIRMADO'&&valid&&!!bankCode&&cp!==bankCode&&m.status!=='PENDENTE_DUPLICIDADE';
   const proposedCode=String(m.suggested||'');const proposed=!confirmed&&m.status!=='PENDENTE_DUPLICIDADE'&&!(m.historicalCodeConflict||[]).length&&!!bankCode&&proposedCode!==bankCode&&!!plan.get(proposedCode)?.analytic;
-  const duplicate=m.status==='PENDENTE_DUPLICIDADE';
-  const situation=duplicate?'REVISAR DUPLICIDADE':!bankCode?'VINCULAR CONTA DO BANCO':confirmed?'CLASSIFICAÇÃO CONFIRMADA':proposed?'SUGESTÃO — REVISAR E CONFIRMAR':'PENDENTE — CONFERIR CONTRAPARTIDA';
   const effectiveCp=confirmed?cp:proposed?proposedCode:'';
   const debit=effectiveCp?(m.cents>0?bankCode:effectiveCp):(m.cents>0?bankCode:'');
   const credit=effectiveCp?(m.cents>0?effectiveCp:bankCode):(m.cents<0?bankCode:'');
-  // Mesmo com duplicidade ou sem Razão, preservar o lado bancário no extrato.
   bankOnly.push([dateBR(m.date),debit,credit,number(m.cents/100),formulaText(cleanStatementHistory(m))]);
- }
- // Identificadores acompanham as linhas do Extrato_Classificado. Não editar esta aba.
- const learningMeta=[['ID Lançamento','Data Original','Valor Original (R$)','Código Banco','Histórico Original']];
- for(const m of moves){
-  const bank=accounts.get(m.accountId);
   learningMeta.push([String(m.id),dateBR(m.date),number(m.cents/100),String(bank?.chartCode||''),formulaText(m.history)]);
  }
  const ready=[['Data','Cód. Conta Débito','Cód. Conta Crédito','Valor','Complemento Histórico']];
@@ -136,9 +156,9 @@ function report(core,company,period){
  for(const m of moves.filter(m=>['AMBIGUA','AGRUPADA','CATEGORIA_COMPARTILHADA'].includes(m.financialMatch)||(m.historicalCodeConflict||[]).length)){
   dreReview.push([dateBR(m.date),text(accounts.get(m.accountId)?.bank||''),number(m.cents/100),formulaText(m.history||''),formulaText((m.financialCandidates||[]).map(e=>[e.category||e.description,e.date,e.sourceFile,'linha '+e.sourceRow].filter(Boolean).join(' | ')).join('; ')||'Códigos históricos: '+(m.historicalCodeConflict||[]).join(', ')),(m.historicalCodeConflict||[]).length?'CÓDIGO HISTÓRICO CONFLITANTE':m.financialMatch==='AGRUPADA'?'SOMA DE LANÇAMENTOS — CONFERIR':m.financialMatch==='CATEGORIA_COMPARTILHADA'?'CATEGORIA IGUAL — LINHA INDETERMINADA':'DRE AMBÍGUO']);
  }
- return {sheets:[{name:'Extrato_Classificado',rows:bankOnly,widths:[16,24,24,22,100]},{name:'Concilia_Identificadores',rows:learningMeta,widths:[43,17,20,18,95]},{name:'Detalhamento_Financeiro',rows:detalhamento,widths:[16,22,16,43,18,14,58,66,52,43,18,26,18,18,36,58,75,28]},{name:'Resumo',rows:summary,widths:[48,82]},{name:'Conferencia',rows:confer,widths:[15,20,20,20,72,46,35,21,19,43,43,66]},{name:'Lancamentos_Prontos',rows:ready,widths:[16,24,24,20,82]},{name:'Plano_de_Contas',rows:source,widths:[18,32,62,16]},{name:'Extratos_Importados',rows:imports,widths:[53,24,16,18,29,22]},{name:'Verificacao_Saldos',rows:balanceReview,widths:[50,22,17,19,30,20,80]},{name:'Transferencias_Conferir',rows:transferReview,widths:[17,24,24,20,18,18,35,75]},{name:'DRE_Ambiguidades',rows:dreReview,widths:[17,24,20,65,100,32]},{name:'Divergencias',rows:auditRows,widths:[16,29,22,21,21,17,17,19,45,78,83,45,27]}],counts:{movements:moves.length,ready:ready.length-1,suggested,blocked,confirmed,hasLedger,codeErrors:rec.errors.length,divergentBalance:!!check.balancesBad,unverifiedBalance:!!check.unverified,unreviewedReadings:check.pendingReading,unmatchedBankLedger:check.orphanBankLedger,missingBankLedger:check.withoutLedger,ledgerBalanceDifferences:check.ledgerBalanceDifferences,blockedReadiness:!check.exportable,auditEvents:auditData?.events.length||0}};
+ return {sheets:[{name:'Extrato_Classificado',rows:bankOnly,widths:[16,24,24,22,100]},{name:'Tributos_Conferencia',rows:taxAudit,widths:[16,65,24,30,82,18,20,20,21,43]},{name:'Concilia_Identificadores',rows:learningMeta,widths:[43,17,20,18,95]},{name:'Detalhamento_Financeiro',rows:detalhamento,widths:[16,22,16,43,18,14,58,66,52,43,18,26,18,18,36,58,75,28]},{name:'Resumo',rows:summary,widths:[48,82]},{name:'Conferencia',rows:confer,widths:[15,20,20,20,72,46,35,21,19,43,43,66]},{name:'Lancamentos_Prontos',rows:ready,widths:[16,24,24,20,82]},{name:'Plano_de_Contas',rows:source,widths:[18,32,62,16]},{name:'Extratos_Importados',rows:imports,widths:[53,24,16,18,29,22]},{name:'Verificacao_Saldos',rows:balanceReview,widths:[50,22,17,19,30,20,80]},{name:'Transferencias_Conferir',rows:transferReview,widths:[17,24,24,20,18,18,35,75]},{name:'DRE_Ambiguidades',rows:dreReview,widths:[17,24,20,65,100,32]},{name:'Divergencias',rows:auditRows,widths:[16,29,22,21,21,17,17,19,45,78,83,45,27]}],counts:{movements:moves.length,ready:ready.length-1,suggested,blocked,confirmed,hasLedger,codeErrors:rec.errors.length,divergentBalance:!!check.balancesBad,unverifiedBalance:!!check.unverified,unreviewedReadings:check.pendingReading,unmatchedBankLedger:check.orphanBankLedger,missingBankLedger:check.withoutLedger,ledgerBalanceDifferences:check.ledgerBalanceDifferences,blockedReadiness:!check.exportable,auditEvents:auditData?.events.length||0}};
 }
-function reportStatement(core,company,period){const result=report(core,company,period);return {sheets:result.sheets.filter(s=>['Extrato_Classificado','Concilia_Identificadores'].includes(s.name)),counts:result.counts};}
+function reportStatement(core,company,period){const result=report(core,company,period);return {sheets:result.sheets.filter(s=>['Extrato_Classificado','Concilia_Identificadores','Tributos_Conferencia'].includes(s.name)),counts:result.counts};}
 const colName=n=>{let s='';for(;n;n=Math.floor((n-1)/26))s=String.fromCharCode(65+(n-1)%26)+s;return s};
 function sheetXml(sheet){const columns=sheet.widths||[];const out=['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>','<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">','<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>','<sheetFormatPr defaultRowHeight="18"/>','<cols>'+columns.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${Math.min(w,100)}" customWidth="1"/>`).join('')+'</cols>','<sheetData>'];
  for(let i=0;i<sheet.rows.length;i++){
