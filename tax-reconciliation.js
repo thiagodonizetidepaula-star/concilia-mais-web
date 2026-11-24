@@ -67,7 +67,7 @@ function parseReceipts(pdf,fileName='Comprovantes RFB.pdf'){
  }
  return {receipts,reviews};
 }
-function keyForLine(line,receipt){return line.revenueCode==='0561'&&/31\/12\/2025|12\/2025/.test(receipt.apuracao)?'0561|2025-12':line.revenueCode;}
+function keyForLine(line,receipt){return line.revenueCode==='0561'&&String(receipt.apuracao||'').trim()==='31/12/2025'?'0561|2025-12':line.revenueCode;}
 function codeFor(company,line,receipt){
  const valid=new Set((company.plan||[]).filter(p=>p.analytic).map(p=>String(p.code)));
  const rules=company.taxRules||[];
@@ -90,7 +90,8 @@ function suggestedLines(company,receipts){
  return all;
 }
 function matches(company,period,receipts){
- const existing=(company.taxSplits||[]).filter(x=>x.period===period&&x.status==='CONFIRMADA');
+ const liveMovements=new Set((company.movements||[]).map(m=>m.id));
+ const existing=(company.taxSplits||[]).filter(x=>x.period===period&&x.status==='CONFIRMADA'&&liveMovements.has(x.movementId));
  const already=new Set(existing.flatMap(x=>x.receiptIds||[]));
  const accounts=new Map((company.accounts||[]).map(a=>[a.id,a]));
  const bankMovements=(company.movements||[]).filter(m=>m.date?.startsWith(period)&&m.cents<0&&m.status!=='PENDENTE_DUPLICIDADE');
@@ -137,7 +138,7 @@ function confirm(company,p){
  const account=(company.accounts||[]).find(a=>a.id===movement.accountId),bank=String(account?.chartCode||'');
  if(!bank||bank!==p.bankCode||!company.plan.some(x=>x.analytic&&String(x.code)===bank))throw Error('Código bancário divergente do plano.');
  const ids=p.receipts.map(r=>r.id);
- if((company.taxSplits||[]).some(x=>(x.receiptIds||[]).some(id=>ids.includes(id))))throw Error('Um comprovante já foi utilizado.');
+ if((company.taxSplits||[]).some(x=>(company.movements||[]).some(m=>m.id===x.movementId)&&(x.receiptIds||[]).some(id=>ids.includes(id))))throw Error('Um comprovante já foi utilizado.');
  const total=p.lines.reduce((n,l)=>n+l.cents,0);
  if(!p.lines.length||total!==-movement.cents||p.lines.some(l=>!l.code||l.code===bank||!company.plan.some(a=>a.analytic&&String(a.code)===String(l.code))))
   throw Error('Diferença de total ou código contábil não confirmado. Corrija a biblioteca de códigos.');
