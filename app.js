@@ -226,7 +226,7 @@ function renderSelection(){
 }
 
 function showPage(page){currentPage=page;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('visible',x.id==='p-'+page));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===page));const titles={pendencias:['Central de pendências','REVISÃO','Investigue as ocorrências da empresa e competência selecionadas.'],controle:['Controle de conciliações','ACOMPANHAMENTO','Registre e consulte os trabalhos por empresa e competência.'],visao:['Visão geral','PAINEL OPERACIONAL','Selecione uma empresa e acompanhe o andamento da competência.'],empresas:['Empresas e plano de contas','CONFIGURAÇÃO INICIAL','Cada empresa utiliza seu próprio plano, seus bancos e suas regras.'],importar:['Importar extratos e Razão','PROCESSAMENTO DE DOCUMENTOS','O plano de contas é obrigatório antes dos extratos.'],movimentos:['Classificações','MOVIMENTAÇÕES','Conferência das contrapartidas e regras da empresa selecionada.'],transferencias:['Transferências entre contas','CRUZAMENTO DE BANCOS','Propostas que exigem confirmação da titularidade.'],conciliacao:['Conciliação e exportação','RAZÃO CONTÁBIL','Somente lançamentos confirmados e não encontrados no Razão.'],revisao:['Revisão de leitura','CONTROLE DE PENDÊNCIAS','Nenhuma linha ilegível deve desaparecer.']} ;const [title,eye,sub]=titles[page]||titles.visao;$('#pageTitle').textContent=title;$('#eyebrow').textContent=eye;$('#subtitle').textContent=sub;render()}
-function render(){const c=current();$('#statementButton').disabled=!canImport(c);$('#importPlanButton').disabled=false;$('#addBank').disabled=!c||!c.plan.length;$('#addRule').disabled=!c||!c.plan.length;$('#ledgerButton').disabled=!c;$('#financialButton').disabled=!c;$('#matchFinancial').disabled=!c;$('#downloadCsv').disabled=!c;$('#downloadExcel').disabled=!c;$('#downloadStatement').disabled=!c;const resetButton=$('#resetAll');if(resetButton)resetButton.disabled=!c;renderSetup();renderDashboard();renderImport();renderMovements();renderTransfers();renderRecon();renderAuditoria();renderReviews();renderAssistente();window.ConciliaTracking?.render();window.ConciliaReview?.render();}
+function render(){const c=current();if(c)autoLinkBankCodes(c);$('#statementButton').disabled=!canImport(c);$('#importPlanButton').disabled=false;$('#addBank').disabled=!c||!c.plan.length;$('#addRule').disabled=!c||!c.plan.length;$('#ledgerButton').disabled=!c;$('#financialButton').disabled=!c;$('#matchFinancial').disabled=!c;$('#downloadCsv').disabled=!c;$('#downloadExcel').disabled=!c;$('#downloadStatement').disabled=!c;const resetButton=$('#resetAll');if(resetButton)resetButton.disabled=!c;renderSetup();renderDashboard();renderImport();renderMovements();renderTransfers();renderRecon();renderAuditoria();renderReviews();renderAssistente();window.ConciliaTracking?.render();window.ConciliaReview?.render();}
 function renderDashboard(){const c=current();if(!c){$('#stepBanner').innerHTML='<strong>Primeiro passo:</strong> importe o plano de contas; a empresa será criada automaticamente.';$('#metrics').innerHTML='';$('#steps').innerHTML='';$('#recentFiles').innerHTML=empty('Sem empresas cadastradas.');return}
   const mv=Core.periodMovements(c,period);const balance=Core.reconcile(c,period);const acc=new Set(mv.map(x=>x.accountId));const confirmed=balance.checked.filter(x=>x.recon==='CONCILIADO').length;
   const availablePeriods=[...new Set(c.imports.filter(x=>x.type==='EXTRATO').flatMap(x=>x.periods||[]))].sort().reverse();
@@ -352,16 +352,49 @@ function bankPlanCandidates(c,bank){
  if(!aliases)return [];
  return (c.plan||[]).filter(a=>{
   if(!a.analytic)return false;
-  const d=Core.norm(a.description),classification=String(a.classification||'');
-  if(classification&&!classification.startsWith('1.1.1.02.'))return false;
-  if(/emprestimo|financiamento|cartao|aplicacao|rendimento|tarifa|despesa|fundofixo/.test(d))return false;
+  const d=Core.norm(a.description);
+  // O código interno da conta é variável por empresa. NÃO exigir prefixo fixo
+  // "1.1.1.02." nem confundir aplicação, empréstimo ou receita com banco.
+  if(/emprestimo|financiamento|cartao|aplicacao|rendimento|tarifa|despesa|fundofixo|receita/.test(d))return false;
   return aliases.some(x=>d.includes(x));
  });
 }
-function guessBankAccount(c,bank){
+function bankAccountDigits(value){
+ const t=String(value||'');
+ const match=t.match(/(?:C\/?C|CONTA(?:\s+CORRENTE)?|CTA)\s*[:.\-]?\s*(\d[\d.\-\/ ]{2,18}\d)/i);
+ const raw=match?.[1]||'';
+ return raw.replace(/\D/g,'');
+}
+function bankStatementDigits(text){
+ const t=String(text||'').slice(0,1800);
+ const match=t.match(/(?:CONTA(?:\s+CORRENTE)?|C\/?C|CTA)\s*[:.\-]?\s*(\d[\d.\-\/ ]{2,18}\d)/i);
+ return (match?.[1]||'').replace(/\D/g,'');
+}
+function bankCodeFromPlan(c,bank,identity=''){
  const matches=bankPlanCandidates(c,bank);
- // Nunca escolher uma conta ao acaso se houver múltiplas contas analíticas do banco.
- return matches.length===1?String(matches[0].code):'';
+ if(matches.length===1)return String(matches[0].code);
+ if(matches.length<2)return '';
+ const digits=bankStatementDigits(identity);
+ if(digits.length<5)return '';
+ const suffix=digits.slice(-Math.min(digits.length,7));
+ const byAccount=matches.filter(p=>{
+  const d=bankAccountDigits(p.description);
+  return d.length>=5&&(d.endsWith(suffix)||suffix.endsWith(d.slice(-Math.min(d.length,7))));
+ });
+ return byAccount.length===1?String(byAccount[0].code):'';
+}
+function guessBankAccount(c,bank,identity=''){return bankCodeFromPlan(c,bank,identity)}
+function autoLinkBankCodes(c){
+ let linked=0;
+ for(const account of c.accounts||[]){
+  if(c.plan.some(p=>p.analytic&&String(p.code)===String(account.chartCode)))continue;
+  const imports=(c.imports||[]).filter(i=>i.type==='EXTRATO'&&i.accountId===account.id);
+  // Nunca escolher arbitrariamente quando o plano possui mais de uma conta do banco.
+  const code=bankCodeFromPlan(c,account.bank,account.label+' '+imports.map(i=>i.name||'').join(' '));
+  if(!code)continue;
+  account.chartCode=code;linked++;
+ }
+ return linked;
 }
 // Memória de classificações confirmadas. Apenas padrões específicos da empresa e banco;
 // PIX/boletos genéricos sem identificação de contraparte nunca viram aprendizado automático.
@@ -861,16 +894,24 @@ if(ext==='pdf'){
    throw Error('O PDF contém CNPJ diferente do cliente selecionado. Selecione a empresa correta.');
  if(!header.cnpj)identityWarning='PDF sem CNPJ identificável. Confira titular e conta bancária da empresa selecionada.';
 }
+// Resolver vínculos de extratos antigos ANTES de escolher destino da importação.
+autoLinkBankCodes(c);
 let newAccount=false;
 let account=c.accounts.find(a=>a.id===selectedAccount);
 if(account&&bank&&Core.norm(account.bank)!==Core.norm(bank))
  throw Error('Banco selecionado difere do encontrado no extrato.');
 if(!account){
- const possible=c.accounts.filter(x=>Core.norm(x.bank)===Core.norm(bank)&&c.plan.some(p=>String(p.code)===String(x.chartCode)&&p.analytic));
+ const code=bankCodeFromPlan(c,bank,(pdf?.text||'').slice(0,2000)+' '+file.name);
+ const possible=c.accounts.filter(x=>Core.norm(x.bank)===Core.norm(bank)&&(code?String(x.chartCode)===code:c.plan.some(p=>String(p.code)===String(x.chartCode)&&p.analytic)));
  if(possible.length===1)account=possible[0];
+ // Reutilizar conta pendente antiga (sem código) quando for a única do banco.
+ if(!account&&code){
+  const pending=c.accounts.filter(x=>Core.norm(x.bank)===Core.norm(bank)&&!c.plan.some(p=>p.analytic&&String(p.code)===String(x.chartCode)));
+  if(pending.length===1){account=pending[0];account.chartCode=code;}
+ }
 }
 if(!account){
- const code=guessBankAccount(c,bank);
+ const code=guessBankAccount(c,bank,(pdf?.text||'').slice(0,2000)+' '+file.name);
  if(bank&&code){account={id:Core.id(),bank,label:'Identificação automática do extrato',chartCode:code};newAccount=true;}
 }
 if(!account){
@@ -995,9 +1036,9 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  say('Triagem concluída. Confira Classificações e Transferências antes de exportar.');});
  $('#findTransfers').onclick=()=>action(async()=>{const c=getCompany(),s=Core.transferSuggestions(c,period);say(`${s.proposals.length} par(es) com correspondência única; ${s.ambiguous.length} ambíguos. Nenhuma transferência foi confirmada automaticamente.`);renderTransfers()});
  $('#runRecon').onclick=()=>action(()=>{const c=getCompany();renderRecon();renderAuditoria();showPage('conciliacao');$('#auditTable')?.scrollIntoView({behavior:'smooth',block:'start'});const rec=Core.reconcile(c,period);say(`${rec.checked.filter(x=>x.recon==='CONCILIADO').length} lançamento(s) conciliados; ${rec.missingLedger.length} registros do Razão sem vínculo.`)});
- $('#downloadStatement').onclick=()=>action(()=>{const c=getCompany();const data=window.ConciliaExcel.reportStatement(Core,c,period);const filename='EXTRATO_CODIFICADO_'+(c.cnpj||Core.norm(c.name)).replace(/[^A-Za-z0-9]/g,'')+'_'+period+'.xlsx';window.ConciliaExcel.download(data,filename);say('Extrato gerado sem Razão. Confira os códigos pendentes antes de lançar no Domínio.');});
- $('#downloadExcel').onclick=()=>action(()=>{const c=getCompany();const data=window.ConciliaExcel.report(Core,c,period);const filename='CONFERENCIA_'+(c.cnpj||Core.norm(c.name)).replace(/[^A-Za-z0-9]/g,'')+'_'+period+'.xlsx';window.ConciliaExcel.download(data,filename);say(`Excel gerado: ${data.counts.movements} movimentações, ${data.counts.ready} lançamentos prontos, ${data.counts.suggested} sugestões a confirmar.`);});
- $('#downloadPdf').onclick=()=>{try{const c=getCompany();const html=window.ConciliaAssistente.relatorioHtml(Core,c,period);const file=new Blob([html],{type:'text/html;charset=utf-8'});const url=URL.createObjectURL(file);const w=window.open(url,'_blank');if(!w){URL.revokeObjectURL(url);throw Error('O navegador bloqueou a janela do PDF. Permita pop-ups para este site e tente novamente.');}setTimeout(()=>URL.revokeObjectURL(url),60000);say('Relatório aberto. Escolha Imprimir → Salvar como PDF.');}catch(e){say(e.message,true)}};
+ $('#downloadStatement').onclick=()=>action(()=>{const c=getCompany();autoLinkBankCodes(c);const data=window.ConciliaExcel.reportStatement(Core,c,period);const filename='EXTRATO_CODIFICADO_'+(c.cnpj||Core.norm(c.name)).replace(/[^A-Za-z0-9]/g,'')+'_'+period+'.xlsx';window.ConciliaExcel.download(data,filename);say('Extrato gerado sem Razão. Confira os códigos pendentes antes de lançar no Domínio.');});
+ $('#downloadExcel').onclick=()=>action(()=>{const c=getCompany();autoLinkBankCodes(c);const data=window.ConciliaExcel.report(Core,c,period);const filename='CONFERENCIA_'+(c.cnpj||Core.norm(c.name)).replace(/[^A-Za-z0-9]/g,'')+'_'+period+'.xlsx';window.ConciliaExcel.download(data,filename);say(`Excel gerado: ${data.counts.movements} movimentações, ${data.counts.ready} lançamentos prontos, ${data.counts.suggested} sugestões a confirmar.`);});
+ $('#downloadPdf').onclick=()=>{try{const c=getCompany();autoLinkBankCodes(c);const html=window.ConciliaAssistente.relatorioHtml(Core,c,period);const file=new Blob([html],{type:'text/html;charset=utf-8'});const url=URL.createObjectURL(file);const w=window.open(url,'_blank');if(!w){URL.revokeObjectURL(url);throw Error('O navegador bloqueou a janela do PDF. Permita pop-ups para este site e tente novamente.');}setTimeout(()=>URL.revokeObjectURL(url),60000);say('Relatório aberto. Escolha Imprimir → Salvar como PDF.');}catch(e){say(e.message,true)}};
  $('#downloadCsv').onclick=()=>action(()=>{const c=getCompany(),audit=window.ConciliaAssistente.analisar(Core,c,period);if(!audit.exportable)throw Error('Prévia de lançamentos bloqueada: confira contrapartidas, extratos, saldos, duplicidades, transferências e Razão antes de exportar. Excel de conferência e PDF seguem disponíveis.');const out=Core.previewExport(c,period);if(c.imports.some(i=>i.type==='EXTRATO'&&i.periods.includes(period)&&i.balanceCheck?.status==='DIVERGENTE'))throw Error('Extrato com diferença de saldos: resolva a divergência antes de exportar.');if(out.errors.length)throw Error(`Há ${out.errors.length} erro(s) de código contábil. Corrija antes de exportar.`);if(!c.ledger.some(l=>l.period===period))throw Error('Importe ou atualize o Razão desta competência antes de liberar a exportação.');if(!out.rows.length)throw Error('Não há lançamentos confirmados e não encontrados no Razão para exportar.');if(!confirm(`Exportar ${out.rows.length} lançamento(s) em prévia CSV? Valide o arquivo antes de importar no Domínio.`))return;putFile(null,`PREVIA_${c.dominio}_${period}.csv`,'\uFEFF'+Core.exportCsv(out.rows));say('Prévia CSV exportada. Ainda não homologada no Domínio.')});
  document.addEventListener('click',e=>{const button=e.target.closest('[data-balance-check]');if(!button)return;action(async()=>{
   const c=getCompany(),item=c.imports.find(i=>i.id===button.dataset.balanceCheck);
