@@ -46,7 +46,8 @@ function report(core,company,period){
    const proposed=!!(!approved&&m.status!=='PENDENTE_DUPLICIDADE'&&!(m.historicalCodeConflict||[]).length&&plan.get(suggestedCode)?.analytic);
    const tr=transferPairs.get(m.id);
    const journal=journalBySource.get(m.id);
-   let debit='',credit='',situation='',reconStatus='NÃO VERIFICADO',notes='';
+   // Regra obrigatória independente do Razão: banco no Débito se entrada, Crédito se saída.
+   let debit=m.cents>0?bankCode:'',credit=m.cents<0?bankCode:'',situation='',reconStatus='NÃO VERIFICADO',notes='';
    if(!bankCode){situation='BLOQUEADO — BANCO SEM CÓDIGO VÁLIDO';notes='Vincule uma conta analítica do plano desta empresa.';blocked++;}
    else if(m.status==='PENDENTE_DUPLICIDADE'){situation='PENDENTE — POSSÍVEL DUPLICIDADE';notes='Nenhuma contrapartida aprovada até resolver a duplicidade.';blocked++;}
    else if(tr&&journal){debit=String(journal.debit);credit=String(journal.credit);situation='TRANSFERÊNCIA CONFIRMADA';reconStatus=hasLedger?journal.recon.replaceAll('_',' '):'RAZÃO NÃO IMPORTADO';notes=tr.type==='ORIGEM'?'Par bancário vinculado; lançamento único na aba Prontos.':'Movimento correspondente da transferência; não contabilizar novamente.';confirmed++;}
@@ -62,8 +63,8 @@ function report(core,company,period){
   const bank=accounts.get(m.accountId),bankCode=bank&&plan.get(String(bank.chartCode))?.analytic?String(bank.chartCode):'';
   const cp=m.status==='CONFIRMADO'?String(m.counterpart||''):String(m.suggested||'');
   const valid=!!cp&&!!plan.get(cp)?.analytic&&cp!==bankCode&&(m.status==='CONFIRMADO'||!(m.historicalCodeConflict||[]).length);
-  const debit=valid?(m.cents>0?bankCode:cp):m.cents>0?bankCode:'';
-  const credit=valid?(m.cents>0?cp:bankCode):m.cents<0?bankCode:'';
+  const debit=m.cents>0?bankCode:(valid?cp:'');
+  const credit=m.cents<0?bankCode:(valid?cp:'');
   const match=m.financialMatch||'NÃO ANALISADO';
   const status=m.status==='CONFIRMADO'?'CONFIRMADO':m.status==='PENDENTE_DUPLICIDADE'?'REVISAR DUPLICIDADE':valid?'CÓDIGO SUGERIDO — CONFERIR':'CÓDIGO PENDENTE';
   const possible=(m.financialCandidates||[]).map(e=>(e.date||'')+' | '+(e.description||'')+' | linha '+e.sourceRow).join('; ');
@@ -80,7 +81,8 @@ function report(core,company,period){
   const effectiveCp=confirmed?cp:proposed?proposedCode:'';
   const debit=effectiveCp?(m.cents>0?bankCode:effectiveCp):(m.cents>0?bankCode:'');
   const credit=effectiveCp?(m.cents>0?effectiveCp:bankCode):(m.cents<0?bankCode:'');
-  bankOnly.push([dateBR(m.date),duplicate?'':debit,duplicate?'':credit,number(m.cents/100),formulaText(cleanStatementHistory(m))]);
+  // Mesmo com duplicidade ou sem Razão, preservar o lado bancário no extrato.
+  bankOnly.push([dateBR(m.date),debit,credit,number(m.cents/100),formulaText(cleanStatementHistory(m))]);
  }
  const ready=[['Data','Cód. Conta Débito','Cód. Conta Crédito','Valor','Complemento Histórico']];
  const periodImports=(company.imports||[]).filter(i=>i.type==="EXTRATO"&&i.periods?.includes(period));
