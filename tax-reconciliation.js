@@ -19,6 +19,36 @@ function defaults(){
   {id:'rf-dare',key:'DARE-REFERENCIA',description:'DARE — Impostos diversos (somente consulta)',code:'3505',referenceOnly:true}
  ];
 }
+// O PDF da RFB pode deslocar verticalmente os números da linha "Totais"
+// em até alguns pontos. Pdf.extractPdf preserva (x,y,page) de cada trecho.
+function totalFromGeometry(items,page){
+ const onPage=(items||[]).filter(x=>x.page===page&&Number.isFinite(x.x)&&Number.isFinite(x.y));
+ const labels=onPage.filter(x=>/^Totais\b/i.test(t(x.str||x.s)));
+ for(const label of labels){
+  const nearby=onPage.filter(x=>x!==label&&x.x>label.x+65&&Math.abs(x.y-label.y)<=8);
+  const amounts=[];
+  for(const item of nearby){
+   const raw=t(item.str||item.s);
+   const matches=[...raw.matchAll(/(?:^|[\s])(-?[\d.]+,\d{2})(?=$|\s)/g)];
+   for(const match of matches)amounts.push({x:item.x,amount:money(match[1])});
+  }
+  if(amounts.length>=4){
+   amounts.sort((a,b)=>a.x-b.x);
+   const rightmost=amounts[amounts.length-1].amount;
+   if(Number.isInteger(rightmost)&&rightmost>=0)return rightmost;
+  }
+ }
+ return null;
+}
+function totalFromNearbyLines(lines,index){
+ if(index<0)return null;
+ // Fallback para PDFs sem coordenadas: quatro colunas monetárias consecutivas
+ // após o rótulo "Totais", antes de qualquer outra seção do comprovante.
+ const sample=lines.slice(index,index+6).join(' ');
+ const prefix=sample.split(/Comprovante emitido|Banco\s+Data|Ag[eê]ncia\s+Estabelecimento/i)[0];
+ const values=[...prefix.matchAll(/(?:^|\s)([\d.]+,\d{2})(?=\s|$)/g)].map(x=>money(x[1]));
+ return values.length===4&&values.every(Number.isInteger)?values[3]:null;
+}
 function parseReceipts(pdf,fileName='Comprovantes RFB.pdf'){
  const groups=new Map(),reviews=[];
  const pages=new Map();
@@ -49,7 +79,7 @@ function parseReceipts(pdf,fileName='Comprovantes RFB.pdf'){
   }
   const totalLine=end>=0?lines[end]:'';
   const totalMatch=totalLine.match(/([\d.]+,\d{2})\s*$/);
-  const declared=totalMatch?money(totalMatch[1]):null;
+  const declared=totalFromGeometry(pdf.items,page)??(totalMatch?money(totalMatch[1]):totalFromNearbyLines(lines,end));
   if(!groups.has(docNo))groups.set(docNo,{id:docNo,type:kind,cnpj:cnpj(documentCnpj),paymentDate:paidDate,apuracao,file:fileName,lines:[],pages:[],declared:null});
   const receipt=groups.get(docNo);
   if(receipt.type!==kind||receipt.cnpj!==cnpj(documentCnpj)||receipt.paymentDate!==paidDate){reviews.push('Documento '+docNo+': páginas divergentes; revisar.');groups.delete(docNo);continue;}
@@ -62,7 +92,7 @@ function parseReceipts(pdf,fileName='Comprovantes RFB.pdf'){
   const total=receipt.lines.reduce((sum,l)=>sum+l.cents,0);
   receipt.totalCents=total;
   receipt.valid=receipt.lines.length>0&&receipt.declared!==null&&total===receipt.declared&&receipt.lines.every(l=>l.cents>0);
-  if(!receipt.valid)reviews.push('Documento '+receipt.id+': soma dos componentes ('+(total/100).toFixed(2)+') não confere com o total do comprovante ('+((receipt.declared||0)/100).toFixed(2)+').');
+  if(!receipt.valid)reviews.push('Documento '+receipt.id+': '+(receipt.declared===null?'total do comprovante não localizado no PDF; não é seguro confirmar':'soma dos componentes ('+(total/100).toFixed(2)+') não confere com o total do comprovante ('+(receipt.declared/100).toFixed(2)+')')+'.');
   receipts.push(receipt);
  }
  return {receipts,reviews};
