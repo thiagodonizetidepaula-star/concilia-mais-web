@@ -109,7 +109,7 @@ function parseNubank(pdf,origin,accountId,Core){const movements=[],reviews=[],ro
  balanceCheck={status:Math.abs(diff)<=1?'OK':'DIVERGENTE',initial,final,net:sum,difference:diff,count:movements.length,reason:'Conferência de totais inicial/final Nubank'};}
  return{movements,reviews,balanceCheck,format:'PDF_NUBANK',parsedCount:movements.length};
 }
-function parseDominioLedgerPdf(pdf,origin,Core){const all=pdf.items||[],pages=pdf.pages||1,entries=[],reviews=[],summary=[];let bankCode='';
+function parseDominioLedgerPdf(pdf,origin,Core){const all=pdf.items||[],pages=pdf.pages||1,entries=[],reviews=[],partialEntries=[],summary=[];let bankCode='';
  for(let p=1;p<=pages;p++){
  const lines=linesOf(pdf).filter(x=>x.page===p).map(x=>x.s);
  const header=lines.join(' ');
@@ -122,7 +122,17 @@ function parseDominioLedgerPdf(pdf,origin,Core){const all=pdf.items||[],pages=pd
   const candidates=words.filter(x=>Math.abs(x.y-anchor.y)<3.5);
   const field=(lo,hi)=>candidates.filter(x=>x.x>=lo&&x.x<hi).sort((x,y)=>x.x-y.x).map(x=>x.str.trim()).filter(Boolean).join(' ').trim();
   const number=field(56,80),history=field(80,266),counterpart=field(268,325),debitText=field(328,380),creditText=field(381,441);
-  if(!/^\d+$/.test(number)||!/^\d+$/.test(counterpart)){reviews.push({origin,line:'p'+p+'@'+Math.round(anchor.y),content:anchor.str+' '+number+' '+history+' '+counterpart,reason:'Razão: número ou contrapartida ausente'});continue}
+  // Alguns Razões do Domínio omitem a Cta.C.Part. na impressão.
+  // Reconhecer data/histórico/valor dessas linhas para diagnóstico, mas NUNCA inventar débito/crédito.
+  if(!/^\d+$/.test(number)||!/^\d+$/.test(counterpart)){
+   const amountText=debitText||creditText,validSide=!!debitText!==!!creditText;
+   const date=dateIso(anchor.str);
+   let cents=0;try{if(amountText)cents=Math.abs(money(amountText,Core));}catch{}
+   const missingCp=/^\d+$/.test(number)&&!counterpart&&validSide&&!!date&&cents>0;
+   if(missingCp)partialEntries.push({date,documentNo:number,history,cents,bankCode,side:creditText?'C':'D',page:p,origin,line:'p'+p+'@'+Math.round(anchor.y)});
+   reviews.push({origin,line:'p'+p+'@'+Math.round(anchor.y),content:[anchor.str,number,history,amountText,missingCp?'Contrapartida não informada no PDF':''].filter(Boolean).join(' | '),reason:missingCp?'Razão: lançamento identificado, mas coluna Cta.C.Part. vazia; não é possível conciliar sem o código de contrapartida':'Razão: número ou contrapartida ausente'});
+   continue;
+  }
   if(!!debitText===!!creditText){reviews.push({origin,line:'p'+p+'@'+Math.round(anchor.y),content:[number,history,debitText,creditText].join(' | '),reason:'Razão: débito/crédito ausente ou duplo'});continue}
   const amountText=debitText||creditText;
   try{
@@ -132,12 +142,12 @@ function parseDominioLedgerPdf(pdf,origin,Core){const all=pdf.items||[],pages=pd
   }catch(e){reviews.push({origin,line:'p'+p,content:amountText,reason:e.message})}
  }
  }
- if(!entries.length)reviews.push({origin,line:'?',content:'Documento sem lançamentos interpretáveis',reason:'Razão Domínio sem movimentos válidos'});
+ if(!entries.length&&!partialEntries.length)reviews.push({origin,line:'?',content:'Documento sem lançamentos interpretáveis',reason:'Razão Domínio sem movimentos válidos'});
  const openingText=linesOf(pdf).find(r=>/SALDO ANTERIOR/i.test(r.s))?.s||'';
  const openMatch=openingText.match(/(\d{1,3}(?:\.\d{3})*|\d+),(\d{2})\s*([DC])/i);
  let openingBalance=null;
  if(openMatch){openingBalance=money(openMatch[1]+','+openMatch[2],Core)*(openMatch[3].toUpperCase()==='C'?-1:1)}
- return{entries,reviews,format:'RAZAO_PDF_DOMINIO',accountCode:bankCode,openingBalance};
+ return{entries,reviews,partialEntries,format:'RAZAO_PDF_DOMINIO',accountCode:bankCode,openingBalance};
 }
 function parseCaixa(pdf,origin,accountId,Core){
  const movements=[],reviews=[],dailyBalances=[];
