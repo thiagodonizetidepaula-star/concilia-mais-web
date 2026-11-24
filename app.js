@@ -427,7 +427,7 @@ function learnConfirmed(c,m,cp,source='MANUAL'){
   rule.codes=rule.codes||{};
   rule.codes[String(cp)]=(rule.codes[String(cp)]||0)+1;
   rule.examples=Object.values(rule.codes).reduce((n,v)=>n+v,0);
-  if(source==='IMPORTACAO_VALIDADA')rule.verifiedExamples=(rule.verifiedExamples||0)+1;
+  if(source==='IMPORTACAO_VALIDADA'||source==='MANUAL')rule.verifiedExamples=(rule.verifiedExamples||0)+1;
   rule.updatedAt=new Date().toISOString();
  }
  return true;
