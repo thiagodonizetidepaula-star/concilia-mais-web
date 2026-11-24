@@ -997,8 +997,22 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
    let result,priorExamples=[],fileSha='';
    if(ext==='xlsx'||ext==='xls'){
     if(!window.XLSX?.read)throw Error('Leitor XLSX indisponível.');
-    const workbook=window.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
-    result=Learning.proposals(c,activePeriod,Learning.parseExcel(workbook),'EXCEL');
+    const bytes=await file.arrayBuffer();
+    const workbook=window.XLSX.read(bytes,{type:'array',cellDates:false});
+    if(workbook.Sheets?.Extrato_Classificado){
+     result=Learning.proposals(c,activePeriod,Learning.parseExcel(workbook),'EXCEL');
+    }else{
+     fileSha=await hash(bytes);
+     const ledger=Learning.parseLedgerExcel(workbook);
+     result=Learning.ledgerProposals(c,activePeriod,ledger.entries.filter(row=>row.date?.startsWith(activePeriod)));
+     const history=Learning.historicalLedgerExamples(c,activePeriod,ledger.entries);
+     priorExamples=history.examples;
+     result.issues.push(...ledger.issues,...history.issues);
+     if(priorExamples.length&&(c.learningImports||[]).some(entry=>entry.sha===fileSha)){
+      result.issues.push('Este Razão Excel já foi utilizado para aprendizado nesta empresa.');
+      priorExamples=[];
+     }
+    }
    }else if(ext==='pdf'){
     const doc=await Pdf.extractPdf(file);
     const docCnpj=window.ConciliaLayouts.documentCnpj(doc);
