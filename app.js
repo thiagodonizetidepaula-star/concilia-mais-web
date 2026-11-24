@@ -412,29 +412,43 @@ function learningKey(c,m){
  const direction=m.cents>0?'ENTRADA':'SAIDA';
  return bank+'|'+direction+'|'+normalized;
 }
-function learnConfirmed(c,m,cp){
- const key=learningKey(c,m);
- if(!key)return false;
+function learnedKeys(c,m){
+ const primary=learningKey(c,m);
+ const original=learningKey(c,{...m,financialDescription:''});
+ return [...new Set([primary,original].filter(Boolean))];
+}
+function learnConfirmed(c,m,cp,source='MANUAL'){
+ const keys=learnedKeys(c,m);
+ if(!keys.length)return false;
  c.learnedCodes=c.learnedCodes||[];
- let rule=c.learnedCodes.find(r=>r.key===key);
- if(!rule){rule={key,bank:financialBank(c.accounts.find(a=>a.id===m.accountId)?.bank),label:m.financialDescription||m.history,codes:{},examples:0,updatedAt:''};c.learnedCodes.push(rule);}
- rule.codes=rule.codes||{};
- rule.codes[String(cp)]=(rule.codes[String(cp)]||0)+1;
- rule.examples=Object.values(rule.codes).reduce((n,v)=>n+v,0);
- rule.updatedAt=new Date().toISOString();
+ for(const key of keys){
+  let rule=c.learnedCodes.find(r=>r.key===key);
+  if(!rule){rule={key,bank:financialBank(c.accounts.find(a=>a.id===m.accountId)?.bank),label:key===keys[0]?(m.financialDescription||m.history):m.history,codes:{},examples:0,verifiedExamples:0,updatedAt:''};c.learnedCodes.push(rule);}
+  rule.codes=rule.codes||{};
+  rule.codes[String(cp)]=(rule.codes[String(cp)]||0)+1;
+  rule.examples=Object.values(rule.codes).reduce((n,v)=>n+v,0);
+  if(source==='IMPORTACAO_VALIDADA')rule.verifiedExamples=(rule.verifiedExamples||0)+1;
+  rule.updatedAt=new Date().toISOString();
+ }
  return true;
 }
 function applyLearnedCode(c,m){
  if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||m.financialMatch==='AMBIGUA'||m.financialMatch==='SEM_CORRESPONDENCIA')return false;
  if(m.suggested&&m.confidence&&!String(m.confidence).startsWith('Aprendizado'))return false;
- const key=learningKey(c,m);
- const rule=(c.learnedCodes||[]).find(x=>x.key===key);
- if(!rule)return false;
- const codes=Object.entries(rule.codes||{}).filter(([code])=>c.plan.some(p=>String(p.code)===code&&p.analytic)&&!c.accounts.some(a=>String(a.chartCode)===code));
- const total=Object.values(rule.codes||{}).reduce((n,v)=>n+v,0);
- if(codes.length!==1||total<2||codes[0][1]!==total)return false;
- m.suggested=codes[0][0];
- m.confidence='Aprendizado: '+total+' confirmações anteriores — exige revisão';
+ const keys=learnedKeys(c,m);
+ const evidence=[];
+ for(const key of keys){
+  const rule=(c.learnedCodes||[]).find(x=>x.key===key);
+  if(!rule)continue;
+  const codes=Object.entries(rule.codes||{}).filter(([code])=>c.plan.some(p=>String(p.code)===code&&p.analytic)&&!c.accounts.some(a=>String(a.chartCode)===code));
+  const total=Object.values(rule.codes||{}).reduce((n,v)=>n+v,0);
+  if(codes.length!==1||codes[0][1]!==total||(!rule.verifiedExamples&&total<2))continue;
+  evidence.push({code:codes[0][0],total,verified:!!rule.verifiedExamples});
+ }
+ const distinct=[...new Set(evidence.map(e=>e.code))];
+ if(distinct.length!==1)return false;
+ m.suggested=distinct[0];
+ m.confidence='Aprendizado da empresa: '+Math.max(...evidence.map(e=>e.total))+' ocorrência(s) — exige confirmação';
  return true;
 }
 function applyLearningPeriod(c,ym){
@@ -969,6 +983,54 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  else if(bad.length) say(`Falha ao importar ${bad[0].name}: ${bad[0].error}`,true);
  else say(`${ok.length} novo(s), ${skipped.length} já importado(s), ${bad.length} falha(s). ${total} novas movimentações.`);
  }catch(err){setStatementStatus('error','IMPORTAÇÃO NÃO CONCLUÍDA: '+(err.message||String(err))+'. Confira o arquivo ou a empresa e tente novamente.');throw err;}})};
+ $('#learnClassificationsForm').onsubmit=e=>{e.preventDefault();const form=e.currentTarget;action(async()=>{
+  const c=getCompany(),file=form.elements.file.files?.[0],status=$('#learnClassificationsStatus'),button=$('#learnClassificationsButton');
+  if(!file)throw Error('Selecione o Excel preenchido ou o Razão atualizado.');
+  const activeCompany=c.id,activePeriod=period;
+  button.disabled=true;
+  const show=(tone,message)=>{status.className='import-status '+tone;status.textContent=message;};
+  show('working','Verificando códigos, banco, datas e valores...');
+  try{
+   const ext=fileExt(file.name),Learning=window.ConciliaLearning;
+   if(!Learning)throw Error('Módulo de aprendizado não carregado. Atualize o navegador.');
+   let result;
+   if(ext==='xlsx'||ext==='xls'){
+    if(!window.XLSX?.read)throw Error('Leitor XLSX indisponível.');
+    const workbook=window.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
+    result=Learning.proposals(c,activePeriod,Learning.parseExcel(workbook),'EXCEL');
+   }else if(ext==='pdf'){
+    const doc=await Pdf.extractPdf(file);
+    const docCnpj=window.ConciliaLayouts.documentCnpj(doc);
+    if(!docCnpj||!c.cnpj||docCnpj!==c.cnpj)throw Error('CNPJ do Razão ausente ou diferente da empresa selecionada.');
+    const parsed=window.ConciliaLayouts.parseDominioLedgerPdf(doc,file.name,Core);
+    result=Learning.ledgerProposals(c,activePeriod,parsed.entries||[]);
+    if(parsed.partialEntries?.length)result.issues.push(parsed.partialEntries.length+' lançamento(s) do PDF sem contrapartida não serão aprendidos.');
+   }else throw Error('Importe XLSX, XLS ou PDF do Razão.');
+   const examples=result.issues.slice(0,10).join('\n');
+   if(!result.proposals.length){
+    show('error','Nenhuma classificação segura encontrada para a empresa e competência atuais.'+(examples?'\nRevisões:\n'+examples:''));
+    return;
+   }
+   if(activeCompany!==companyId||activePeriod!==period)throw Error('Empresa ou competência alterada. Inicie a importação novamente.');
+   const sample=result.proposals.slice(0,8).map(x=>x.date+' | '+(x.amount/100).toFixed(2)+' | '+x.history+' → '+x.code).join('\n');
+   const message='CONCILIAR+ — APRENDER CLASSIFICAÇÕES\n\nEmpresa: '+c.name+'\nCompetência: '+activePeriod+'\nArquivo: '+file.name+'\n\n'+result.proposals.length+' classificação(ões) com correspondência única.\n'+result.issues.length+' linha(s) exigem revisão e serão ignoradas.\n\nExemplos:\n'+sample+'\n\nConfirmar códigos encontrados e gravar o aprendizado para esta empresa?';
+   if(!confirm(message)){show('working','Importação cancelada. Nenhum lançamento foi modificado.');return;}
+   let updated=0,learned=0;
+   for(const item of result.proposals){
+    const m=c.movements.find(x=>x.id===item.movementId);
+    if(!m||m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE')continue;
+    const acc=c.accounts.find(a=>a.id===m.accountId),bank=String(acc?.chartCode||'');
+    if(!c.plan.some(p=>p.analytic&&String(p.code)===bank)||!c.plan.some(p=>p.analytic&&String(p.code)===item.code)||item.code===bank)continue;
+    m.counterpart=String(item.code);m.suggested=String(item.code);m.status='CONFIRMADO';
+    m.confidence='Classificação importada e confirmada pelo operador ('+item.source+')';
+    if(learnConfirmed(c,m,item.code,'IMPORTACAO_VALIDADA'))learned++;
+    updated++;
+   }
+   await store('CLASSIFICACOES_APRENDIDAS',file.name+' • '+updated+' lançamentos confirmados, '+learned+' históricos aprendidos, '+result.issues.length+' revisões');
+   show(result.issues.length?'working':'success',updated+' lançamento(s) classificados e '+learned+' histórico(s) aprendido(s) para '+c.name+'. '+result.issues.length+' linha(s) ignoradas para revisão.'+(examples?'\n'+examples:'')+'\nO aprendizado dos próximos meses gera sugestões para conferência.');
+   form.reset();
+  }finally{button.disabled=false;}
+ })};
  $('#importLedger').onsubmit=e=>{e.preventDefault();const form=e.currentTarget;action(async()=>{
  const c=getCompany(),files=Array.from(form.elements.file.files||[]),button=$('#ledgerButton'),status=$('#ledgerStatus'),historic=$('#ledgerMode').value==='reference';
  if(!files.length)throw Error('Selecione um ou mais Razões para importar.');
