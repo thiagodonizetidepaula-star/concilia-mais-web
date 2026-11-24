@@ -1182,7 +1182,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
   });
  });
  const analyzeTaxReceipts=async()=>{
-  const c=getCompany(),Tax=window.ConciliaTax,form=e.currentTarget,files=[...form.elements.file.files||[]];
+  const c=getCompany(),Tax=window.ConciliaTax,form=$('#taxReceiptForm'),files=[...(form?.elements?.file?.files||[])];
   taxReset();
   if(!files.length)throw Error('Selecione ao menos um comprovante.');
   if(files.length>15)throw Error('Selecione até 15 arquivos PDF por análise.');
@@ -1396,7 +1396,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
   await analyzeTaxReceipts();
   say('Triagem e conferência dos comprovantes concluídas. Revise a separação tributária antes de confirmar.');
  }else{
-  taxShow('Triagem concluída. Para conferir tributos, selecione também os comprovantes DARF/DAS em PDF. Nenhum lançamento foi separado automaticamente.');
+  taxShow('Triagem dos extratos e referências concluída. Agora importe os comprovantes DARF/DAS na seção abaixo e clique em Analisar comprovantes e conferir separação. Selecione os PDFs antes de usar Analisar e cruzar documentos para fazer tudo em uma etapa.');
   say('Triagem concluída. Confira Classificações e Transferências antes de exportar.');
  }
 });
