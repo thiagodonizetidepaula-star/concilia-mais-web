@@ -298,7 +298,7 @@ function renderMovements(){
  summary.textContent=ordered.length?list.length+' lançamento(s) deste extrato · '+ordered.length+' extrato(s) na competência '+period:'Nenhuma movimentação nesta competência.';
  const rows=list.map(m=>[
   datePT(m.date),safe(accounts.get(m.accountId)?.bank||'Conta excluída'),`<span title="${safe(movementOriginLabel(m,imports,accounts))}">${safe(imports.get(m.importId)?.name||m.origin||'Origem não identificada')}</span>`,
-  `<span class="fiscal">${safe(m.history)}<div class="subtle">${safe(m.financialDescription?('Controle financeiro: '+String(m.financialDescription||'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.]?\s*/,'').trim()+' ['+(m.financialMatch||'SUGERIDA')+']'):(m.financialMatch==='AMBIGUA'?'Controle financeiro: múltiplas correspondências — revisar':m.party||'Sem contraparte informada'))}</div></span>`,
+  `<span class="fiscal">${safe(m.history)}<div class="subtle">${safe(m.financialDescription?('Controle financeiro: '+String(m.financialDescription||'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.]?\s*/,'').trim()+' ['+(m.financialMatch||'SUGERIDA')+']'):(m.financialMatch==='AMBIGUA'?'Controle financeiro: múltiplas correspondências — revisar':m.party||'Sem contraparte informada'))}${m.historicalDescriptionMatch?'<div class="subtle">'+safe(m.historicalDescriptionMatch)+'</div>':''}</div></span>`,
   `<span class="${m.cents<0?'flag':''}">${currency(m.cents)}</span>`,badge(matched.has(m.id)?'TRANSFERÊNCIA':m.status),
   matched.has(m.id)?'<small>Vínculo confirmado</small>':`<div class="inline-actions"><select id="cp_${safe(m.id)}" ${m.status==='PENDENTE_DUPLICIDADE'?'disabled':''}>${optionsFor(c,m.counterpart||m.suggested)}</select><button data-classify="${safe(m.id)}" ${m.status==='PENDENTE_DUPLICIDADE'?'disabled':''}>Confirmar</button></div>`
  ]);
@@ -595,50 +595,60 @@ function financialMatches(c,ym){
  return {matched,ambiguous,coded,unmatched,shared,grouped,learned,total:entries.length};
 }
 function suggestFromHistoricalLedger(c,ym){
- // Depois do DRE, priorizar exemplos de Razões ANTERIORES da mesma empresa.
- // Nunca validar códigos sem plano, nem classificar transferências automaticamente.
+ // Razão anterior é SOMENTE referência de históricos e de códigos explicitamente conhecidos.
+ // O banco é sempre debitado em entradas e creditado em saídas, mesmo SEM Razão.
  const refs=(c.referenceLedgers||[]).filter(r=>(r.periods||[]).some(p=>p<ym));
  const valid=new Set((c.plan||[]).filter(p=>p.analytic).map(p=>String(p.code)));
  const banks=new Set((c.accounts||[]).map(a=>String(a.chartCode)).filter(x=>valid.has(x)));
  const byId=new Map((c.accounts||[]).map(a=>[a.id,String(a.chartCode)]));
  const norm=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
  const clean=t=>norm(String(t||'').replace(/^\s*\d+(?:\.\d+)*\s*[-–.]?\s*/,'')).replace(/^(?:CRE PIX CH|CRED PIX|DEB PIX CH|ENVIO PIX|PAG BOLETO|PAGAMENTO|COMPRA|CRED TED|ENVIO TED|DEBITO|CREDITO)\s+/,'').trim();
- const generic=new Set(['','CRE PIX CH','CRED PIX','DEB PIX CH','ENVIO PIX','PAG BOLETO','TRANSFERENCIA','PAGAMENTO','RECEBIMENTO']);
- const examples=[[],[]];
- for(const ref of refs)for(const e of ref.entries||[]){
-  const h=clean(e.history);
-  if(generic.has(h)||h.length<5)continue;
-  const debit=String(e.debit),credit=String(e.credit);
-  if(banks.has(debit)&&valid.has(credit)&&!banks.has(credit))examples[1].push({h,cp:credit,period:e.date?.slice(0,7)||''});
-  if(banks.has(credit)&&valid.has(debit)&&!banks.has(debit))examples[0].push({h,cp:debit,period:e.date?.slice(0,7)||''});
+ const generic=new Set(['','CRE PIX CH','CRED PIX','DEB PIX CH','ENVIO PIX','PAG BOLETO','TRANSFERENCIA','PAGAMENTO','RECEBIMENTO','INSS','IR']);
+ // codes: descrições com contrapartida efetivamente identificada; descriptions: apenas evidência textual.
+ const codes=[[],[]],descriptions=[[],[]];
+ for(const ref of refs){
+  for(const e of ref.entries||[]){
+   const h=clean(e.history);if(generic.has(h)||h.length<7)continue;
+   const debit=String(e.debit),credit=String(e.credit),period=e.date?.slice(0,7)||'';
+   if(banks.has(debit)&&valid.has(credit)&&!banks.has(credit))codes[1].push({h,cp:credit,period});
+   if(banks.has(credit)&&valid.has(debit)&&!banks.has(debit))codes[0].push({h,cp:debit,period});
+  }
+  for(const e of ref.partialEntries||[]){
+   const h=clean(e.history);if(generic.has(h)||h.length<7)continue;
+   // D e C correspondem às colunas do Razão (não ao valor assinado do extrato).
+   const side=e.side==='D'?1:e.side==='C'?0:-1;
+   if(side>=0)descriptions[side].push({h,period:e.date?.slice(0,7)||'',file:ref.file||''});
+  }
  }
  const transfer=Core.transferSuggestions(c,ym);
  const protectedIds=new Set([...(c.transfers||[]).filter(t=>t.status==='CONFIRMADA').flatMap(t=>[t.outId,t.inId]),...transfer.proposals.flatMap(t=>[t.outId,t.inId]),...transfer.ambiguous.flatMap(t=>[t.outId,...t.possibleInIds])]);
- let applied=0,ambiguous=0,notFound=0;
+ let applied=0,ambiguous=0,notFound=0,descriptionMatches=0;
  for(const m of Core.periodMovements(c,ym)){
   if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||protectedIds.has(m.id))continue;
-  const bank=byId.get(m.accountId),category=['SUGERIDA','CATEGORIA_COMPARTILHADA'].includes(m.financialMatch)?clean(m.financialCategory||m.financialDescription):'';
-  if(!valid.has(bank)||!category){notFound++;continue;}
-  const refsForDirection=examples[m.cents>0?1:0];
-  const exact=refsForDirection.filter(x=>x.h===category);
-  const near=exact.length?[]:refsForDirection.filter(x=>x.h.length>=7&&category.length>=7&&(x.h.includes(category)||category.includes(x.h)));
-  const eligible=exact.length?exact:near;
+  const bank=byId.get(m.accountId),category=['SUGERIDA','CATEGORIA_COMPARTILHADA'].includes(m.financialMatch)?clean(m.financialCategory||m.financialDescription):'',raw=clean(m.history);
+  if(!valid.has(bank)){notFound++;continue;}
+  const side=m.cents>0?1:0;
+  const match=(data)=>data.filter(x=>x.h===category||x.h===raw);
+  const eligible=match(codes[side]);
+  const partial=match(descriptions[side]);
+  if(partial.length){
+   m.historicalDescriptionMatch='Razão anterior: '+partial.length+' descrição(ões) correspondente(s), sem contrapartida informada — conferir código no plano de contas';
+   descriptionMatches++;
+  }else delete m.historicalDescriptionMatch;
   if(!eligible.length){notFound++;continue;}
-  const codes=[...new Set(eligible.map(x=>x.cp))];
-  // Um histórico que já recebeu múltiplas contas não é evidência confiável.
-  if(codes.length!==1){ambiguous++;m.historicalCodeConflict=codes;continue;}
-  const code=codes[0];
+  const distinct=[...new Set(eligible.map(x=>x.cp))];
+  if(distinct.length!==1){ambiguous++;m.historicalCodeConflict=distinct;continue;}
+  const code=distinct[0];
   if(!valid.has(code)||banks.has(code)||code===bank){notFound++;continue;}
-  const prior=m.suggested,priorConfidence=String(m.confidence||'');
-  if(prior&&prior!==code&&priorConfidence!=='Controle financeiro + conta analítica do plano — confirmar'){
-   ambiguous++;m.historicalCodeConflict=[String(prior),code];continue;
+  if(m.suggested&&String(m.suggested)!==code){
+   ambiguous++;m.historicalCodeConflict=[String(m.suggested),code];continue;
   }
   m.suggested=code;
-  m.confidence='Razão histórico ('+(exact.length?'descrição exata':'descrição compatível')+', '+eligible.length+' ocorrência(s), '+new Set(eligible.map(e=>e.period)).size+' competência(s)) + plano analítico — confirmar';
+  m.confidence='Razão histórico: descrição exata e código do plano de contas — exige confirmação';
   delete m.historicalCodeConflict;
   applied++;
  }
- return {applied,ambiguous,notFound};
+ return {applied,ambiguous,notFound,descriptionMatches};
 }
 function suggestFromLedger(c,ym){
  const analysis=Core.ledgerSuggestions(c,ym);let applied=0,conflicts=0;
