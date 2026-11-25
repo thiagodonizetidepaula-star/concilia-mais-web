@@ -514,13 +514,41 @@ function applyMandatoryItauInvestment(c,m){
  delete m.mandatoryInvestmentWarning;
  return true;
 }
+// JL INFINITY RH: CEF MATRIZ significa FGTS a recolher (192).
+// Somente para pagamentos: banco no crédito e obrigação no débito.
+function applyMandatoryFgtsCef(c,m){
+ if(String(c?.cnpj||'').replace(/\D/g,'')!=='28637576000183')return false;
+ if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE')return false;
+ if((c.transfers||[]).some(t=>t.status==='CONFIRMADA'&&(t.outId===m.id||t.inId===m.id)))return false;
+ if((c.taxSplits||[]).some(t=>t.status==='CONFIRMADA'&&t.movementId===m.id))return false;
+ const description=[m.history,m.party,m.historyFull].filter(Boolean).join(' ');
+ if(!/\bCEF\s+MATRIZ\b/i.test(description))return false;
+ const bank=(c.accounts||[]).find(a=>a.id===m.accountId);
+ const plan=new Set((c.plan||[]).filter(p=>p.analytic).map(p=>String(p.code)));
+ const bankCode=String(bank?.chartCode||'');
+ if(m.cents>=0){
+  m.mandatoryFgtsWarning='CEF MATRIZ identificado em entrada de recursos; conferir antes de atribuir FGTS a recolher.';
+  return false;
+ }
+ if(!bankCode||!plan.has(bankCode)||!plan.has('192')||bankCode==='192'){
+  m.mandatoryFgtsWarning='CEF MATRIZ identificado, mas é necessário validar as contas analíticas do banco e FGTS a recolher (192) no plano da JL INFINITY.';
+  return false;
+ }
+ m.counterpart='192';
+ m.suggested='192';
+ m.status='CONFIRMADO';
+ m.confidence='Regra obrigatória JL INFINITY: CEF MATRIZ → FGTS a recolher 192 (débito); banco '+bankCode+' (crédito)';
+ m.mandatoryFgtsRule='CEF_MATRIZ_FGTS';
+ delete m.mandatoryFgtsWarning;
+ return true;
+}
 function autoSuggest(c,m){
  if(m.status==='PENDENTE_DUPLICIDADE'||m.status==='CONFIRMADO')return;
- if(applyMandatoryItauInvestment(c,m))return;
+ if(applyMandatoryItauInvestment(c,m)||applyMandatoryFgtsCef(c,m))return;
  // Havendo movimento de aplicação/resgate da JL INFINITY sem os códigos
  // validados, não aplicar regras genéricas de rendimento ou aprendizado.
  const specialHistory=Core.norm(m.history);
- if(String(c?.cnpj||'').replace(/\D/g,'')==='28637576000183'&&/^(?:aplaplicautmais|resaplicautmais)$/.test(specialHistory))return;
+ if(String(c?.cnpj||'').replace(/\D/g,'')==='28637576000183'&&(/^(?:aplaplicautmais|resaplicautmais)$/.test(specialHistory)||/\bCEF\s+MATRIZ\b/i.test([m.history,m.party,m.historyFull].filter(Boolean).join(' '))))return;
  const h=specialHistory;
  const matches=(terms)=>c.plan.filter(x=>x.analytic&&terms.some(term=>Core.norm(x.description).includes(term))&&!c.accounts.some(a=>String(a.chartCode)===String(x.code)));
  // Só indica conta se houver UM candidato inequívoco dentro do plano da própria empresa.
@@ -1512,7 +1540,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  finally{button.disabled=false;}
  })};
  $('#suggest').onclick=()=>action(async()=>{const c=getCompany();let changed=0;for(const m of Core.periodMovements(c,period)){if(m.status==='PENDENTE_DUPLICIDADE'||m.status==='CONFIRMADO'||transferIds(c).has(m.id))continue;const rules=c.rules.filter(r=>Core.norm(m.history).includes(Core.norm(r.term)));const codes=[...new Set(rules.map(r=>r.counterpart))];if(codes.length===1){m.suggested=codes[0];m.confidence='regra própria';changed++;}else if(!codes.length){autoSuggest(c,m);if(m.suggested)changed++;}}const finance=financialMatches(c,period);changed+=finance.coded;const hist=suggestFromHistoricalLedger(c,period);changed+=hist.applied;await store('SUGESTOES_GERADAS',`${changed} sugestões para ${period}; ${hist.applied} do Razão anterior; ${hist.ambiguous} ambíguas`);say(`${changed} sugestões de contrapartida geradas. Confirme cada uma.`)});
- $('#autoAnalyze').onclick=()=>action(async()=>{const c=getCompany(),moves=Core.periodMovements(c,period);if(!moves.length)throw Error('Importe os extratos da competência antes de analisar.');let rules=0;for(const m of moves){if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||transferIds(c).has(m.id))continue;if(applyMandatoryItauInvestment(c,m)){rules++;continue;}if(!m.suggested){autoSuggest(c,m);if(m.suggested)rules++;}}
+ $('#autoAnalyze').onclick=()=>action(async()=>{const c=getCompany(),moves=Core.periodMovements(c,period);if(!moves.length)throw Error('Importe os extratos da competência antes de analisar.');let rules=0;for(const m of moves){if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||transferIds(c).has(m.id))continue;if(applyMandatoryItauInvestment(c,m)||applyMandatoryFgtsCef(c,m)){rules++;continue;}if(!m.suggested){autoSuggest(c,m);if(m.suggested)rules++;}}
  const finance=financialMatches(c,period);
  const history=suggestFromHistoricalLedger(c,period);
  const ledger={applied:0,ambiguous:0},pairs=Core.transferSuggestions(c,period);const totalSuggested=moves.filter(m=>!!m.suggested&&!m.counterpart).length;await store('TRIAGEM_AUTOMATICA',`Competência ${period}: ${moves.length} movimentos; ${rules} novas regras; ${totalSuggested} sugestões presentes; ${ledger.applied} novas sugestões Razão; ${pairs.proposals.length} transferências possíveis`);
