@@ -914,7 +914,11 @@ function inspectStatementWorkbook(fileBytes){
   const cell=(a)=>String(sheet[a]?.v??'').trim();
   const labels=['A2','A3','A4','A5','A7','A8'].map(cell);
   const isItau=/atualiza[cç][aã]o/i.test(labels[0])&&/nome/i.test(labels[1])&&/ag[eê]ncia/i.test(labels[2])&&/^conta/i.test(labels[3])&&/lan[cç]amentos/i.test(labels[4]);
-  if(isItau)return {bank:'Itaú',owner:cell('B3'),agency:cell('B4'),account:cell('B5'),periodLabel:cell('B8')};
+  if(isItau){
+   const header=[...Array.from({length:12},(_,i)=>[cell('A'+(i+1)),cell('B'+(i+1))].join(' ')),...['C2','C3','C4','C5','D2','D3','D4','D5'].map(cell)].join(' ');
+   const extracted=(header.match(/(?:CNPJ|C\.N\.P\.J\.)\s*[:\-]?\s*(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{14})/i)||[])[1]||'';
+   return {bank:'Itaú',owner:cell('B3'),agency:cell('B4'),account:cell('B5'),periodLabel:cell('B8'),cnpj:extracted.replace(/\D/g,'')};
+  }
  }
  return null;
 }
@@ -1034,19 +1038,47 @@ if(ext==='pdf'){
 }
 // Planilha bancária pode ter titular de outra pessoa jurídica mesmo com
 // agência/conta semelhantes. Exigir confirmação explícita, nunca trocar cliente.
-if(workbookIdentity?.owner&&c.name&&Core.norm(workbookIdentity.owner)!==Core.norm(c.name)){
- const statementAccountDigits=String(workbookIdentity.account||'').replace(/\D/g,'').replace(/^0+/,'');
- const sameBankAccount=(value)=>{
-  const recorded=bankAccountDigits(value).replace(/^0+/,'');
-  return recorded.length>=5&&statementAccountDigits.length>=5&&(recorded===statementAccountDigits||recorded.endsWith(statementAccountDigits)||statementAccountDigits.endsWith(recorded));
- };
- const linkedToThisCompany=(c.accounts||[]).some(a=>{
-  const plan=c.plan.find(p=>p.analytic&&String(p.code)===String(a.chartCode));
-  return Core.norm(a.bank)===Core.norm(bank)&&sameBankAccount(String(a.label||'')+' '+String(plan?.description||''));
- })||bankPlanCandidates(c,bank).some(p=>sameBankAccount(p.description));
- if(!linkedToThisCompany)throw Error('TITULAR DIVERGENTE: o extrato Excel informa '+workbookIdentity.owner+', mas a empresa selecionada é '+c.name+'. Agência '+workbookIdentity.agency+' conta '+workbookIdentity.account+'. Não foi possível comprovar vínculo com esta empresa pelo plano de contas. Confira o arquivo e selecione a empresa correta antes de importar.');
- if(!confirm('ATENÇÃO — TITULAR DIFERENTE NO EXTRATO.\n\nSelecionada: '+c.name+'\nExtrato: '+workbookIdentity.owner+'\nBanco: '+bank+' • Agência '+workbookIdentity.agency+' • Conta '+workbookIdentity.account+'\n\nExiste vínculo bancário no plano da empresa selecionada, mas confirme que este extrato pertence a esta contabilidade. Continuar importando sob sua responsabilidade?'))throw Error('Importação cancelada: titular do extrato não confirmado.');
- identityWarning=[identityWarning,'Titular diferente confirmado manualmente: '+workbookIdentity.owner+'. Conferir documentação de titularidade.'].filter(Boolean).join(' ');
+if(workbookIdentity){
+ // Primeiro a identidade verificável: se houver CNPJ divergente, não permitir
+ // que nome anterior ou confirmação manual contornem esse conflito.
+ const documentCnpj=String(workbookIdentity.cnpj||'').replace(/\D/g,'');
+ const companyCnpj=String(c.cnpj||'').replace(/\D/g,'');
+ if(documentCnpj&&companyCnpj&&documentCnpj!==companyCnpj)
+  throw Error('CNPJ DIVERGENTE: o extrato informa '+documentCnpj+', mas o cadastro selecionado possui '+companyCnpj+'. Selecione a empresa correta. A confirmação de nome anterior não autoriza importar CNPJ diferente.');
+ if(documentCnpj&&!companyCnpj)
+  throw Error('Extrato com CNPJ '+documentCnpj+', mas a empresa selecionada não possui CNPJ validado. Atualize a identificação antes de importar.');
+ const owner=String(workbookIdentity.owner||'').trim().replace(/\s+/g,' ');
+ if(owner&&c.name&&Core.norm(owner)!==Core.norm(c.name)){
+  const digits=String(workbookIdentity.account||'').replace(/\D/g,'').replace(/^0+/,'');
+  const sameAccount=value=>{
+   const d=bankAccountDigits(value).replace(/^0+/,'');
+   return d.length>=5&&digits.length>=5&&(d===digits||d.endsWith(digits)||digits.endsWith(d));
+  };
+  const bankAccountMatch=(c.accounts||[]).some(a=>{
+   const plan=c.plan.find(p=>p.analytic&&String(p.code)===String(a.chartCode));
+   return Core.norm(a.bank)===Core.norm(bank)&&sameAccount(String(a.label||'')+' '+String(plan?.description||''));
+  })||bankPlanCandidates(c,bank).some(p=>sameAccount(p.description));
+  const aliases=c.previousNames||[];
+  const knownAlias=aliases.some(a=>Core.norm(a.name)===Core.norm(owner)&&Core.norm(a.bank)===Core.norm(bank)&&String(a.account||'').replace(/\D/g,'').replace(/^0+/,'')===digits);
+  // Nome diferente e CNPJ comprovadamente igual: deixar passar e registrar
+  // observação. Sem CNPJ, vincular por conta bancária E confirmação do usuário.
+  if(documentCnpj&&documentCnpj===companyCnpj){
+   identityWarning=[identityWarning,'Razão social no extrato: '+owner+'; CNPJ confere com a empresa.'].filter(Boolean).join(' ');
+  }else{
+   if(!bankAccountMatch)throw Error('NOME DO TITULAR DIFERENTE E CNPJ AUSENTE: o extrato informa '+owner+', mas a empresa selecionada é '+c.name+'. A conta Itaú '+workbookIdentity.account+' não foi localizada de forma inequívoca no plano. Confira a titularidade antes de importar.');
+   if(!knownAlias){
+    const message='CONFIRMAR RAZÃO SOCIAL ANTERIOR\n\nEmpresa selecionada: '+c.name+
+      '\nNome que consta no extrato: '+owner+
+      '\nCNPJ: não aparece neste arquivo Excel'+
+      '\nBanco: '+bank+' | Agência: '+workbookIdentity.agency+' | Conta: '+workbookIdentity.account+
+      '\n\nA conta foi encontrada no plano de contas desta empresa, mas só você pode confirmar que houve mudança de razão social e que o extrato pertence ao mesmo CNPJ.\n\nConfirma que este é um nome anterior da MESMA pessoa jurídica?';
+    if(!confirm(message))throw Error('Importação cancelada: razão social anterior não confirmada.');
+    c.previousNames=c.previousNames||[];
+    c.previousNames.push({name:owner,bank,account:workbookIdentity.account,confirmedAt:new Date().toISOString(),method:'CONFIRMACAO_OPERADOR_SEM_CNPJ_NO_EXTRATO'});
+   }
+   identityWarning=[identityWarning,'Nome anterior '+owner+(knownAlias?' já confirmado anteriormente':' confirmado pelo operador')+'; CNPJ não informado no extrato.'].filter(Boolean).join(' ');
+  }
+ }
 }
 // Resolver vínculos de extratos antigos ANTES de escolher destino da importação.
 autoLinkBankCodes(c);
