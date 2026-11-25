@@ -1004,7 +1004,7 @@ function parseStatementWorkbook(fileBytes, origin, accountId){
      const entry=match(hh,['entrada','entradas','entradar','entradasr','credito','creditos','creditor','creditosr','valorcredito','valorcreditor','recebimentos']);
      const out=match(hh,['saida','saidas','saidar','saidasr','debito','debitos','debitor','debitosr','valordebito','valordebitor','pagamentos']);
      if(date>=0&&hist>=0&&(value>=0||entry>=0||out>=0)){
-       head=i;cols={date,hist,value,entry,out,kind:match(hh,['tipo','natureza','dc','debitocredito','operacao']),doc:match(hh,['documento','nrdoc','numerodocumento','doc'])};break;
+       head=i;cols={date,hist,value,entry,out,kind:match(hh,['tipo','natureza','dc','debitocredito','operacao']),doc:match(hh,['documento','nrdoc','numerodocumento','doc']),party:match(hh,['razaosocial','nomedofavorecido','favorecido','beneficiario','nome','contraparte','pagador','recebedor']),partyDocument:match(hh,['cpfcnpj','cpfoucnpj','cnpjcpf','cpf','cnpj','documentodacontraparte'])};break;
      }
    }
    if(head<0){if(rows.some(r=>r.some(x=>!isBlank(x))))reviews.push({origin,line:sheetName,content:'Cabeçalho não identificado',reason:'Aba Excel não possui colunas reconhecidas de data, histórico e valores'});continue;}
@@ -1032,7 +1032,11 @@ function parseStatementWorkbook(fileBytes, origin, accountId){
          if(dir==='c'||dir==='credito'||dir==='entrada'||suffix?.[1]?.toUpperCase()==='C')cents=Math.abs(cents);
        }
        if(!cents)throw Error('Valor zero');
-       movements.push({id:Core.id(),date,cents,history:rawHist,document:String(get('doc')??'').trim(),party:'',accountId,origin,line:sheetName+'!'+(i+1),status:'PENDENTE',counterpart:''});
+       const party=String(get('party')??'').trim(),partyDocument=String(get('partyDocument')??'').trim();
+       // O histórico bancário da coluna Lançamento é preservado integralmente,
+       // assim como a Razão Social e o CPF/CNPJ nas colunas separadas.
+       const historyFull=[rawHist,party,partyDocument].filter(Boolean).join(' | ');
+       movements.push({id:Core.id(),date,cents,history:rawHist,historyFull,statementHistory:rawHist,document:String(get('doc')??'').trim(),party,partyDocument,accountId,origin,line:sheetName+'!'+(i+1),status:'PENDENTE',counterpart:''});
      }catch(err){reviews.push({origin,line:sheetName+'!'+(i+1),content:row.map(x=>String(x??'')).join(' | ').slice(0,550),reason:err.message});}
    }
  }
