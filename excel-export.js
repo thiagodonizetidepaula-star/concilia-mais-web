@@ -24,6 +24,18 @@ function report(core,company,period){
  const plan=new Map(company.plan.map(a=>[String(a.code),a]));
  const accounts=new Map((company.accounts||[]).map(a=>[a.id,a]));
  const taxSplits=new Map((company.taxSplits||[]).filter(x=>x.period===period&&x.status==='CONFIRMADA').map(x=>[x.movementId,x]));
+ // Regra obrigatória da JL INFINITY: DAS com identificação explícita de
+ // Simples Nacional é valor integral na contrapartida 479.
+ // Nunca classificar "PAGAMENTOS TRIB COD BARRAS" sozinho como DAS.
+ const dasAccountCode=m=>{
+  if(String(company.cnpj||'').replace(/\D/g,'')!=='28637576000183'||m.cents>=0||m.status==='PENDENTE_DUPLICIDADE')return '';
+  if((company.transfers||[]).some(t=>t.status==='CONFIRMADA'&&(t.outId===m.id||t.inId===m.id)))return '';
+  const content=[m.history,m.party,m.historyFull,m.financialDescription].filter(Boolean).join(' ');
+  if(!/\bSIMPLES\s+NACIONAL\b|\bDAS\b/i.test(content)||/\bDARF\b/i.test(content))return '';
+  const bank=accounts.get(m.accountId),bankCode=String(bank?.chartCode||'');
+  if(!bankCode||bankCode==='479'||!plan.get(bankCode)?.analytic||!plan.get('479')?.analytic)return '';
+  return '479';
+ };
  const approvedTaxSplit=(m)=>{
   const split=taxSplits.get(m.id),bank=accounts.get(m.accountId),bankCode=String(bank?.chartCode||'');
   if(!split||String(split.bankCode)!==bankCode||!plan.get(bankCode)?.analytic)return null;
@@ -52,9 +64,9 @@ function report(core,company,period){
    }
    const bank=accounts.get(m.accountId);
    const bankCode=bank&&plan.get(String(bank.chartCode))?.analytic?String(bank.chartCode):'';
-   const cp=String(m.counterpart||'');
+   const cp=dasAccountCode(m)||String(m.counterpart||'');
    const suggestedCode=String(m.suggested||'');
-   const approved=!!(m.status==='CONFIRMADO'&&plan.get(cp)?.analytic&&cp!==bankCode);
+   const approved=!!((dasAccountCode(m)||m.status==='CONFIRMADO')&&plan.get(cp)?.analytic&&cp!==bankCode);
    const proposed=!!(!approved&&m.status!=='PENDENTE_DUPLICIDADE'&&!(m.historicalCodeConflict||[]).length&&plan.get(suggestedCode)?.analytic);
    const tr=transferPairs.get(m.id);
    const journal=journalBySource.get(m.id);
@@ -63,7 +75,7 @@ function report(core,company,period){
    if(!bankCode){situation='BLOQUEADO — BANCO SEM CÓDIGO VÁLIDO';notes='Vincule uma conta analítica do plano desta empresa.';blocked++;}
    else if(m.status==='PENDENTE_DUPLICIDADE'){situation='PENDENTE — POSSÍVEL DUPLICIDADE';notes='Nenhuma contrapartida aprovada até resolver a duplicidade.';blocked++;}
    else if(tr&&journal){debit=String(journal.debit);credit=String(journal.credit);situation='TRANSFERÊNCIA CONFIRMADA';reconStatus=hasLedger?journal.recon.replaceAll('_',' '):'RAZÃO NÃO IMPORTADO';notes=tr.type==='ORIGEM'?'Par bancário vinculado; lançamento único na aba Prontos.':'Movimento correspondente da transferência; não contabilizar novamente.';confirmed++;}
-   else if(approved){debit=m.cents>0?bankCode:cp;credit=m.cents>0?cp:bankCode;situation='CLASSIFICAÇÃO CONFIRMADA';reconStatus=journal&&hasLedger?journal.recon.replaceAll('_',' '):'SEM CONFERÊNCIA COM RAZÃO';notes=journal?'':'Contrapartida confirmada manualmente; não comparada ao Razão.';confirmed++;}
+   else if(approved){debit=m.cents>0?bankCode:cp;credit=m.cents>0?cp:bankCode;situation=dasAccountCode(m)?'DAS — SIMPLES NACIONAL (INTEGRAL, CÓD. 479)':'CLASSIFICAÇÃO CONFIRMADA';reconStatus=journal&&hasLedger?journal.recon.replaceAll('_',' '):'SEM CONFERÊNCIA COM RAZÃO';notes=journal?'':'Contrapartida confirmada manualmente; não comparada ao Razão.';confirmed++;}
    else if(proposed){debit=m.cents>0?bankCode:suggestedCode;credit=m.cents>0?suggestedCode:bankCode;situation='SUGERIDA — CONFIRMAR CONTRAPARTIDA';notes='Códigos são sugestão, não lançamento confirmado.';suggested++;}
    else{debit=m.cents>0?bankCode:'';credit=m.cents<0?bankCode:'';situation='PENDENTE — CONTRAPARTIDA NÃO IDENTIFICADA';notes='Campo de contrapartida não preenchido para evitar código fictício.';blocked++;}
    if(journal&&!tr&&journal.recon==='AMBIGUO')notes=(notes?notes+' ':'')+'Correspondência duplicada/ambígua no Razão.';
@@ -104,8 +116,8 @@ function report(core,company,period){
    }
    continue;
   }
-  const cp=String(m.counterpart||''),valid=!!plan.get(cp)?.analytic;
-  const confirmed=m.status==='CONFIRMADO'&&valid&&!!bankCode&&cp!==bankCode&&m.status!=='PENDENTE_DUPLICIDADE';
+  const cp=dasAccountCode(m)||String(m.counterpart||''),valid=!!plan.get(cp)?.analytic;
+  const confirmed=(!!dasAccountCode(m)||m.status==='CONFIRMADO')&&valid&&!!bankCode&&cp!==bankCode&&m.status!=='PENDENTE_DUPLICIDADE';
   const proposedCode=String(m.suggested||'');const proposed=!confirmed&&m.status!=='PENDENTE_DUPLICIDADE'&&!(m.historicalCodeConflict||[]).length&&!!bankCode&&proposedCode!==bankCode&&!!plan.get(proposedCode)?.analytic;
   const effectiveCp=confirmed?cp:proposed?proposedCode:'';
   const debit=effectiveCp?(m.cents>0?bankCode:effectiveCp):(m.cents>0?bankCode:'');
