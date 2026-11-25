@@ -517,7 +517,11 @@ function applyMandatoryItauInvestment(c,m){
 function autoSuggest(c,m){
  if(m.status==='PENDENTE_DUPLICIDADE'||m.status==='CONFIRMADO')return;
  if(applyMandatoryItauInvestment(c,m))return;
- const h=Core.norm(m.history);
+ // Havendo movimento de aplicação/resgate da JL INFINITY sem os códigos
+ // validados, não aplicar regras genéricas de rendimento ou aprendizado.
+ const specialHistory=Core.norm(m.history);
+ if(String(c?.cnpj||'').replace(/\D/g,'')==='28637576000183'&&/^(?:aplaplicautmais|resaplicautmais)$/.test(specialHistory))return;
+ const h=specialHistory;
  const matches=(terms)=>c.plan.filter(x=>x.analytic&&terms.some(term=>Core.norm(x.description).includes(term))&&!c.accounts.some(a=>String(a.chartCode)===String(x.code)));
  // Só indica conta se houver UM candidato inequívoco dentro do plano da própria empresa.
  // Boleto e PIX genéricos nunca determinam automaticamente a contrapartida.
