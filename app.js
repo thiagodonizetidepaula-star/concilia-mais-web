@@ -1375,7 +1375,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
     return '<p><strong>'+safe(datePT(p.date))+' | '+safe(p.history)+'</strong>: extrato '+currency(Math.abs(p.cents))+' • separados '+currency(total)+' • diferença '+currency(Math.abs(p.cents)-total)+(p.lines.some(l=>!l.code)?' • há código pendente':'')+'</p>';
    }).join('')+
    (issues.length?'<details open><summary>'+issues.length+' ocorrência(s) para revisão (não aplicadas)</summary><pre style="white-space:pre-wrap">'+safe(issues.slice(0,80).join('\n'))+'</pre></details>':'');
-  taxShow('Empresa: '+c.name+' | Competência: '+ym+' | '+good+' pagamento(s) apto(s). A prévia não altera o extrato.');
+  taxShow('Empresa: '+c.name+' | Competência: '+ym+' | '+good+' pagamento(s) apto(s). IMPORTANTE: a prévia NÃO altera o Excel. Para substituir o DARF total pelas parcelas, clique na ETAPA 6 em Confirmar separações válidas; depois exporte um NOVO Excel. O DAS fica integral.');
   const allowed=result.proposals.filter(p=>sum.some(x=>x.movementId===p.movementId&&x.valid));
   if(!allowed.length)return;
   taxDraft={companyId:c.id,period:ym,proposals:allowed,receiptIds:receipts.map(r=>r.id)};
@@ -1392,7 +1392,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
   }
   taxReset();
   await store('TRIBUTOS_SEPARADOS',count+' pagamento(s) conferido(s) e separado(s) em '+c.name+' | '+period);
-  taxShow(count+' pagamento(s) separado(s) com sucesso. Consulte o Excel codificado para visualizar os tributos sem duplicidade.','success');
+  taxShow(count+' pagamento(s) confirmado(s) e salvo(s). AGORA exporte novamente o Excel codificado: DARF em parcelas, DAS integral; confira a nova aba Resumo_Tributos com total original destacado, soma e diferença.','success');
   formClearTax();
  });
  const formClearTax=()=>{$('#taxReceiptForm').reset();};
