@@ -1036,12 +1036,14 @@ if(ext==='pdf'){
 // agência/conta semelhantes. Exigir confirmação explícita, nunca trocar cliente.
 if(workbookIdentity?.owner&&c.name&&Core.norm(workbookIdentity.owner)!==Core.norm(c.name)){
  const statementAccountDigits=String(workbookIdentity.account||'').replace(/\D/g,'').replace(/^0+/,'');
+ const sameBankAccount=(value)=>{
+  const recorded=bankAccountDigits(value).replace(/^0+/,'');
+  return recorded.length>=5&&statementAccountDigits.length>=5&&(recorded===statementAccountDigits||recorded.endsWith(statementAccountDigits)||statementAccountDigits.endsWith(recorded));
+ };
  const linkedToThisCompany=(c.accounts||[]).some(a=>{
   const plan=c.plan.find(p=>p.analytic&&String(p.code)===String(a.chartCode));
-  const configured=String(a.label||'')+' '+String(plan?.description||'');
-  const planAccount=bankAccountDigits(configured).replace(/^0+/,'');
-  return Core.norm(a.bank)===Core.norm(bank)&&planAccount.length>=5&&(planAccount===statementAccountDigits||planAccount.endsWith(statementAccountDigits)||statementAccountDigits.endsWith(planAccount));
- });
+  return Core.norm(a.bank)===Core.norm(bank)&&sameBankAccount(String(a.label||'')+' '+String(plan?.description||''));
+ })||bankPlanCandidates(c,bank).some(p=>sameBankAccount(p.description));
  if(!linkedToThisCompany)throw Error('TITULAR DIVERGENTE: o extrato Excel informa '+workbookIdentity.owner+', mas a empresa selecionada é '+c.name+'. Agência '+workbookIdentity.agency+' conta '+workbookIdentity.account+'. Não foi possível comprovar vínculo com esta empresa pelo plano de contas. Confira o arquivo e selecione a empresa correta antes de importar.');
  if(!confirm('ATENÇÃO — TITULAR DIFERENTE NO EXTRATO.\n\nSelecionada: '+c.name+'\nExtrato: '+workbookIdentity.owner+'\nBanco: '+bank+' • Agência '+workbookIdentity.agency+' • Conta '+workbookIdentity.account+'\n\nExiste vínculo bancário no plano da empresa selecionada, mas confirme que este extrato pertence a esta contabilidade. Continuar importando sob sua responsabilidade?'))throw Error('Importação cancelada: titular do extrato não confirmado.');
  identityWarning=[identityWarning,'Titular diferente confirmado manualmente: '+workbookIdentity.owner+'. Conferir documentação de titularidade.'].filter(Boolean).join(' ');
