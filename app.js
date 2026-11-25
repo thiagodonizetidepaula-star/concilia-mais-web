@@ -906,6 +906,18 @@ c.name=info.name||c.name;c.cnpj=info.cnpj||c.cnpj;c.dominio=info.dominio||c.domi
  $('#matchFinancial').onclick=()=>action(async()=>{const c=getCompany();if(!(c.financialControls||[]).some(x=>x.period===period))throw Error('Nenhum controle financeiro importado para '+period+'. Primeiro clique em Importar controle financeiro; escolher o arquivo não realiza a importação.');const result=financialMatches(c,period);await store('CRUZAMENTO_FINANCEIRO',result.matched+' correspondências sugeridas; '+result.coded+' novos códigos; '+result.ambiguous+' ambíguas');$('#financialStatus').textContent='Descrições: '+result.matched+'; novos códigos sugeridos: '+result.coded+'; ambíguas: '+result.ambiguous+'. Confira as movimentações.';say('Cruzamento atualizado.')});
 
 /* Leitura de extratos Excel com identificação de cabeçalho por aba e revisão de linhas ambíguas. */
+function inspectStatementWorkbook(fileBytes){
+ if(!window.XLSX?.read)return null;
+ const book=window.XLSX.read(fileBytes,{type:'array',cellDates:false});
+ for(const name of book.SheetNames){
+  const sheet=book.Sheets[name];
+  const cell=(a)=>String(sheet[a]?.v??'').trim();
+  const labels=['A2','A3','A4','A5','A7','A8'].map(cell);
+  const isItau=/atualiza[cç][aã]o/i.test(labels[0])&&/nome/i.test(labels[1])&&/ag[eê]ncia/i.test(labels[2])&&/^conta/i.test(labels[3])&&/lan[cç]amentos/i.test(labels[4]);
+  if(isItau)return {bank:'Itaú',owner:cell('B3'),agency:cell('B4'),account:cell('B5'),periodLabel:cell('B8')};
+ }
+ return null;
+}
 function parseStatementWorkbook(fileBytes, origin, accountId){
  if(!window.XLSX)throw Error('Leitor Excel indisponível. Atualize a página e tente novamente.');
  const book=window.XLSX.read(fileBytes,{type:'array',cellDates:false});
@@ -991,7 +1003,8 @@ function parseStatementWorkbook(fileBytes, origin, accountId){
 
  $('#importStatement').onsubmit=e=>{e.preventDefault();action(async()=>{try{setStatementStatus('working','Lendo o extrato. Aguarde a confirmação da quantidade de movimentações.');const c=getCompany(),f=e.currentTarget;if(!canImport(c))throw Error('Importe primeiro o plano de contas.');const files=Array.from(f.elements.file.files);if(!files.length)throw Error('Selecione pelo menos um extrato.');if(files.length>20)throw Error('Importe até 20 extratos por lote para evitar lentidão no celular.');const selectedAccount=f.elements.accountId.value;const batchResults=[];for(const file of files){try{setStatementStatus('working',`Processando ${batchResults.length+1} de ${files.length}: ${file.name}...`);const ext=fileExt(file.name);if(!['pdf','csv','txt','ofx','xlsx','xls'].includes(ext))throw Error('Use PDF digital, Excel XLSX/XLS, CSV, TXT ou OFX.');const bytes=await file.arrayBuffer(),sha=await hash(bytes);const previous=c.imports.find(x=>x.type==='EXTRATO'&&x.sha===sha);if(previous){batchResults.push({ok:false,skipped:true,name:file.name,periods:previous.periods||[],count:previous.movementCount||0});continue;}
 let txt='',pdf=null;if(ext==='pdf'){say('Extraindo movimentações do PDF digital...');try{pdf=await Pdf.extractPdf(file);txt=pdf.text}catch(err){throw Error('PDF não interpretado: '+err.message+'; tente CSV ou OFX.')}}else if(ext!=='xlsx'&&ext!=='xls')txt=(await asText(file)).txt;
-const bank=ext==='pdf'?(window.ConciliaLayouts.bankOf(pdf,file.name)||Pdf.detectBank(txt,file.name)):(ext==='xlsx'||ext==='xls')?({'caixa':'Caixa Econômica Federal','stone':'Stone','sicredi':'Sicredi','itau':'Itaú','santander':'Santander','nubank':'Nubank','pagbank':'PagBank','inter':'Banco Inter','brasil':'Banco do Brasil'}[financialBank(file.name)]||Pdf.detectBank('',file.name)):Pdf.detectBank(txt,file.name);
+const workbookIdentity=(ext==='xlsx'||ext==='xls')?inspectStatementWorkbook(bytes):null;
+const bank=ext==='pdf'?(window.ConciliaLayouts.bankOf(pdf,file.name)||Pdf.detectBank(txt,file.name)):(ext==='xlsx'||ext==='xls')?(workbookIdentity?.bank||({'caixa':'Caixa Econômica Federal','stone':'Stone','sicredi':'Sicredi','itau':'Itaú','santander':'Santander','nubank':'Nubank','pagbank':'PagBank','inter':'Banco Inter','brasil':'Banco do Brasil'}[financialBank(file.name)]||Pdf.detectBank('',file.name))):Pdf.detectBank(txt,file.name);
 if(ext==='pdf'&&bank==='Bradesco'&&window.ConciliaBradescoRaw){
  try{
   const raw=await window.ConciliaBradescoRaw.recover(new Uint8Array(bytes));
@@ -1011,6 +1024,20 @@ if(ext==='pdf'){
    throw Error('O PDF contém CNPJ diferente do cliente selecionado. Selecione a empresa correta.');
  if(!header.cnpj)identityWarning='PDF sem CNPJ identificável. Confira titular e conta bancária da empresa selecionada.';
 }
+// Planilha bancária pode ter titular de outra pessoa jurídica mesmo com
+// agência/conta semelhantes. Exigir confirmação explícita, nunca trocar cliente.
+if(workbookIdentity?.owner&&c.name&&Core.norm(workbookIdentity.owner)!==Core.norm(c.name)){
+ const statementAccountDigits=String(workbookIdentity.account||'').replace(/\D/g,'').replace(/^0+/,'');
+ const linkedToThisCompany=(c.accounts||[]).some(a=>{
+  const plan=c.plan.find(p=>p.analytic&&String(p.code)===String(a.chartCode));
+  const configured=String(a.label||'')+' '+String(plan?.description||'');
+  const planAccount=bankAccountDigits(configured).replace(/^0+/,'');
+  return Core.norm(a.bank)===Core.norm(bank)&&planAccount.length>=5&&(planAccount===statementAccountDigits||planAccount.endsWith(statementAccountDigits)||statementAccountDigits.endsWith(planAccount));
+ });
+ if(!linkedToThisCompany)throw Error('TITULAR DIVERGENTE: o extrato Excel informa '+workbookIdentity.owner+', mas a empresa selecionada é '+c.name+'. Agência '+workbookIdentity.agency+' conta '+workbookIdentity.account+'. Não foi possível comprovar vínculo com esta empresa pelo plano de contas. Confira o arquivo e selecione a empresa correta antes de importar.');
+ if(!confirm('ATENÇÃO — TITULAR DIFERENTE NO EXTRATO.\n\nSelecionada: '+c.name+'\nExtrato: '+workbookIdentity.owner+'\nBanco: '+bank+' • Agência '+workbookIdentity.agency+' • Conta '+workbookIdentity.account+'\n\nExiste vínculo bancário no plano da empresa selecionada, mas confirme que este extrato pertence a esta contabilidade. Continuar importando sob sua responsabilidade?'))throw Error('Importação cancelada: titular do extrato não confirmado.');
+ identityWarning=[identityWarning,'Titular diferente confirmado manualmente: '+workbookIdentity.owner+'. Conferir documentação de titularidade.'].filter(Boolean).join(' ');
+}
 // Resolver vínculos de extratos antigos ANTES de escolher destino da importação.
 autoLinkBankCodes(c);
 let newAccount=false;
@@ -1018,7 +1045,7 @@ let account=c.accounts.find(a=>a.id===selectedAccount);
 if(account&&bank&&Core.norm(account.bank)!==Core.norm(bank))
  throw Error('Banco selecionado difere do encontrado no extrato.');
 if(!account){
- const code=bankCodeFromPlan(c,bank,(pdf?.text||'').slice(0,2000)+' '+file.name);
+ const code=bankCodeFromPlan(c,bank,(pdf?.text||'').slice(0,2000)+' '+(workbookIdentity?'CONTA '+workbookIdentity.account+' AG '+workbookIdentity.agency:'')+' '+file.name);
  const possible=c.accounts.filter(x=>Core.norm(x.bank)===Core.norm(bank)&&(code?String(x.chartCode)===code:c.plan.some(p=>String(p.code)===String(x.chartCode)&&p.analytic)));
  if(possible.length===1)account=possible[0];
  // Reutilizar conta pendente antiga (sem código) quando for a única do banco.
@@ -1028,7 +1055,7 @@ if(!account){
  }
 }
 if(!account){
- const code=guessBankAccount(c,bank,(pdf?.text||'').slice(0,2000)+' '+file.name);
+ const code=guessBankAccount(c,bank,(pdf?.text||'').slice(0,2000)+' '+(workbookIdentity?'CONTA '+workbookIdentity.account+' AG '+workbookIdentity.agency:'')+' '+file.name);
  if(bank&&code){account={id:Core.id(),bank,label:'Identificação automática do extrato',chartCode:code};newAccount=true;}
 }
 if(!account){
