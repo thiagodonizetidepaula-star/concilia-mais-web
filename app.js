@@ -484,8 +484,39 @@ function applyLearningPeriod(c,ym){
  for(const m of Core.periodMovements(c,ym))if(applyLearnedCode(c,m))count++;
  return count;
 }
+// Regra contábil validada da JL INFINITY RH: aplicação e resgate
+// automáticos do Itaú. Não reutilizar os códigos 536/599 em outras empresas.
+function applyMandatoryItauInvestment(c,m){
+ if(String(c?.cnpj||'').replace(/\D/g,'')!=='28637576000183')return false;
+ if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE')return false;
+ if((c.transfers||[]).some(t=>t.status==='CONFIRMADA'&&(t.outId===m.id||t.inId===m.id)))return false;
+ if((c.taxSplits||[]).some(t=>t.status==='CONFIRMADA'&&t.movementId===m.id))return false;
+ const h=Core.norm(m.history),app=/^aplaplicautmais$/.test(h),res=/^resaplicautmais$/.test(h);
+ if(!app&&!res)return false;
+ const bank=(c.accounts||[]).find(a=>a.id===m.accountId);
+ const codes=new Set((c.plan||[]).filter(p=>p.analytic).map(p=>String(p.code)));
+ const codeBank=String(bank?.chartCode||'');
+ if(Core.norm(bank?.bank||'').indexOf('itau')<0||codeBank!=='536'||!codes.has('536')||!codes.has('599')){
+  m.mandatoryInvestmentWarning='Aplicação Itaú identificada, mas é necessário validar as contas analíticas 536 (banco) e 599 (aplicação) no plano da JL INFINITY.';
+  return false;
+ }
+ if((app&&m.cents>=0)||(res&&m.cents<=0)){
+  m.mandatoryInvestmentWarning='Sinal incompatível com '+(app?'aplicação (saída)':'resgate (entrada)')+'. Conferir o extrato antes de classificar.';
+  return false;
+ }
+ // Um lançamento original: débito e crédito são calculados pelo sentido
+ // bancário existente, sem gerar movimentos adicionais ou duplicidades.
+ m.counterpart='599';
+ m.suggested='599';
+ m.status='CONFIRMADO';
+ m.confidence='Regra obrigatória Itaú: '+(app?'aplicação':'resgate')+' automática • conta corrente 536 ↔ aplicação 599 (JL INFINITY RH)';
+ m.mandatoryInvestmentRule=app?'APL_APLIC_AUT_MAIS':'RES_APLIC_AUT_MAIS';
+ delete m.mandatoryInvestmentWarning;
+ return true;
+}
 function autoSuggest(c,m){
  if(m.status==='PENDENTE_DUPLICIDADE'||m.status==='CONFIRMADO')return;
+ if(applyMandatoryItauInvestment(c,m))return;
  const h=Core.norm(m.history);
  const matches=(terms)=>c.plan.filter(x=>x.analytic&&terms.some(term=>Core.norm(x.description).includes(term))&&!c.accounts.some(a=>String(a.chartCode)===String(x.code)));
  // Só indica conta se houver UM candidato inequívoco dentro do plano da própria empresa.
@@ -1473,7 +1504,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  finally{button.disabled=false;}
  })};
  $('#suggest').onclick=()=>action(async()=>{const c=getCompany();let changed=0;for(const m of Core.periodMovements(c,period)){if(m.status==='PENDENTE_DUPLICIDADE'||m.status==='CONFIRMADO'||transferIds(c).has(m.id))continue;const rules=c.rules.filter(r=>Core.norm(m.history).includes(Core.norm(r.term)));const codes=[...new Set(rules.map(r=>r.counterpart))];if(codes.length===1){m.suggested=codes[0];m.confidence='regra própria';changed++;}else if(!codes.length){autoSuggest(c,m);if(m.suggested)changed++;}}const finance=financialMatches(c,period);changed+=finance.coded;const hist=suggestFromHistoricalLedger(c,period);changed+=hist.applied;await store('SUGESTOES_GERADAS',`${changed} sugestões para ${period}; ${hist.applied} do Razão anterior; ${hist.ambiguous} ambíguas`);say(`${changed} sugestões de contrapartida geradas. Confirme cada uma.`)});
- $('#autoAnalyze').onclick=()=>action(async()=>{const c=getCompany(),moves=Core.periodMovements(c,period);if(!moves.length)throw Error('Importe os extratos da competência antes de analisar.');let rules=0;for(const m of moves){if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||transferIds(c).has(m.id))continue;if(!m.suggested){autoSuggest(c,m);if(m.suggested)rules++;}}
+ $('#autoAnalyze').onclick=()=>action(async()=>{const c=getCompany(),moves=Core.periodMovements(c,period);if(!moves.length)throw Error('Importe os extratos da competência antes de analisar.');let rules=0;for(const m of moves){if(m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||transferIds(c).has(m.id))continue;if(applyMandatoryItauInvestment(c,m)){rules++;continue;}if(!m.suggested){autoSuggest(c,m);if(m.suggested)rules++;}}
  const finance=financialMatches(c,period);
  const history=suggestFromHistoricalLedger(c,period);
  const ledger={applied:0,ambiguous:0},pairs=Core.transferSuggestions(c,period);const totalSuggested=moves.filter(m=>!!m.suggested&&!m.counterpart).length;await store('TRIAGEM_AUTOMATICA',`Competência ${period}: ${moves.length} movimentos; ${rules} novas regras; ${totalSuggested} sugestões presentes; ${ledger.applied} novas sugestões Razão; ${pairs.proposals.length} transferências possíveis`);
