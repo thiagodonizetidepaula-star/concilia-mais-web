@@ -927,7 +927,23 @@ function parseStatementWorkbook(fileBytes, origin, accountId){
  };
  const movements=[],reviews=[];let detectedSheets=0;
  for(const sheetName of book.SheetNames){
-   const rows=window.XLSX.utils.sheet_to_json(book.Sheets[sheetName],{header:1,raw:true,defval:''});
+   // Alguns extratos do Itaú contêm !ref=A1:F13, apesar de haver dados reais
+   // até a linha 151. SheetJS ignora tudo depois de !ref se não corrigirmos.
+   const sheet=book.Sheets[sheetName];
+   const previousRange=sheet['!ref']||'';
+   const occupied=Object.keys(sheet).filter(k=>/^[A-Z]{1,3}[1-9]\d*$/.test(k)&&sheet[k]?.v!==undefined&&sheet[k]?.v!=='');
+   if(occupied.length){
+     const coordinates=occupied.map(k=>window.XLSX.utils.decode_cell(k));
+     const minR=Math.min(...coordinates.map(x=>x.r)),maxR=Math.max(...coordinates.map(x=>x.r));
+     const minC=Math.min(...coordinates.map(x=>x.c)),maxC=Math.max(...coordinates.map(x=>x.c));
+     const corrected=window.XLSX.utils.encode_range({s:{r:minR,c:minC},e:{r:maxR,c:maxC}});
+     const declared=previousRange?window.XLSX.utils.decode_range(previousRange):null;
+     if(!declared||maxR>declared.e.r||maxC>declared.e.c||minR<declared.s.r||minC<declared.s.c){
+       sheet['!ref']=corrected;
+       reviews.push({origin,line:sheetName,content:'Faixa declarada: '+(previousRange||'ausente')+'; faixa real: '+corrected,reason:'Faixa do Excel corrigida em memória para não omitir lançamentos; arquivo original preservado'});
+     }
+   }
+   const rows=window.XLSX.utils.sheet_to_json(sheet,{header:1,raw:true,defval:''});
    let head=-1,cols=null;
    for(let i=0;i<Math.min(rows.length,45);i++){
      const hh=(rows[i]||[]).map(norm);
@@ -970,7 +986,7 @@ function parseStatementWorkbook(fileBytes, origin, accountId){
    }
  }
  if(!detectedSheets)throw Error('Não foi encontrada aba com cabeçalho Data, Histórico e Valor (ou Entrada/Saída).');
- return {movements,reviews,format:'EXCEL'};
+ return {movements,reviews,format:'EXCEL',sheetRangeCorrected:reviews.some(r=>/Faixa do Excel corrigida/.test(r.reason||''))};
 }
 
  $('#importStatement').onsubmit=e=>{e.preventDefault();action(async()=>{try{setStatementStatus('working','Lendo o extrato. Aguarde a confirmação da quantidade de movimentações.');const c=getCompany(),f=e.currentTarget;if(!canImport(c))throw Error('Importe primeiro o plano de contas.');const files=Array.from(f.elements.file.files);if(!files.length)throw Error('Selecione pelo menos um extrato.');if(files.length>20)throw Error('Importe até 20 extratos por lote para evitar lentidão no celular.');const selectedAccount=f.elements.accountId.value;const batchResults=[];for(const file of files){try{setStatementStatus('working',`Processando ${batchResults.length+1} de ${files.length}: ${file.name}...`);const ext=fileExt(file.name);if(!['pdf','csv','txt','ofx','xlsx','xls'].includes(ext))throw Error('Use PDF digital, Excel XLSX/XLS, CSV, TXT ou OFX.');const bytes=await file.arrayBuffer(),sha=await hash(bytes);const previous=c.imports.find(x=>x.type==='EXTRATO'&&x.sha===sha);if(previous){batchResults.push({ok:false,skipped:true,name:file.name,periods:previous.periods||[],count:previous.movementCount||0});continue;}
