@@ -33,5 +33,31 @@
  }
  function serializedSave(payload){queue=queue.catch(()=>{}).then(()=>saveWorkspace(payload));return queue;}
  async function waitWrites(){await queue;}
- window.ConciliaCloud={connect,signIn,signUp,signOut,session,identity,accountId:()=>user?.id||null,fetchWorkspace,saveWorkspace,serializedSave,waitWrites,revision:()=>revision,authenticated:()=>!!user};
+
+ // Dados privados adicionais: cada pessoa acessa apenas sua própria linha (RLS).
+ const privateTables={productivity:'user_productivity_states',operational:'user_operational_drafts'};
+ async function fetchPrivate(kind){
+  if(!user)throw Error('Entre na sua conta antes de sincronizar dados.');
+  const table=privateTables[kind];if(!table)throw Error('Tipo de dados não autorizado.');
+  const {data,error}=await connect().from(table).select('payload,revision,updated_at').eq('user_id',user.id).maybeSingle();
+  if(error)throw error;
+  return data||null;
+ }
+ async function savePrivate(kind,payload,expectedRevision){
+  if(!user)throw Error('Entre na sua conta antes de salvar na nuvem.');
+  const table=privateTables[kind];if(!table)throw Error('Tipo de dados não autorizado.');
+  const stamp=new Date().toISOString();
+  if(expectedRevision===null||expectedRevision===undefined){
+   const {data,error}=await connect().from(table).insert({user_id:user.id,payload,revision:1,updated_at:stamp}).select('revision').single();
+   if(error){if(error.code==='23505')throw Error('Conflito de sincronização: registro criado por outra sessão.');throw error;}
+   return Number(data.revision);
+  }
+  const {data,error}=await connect().from(table).update({payload,revision:Number(expectedRevision)+1,updated_at:stamp})
+    .eq('user_id',user.id).eq('revision',expectedRevision).select('revision').maybeSingle();
+  if(error)throw error;
+  if(!data)throw Error('Conflito de sincronização: dados alterados em outro computador.');
+  return Number(data.revision);
+ }
+
+ window.ConciliaCloud={connect,signIn,signUp,signOut,session,identity,accountId:()=>user?.id||null,fetchWorkspace,saveWorkspace,fetchPrivate,savePrivate,serializedSave,waitWrites,revision:()=>revision,authenticated:()=>!!user};
 })();
