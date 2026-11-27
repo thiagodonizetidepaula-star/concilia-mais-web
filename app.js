@@ -61,6 +61,8 @@ function enqueueOperationalCloud(payload){
   if(accountId!==window.ConciliaCloud.accountId())return;
   try{
    operationalCloudRevision=await window.ConciliaCloud.savePrivate('operational',payload,operationalCloudRevision);
+   // Esta confirmação só ocorre após a resposta de sucesso do Supabase.
+   if(window.ConciliaCloud.accountId()===accountId)cloudMessage('Backup de rascunhos operacionais confirmado no Supabase.');
   }catch(err){
    operationalCloudReady=false;
    cloudMessage('Atenção: rascunhos operacionais NÃO foram salvos no Supabase. Cópia local preservada. '+err.message,true);
@@ -208,7 +210,7 @@ async function activateCloud(){
  $('#companySearch').value='';renderSelection();showPage(draft?'importar':'empresas');
  cloudDisplay();
  if(draft)say('Rascunho local recuperado. Confira a empresa e a competência no cabeçalho.');
- if(cloudSyncEnabled)cloudMessage(operationalCloudReady?'Cadastros sincronizados. Rascunhos operacionais protegidos por backup no Supabase.':'Cadastros sincronizados. Atenção: backup dos rascunhos operacionais pendente.');
+ if(cloudSyncEnabled)cloudMessage(operationalCloudReady?'Cadastros sincronizados. Backup dos rascunhos operacionais habilitado; confirme a sincronização após trabalhar.':'Cadastros sincronizados. Atenção: backup dos rascunhos operacionais pendente.');
  try{await window.ConciliaManualProductivity?.syncCloud?.();}catch(err){console.warn('Produtividade: sincronização adiada',err);}
 }
 async function initializeCloud(){
