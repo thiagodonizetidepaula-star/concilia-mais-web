@@ -176,3 +176,16 @@ body.authenticated .romeiro-board-tabs button.active::after {
     animation: none !important;
   }
 }
+
+/* Linha dourada superior do cabeçalho — largura quase total em vez de 29%.
+   Mantém o reflexo animado existente e respeita os cantos da área de trabalho. */
+body.authenticated .topbar::after {
+  left: 2% !important;
+  right: 2% !important;
+  width: auto !important;
+  max-width: none;
+  top: 0;
+  height: 2px;
+  border-radius: 99px;
+  box-shadow: 0 0 13px rgba(246,177,35,.38);
+}
