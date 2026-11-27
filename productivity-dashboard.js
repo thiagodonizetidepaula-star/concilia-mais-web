@@ -93,8 +93,10 @@ function change(action){
  }
  if(action==='restore-cycle')restoreCycle(k);
  if(action==='csv'){
- const rows=[['Empresa ID','Competência','Início','Conclusão','Tempo gasto (segundos)','Referência (min/lançamento)']];
- for(const [id,v] of Object.entries(records)){const pos=id.lastIndexOf('::');rows.push([id.slice(0,pos),id.slice(pos+2),v.startedAt||'',v.finishedAt||'',Math.round(elapsed(v)),v.baseline||3]);}
+ const rows=[['Empresa ID','Competência','Ciclo','Início','Conclusão','Tempo gasto (segundos)','Referência (min/lançamento)','Arquivado em']];
+ for(const [id,v] of Object.entries(records)){const pos=id.lastIndexOf('::');rows.push([id.slice(0,pos),id.slice(pos+2),'ATUAL',v.startedAt||'',v.finishedAt||'',Math.round(elapsed(v)),v.baseline||3,'']);}
+ const archived=readLocal(CYCLES_KEY,{});
+ for(const [id,cycles] of Object.entries(archived)){if(!Array.isArray(cycles))continue;const pos=id.lastIndexOf('::');for(const cycle of cycles){const v=cycle.record||{};rows.push([id.slice(0,pos),id.slice(pos+2),'ARQUIVADO',v.startedAt||'',v.finishedAt||'',Math.round(n(v.seconds)),v.baseline||3,cycle.archivedAt||'']);}}
  const csv='\uFEFF'+rows.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\r\n');
  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='concilia_produtividade.csv';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
  }
