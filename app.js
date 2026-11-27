@@ -33,6 +33,43 @@ function durableWorkspace(workspace){
 const draftFields=['imports','movements','ledger','transfers','financialControls','reconciliationReview','taxSplits'];
 let draftRevision=0;
 
+let operationalCloudRevision=null,operationalCloudReady=false,operationalCloudQueue=Promise.resolve();
+function operationalSnapshot(){
+ return {
+  companyId,period,
+  companies:state.companies.map(company=>Object.fromEntries([
+   ['id',company.id],...draftFields.map(field=>[field,company[field]||(field==='reconciliationReview'?{}:[])])
+  ])),
+  reviews:state.reviews.filter(review=>review.importId||review.operational),
+  savedAt:new Date().toISOString()
+ };
+}
+function applyOperationalSnapshot(workspace,draft){
+ if(!draft||!Array.isArray(draft.companies))return null;
+ const recognized=new Set((workspace.companies||[]).map(x=>x.id));
+ for(const company of workspace.companies||[]){
+  const saved=draft.companies.find(item=>item.id===company.id);
+  if(saved)for(const field of draftFields)company[field]=saved[field]||(field==='reconciliationReview'?{}:[]);
+ }
+ workspace.reviews.push(...(draft.reviews||[]).filter(review=>recognized.has(review.companyId)&&!workspace.reviews.some(x=>x.id&&x.id===review.id)));
+ return recognized.has(draft.companyId)&&/^\d{4}-(0[1-9]|1[0-2])$/.test(draft.period||'')?draft:null;
+}
+function enqueueOperationalCloud(payload){
+ if(!operationalCloudReady||!window.ConciliaCloud?.authenticated?.())return;
+ const accountId=window.ConciliaCloud.accountId();
+ operationalCloudQueue=operationalCloudQueue.catch(()=>{}).then(async()=>{
+  if(accountId!==window.ConciliaCloud.accountId())return;
+  try{
+   operationalCloudRevision=await window.ConciliaCloud.savePrivate('operational',payload,operationalCloudRevision);
+  }catch(err){
+   operationalCloudReady=false;
+   cloudMessage('Atenção: rascunhos operacionais NÃO foram salvos no Supabase. Cópia local preservada. '+err.message,true);
+   console.error('Backup operacional em nuvem pendente',err);
+  }
+ });
+}
+
+
 function draftKey(){
  const accountId=window.ConciliaCloud?.accountId?.();
  return accountId?'reconciliation-draft:'+accountId:'';
@@ -78,6 +115,7 @@ function saveDB({operational=true}={}){
   let conflict=false,nextRevision;
   tx.oncomplete=()=>{
    if(nextRevision&&key===draftKey())draftRevision=nextRevision;
+   if(snapshot)enqueueOperationalCloud(snapshot);
    resolve();
   };
   tx.onabort=()=>reject(conflict
@@ -138,9 +176,26 @@ async function activateCloud(){
   await new Promise((resolve,reject)=>{tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});
  }
  state=durableWorkspace(remote||blankState());
- const draft=await loadDraft(state);
+ const localDraft=await loadDraft(state);
+ let draft=localDraft;
+ // A nuvem é a referência. Um rascunho local anterior continua guardado no IndexedDB.
+ try{
+  const remoteDraft=await cloud.fetchPrivate('operational');
+  operationalCloudRevision=remoteDraft?.revision??null;
+  if(remoteDraft?.payload?.companies){
+   draft=applyOperationalSnapshot(state,remoteDraft.payload);
+  }
+  operationalCloudReady=true;
+ }catch(error){
+  operationalCloudReady=false;
+  cloudMessage('Rascunhos não puderam ser carregados da nuvem. Cópia local preservada. '+error.message,true);
+ }
  companyId=draft?.companyId||'';
  if(draft){period=draft.period;$('#period').value=period;}
+ if(operationalCloudReady&&operationalCloudRevision===null){
+  const initial=operationalSnapshot();
+  if(initial.companies.some(c=>draftFields.some(field=>Object.keys(c[field]||[]).length)))enqueueOperationalCloud(initial);
+ }
  ultimoExcluido=null;cloudSyncEnabled=true;authReady=true;
  // Limpar automaticamente dados operacionais legados já salvos no workspace.
  // A eventual falha de limpeza remota não traz lançamentos antigos à sessão.
@@ -153,7 +208,8 @@ async function activateCloud(){
  $('#companySearch').value='';renderSelection();showPage(draft?'importar':'empresas');
  cloudDisplay();
  if(draft)say('Rascunho local recuperado. Confira a empresa e a competência no cabeçalho.');
- if(cloudSyncEnabled)cloudMessage('Cadastros sincronizados. Os rascunhos operacionais ficam neste navegador.');
+ if(cloudSyncEnabled)cloudMessage(operationalCloudReady?'Cadastros sincronizados. Rascunhos operacionais protegidos por backup no Supabase.':'Cadastros sincronizados. Atenção: backup dos rascunhos operacionais pendente.');
+ try{await window.ConciliaManualProductivity?.syncCloud?.();}catch(err){console.warn('Produtividade: sincronização adiada',err);}
 }
 async function initializeCloud(){
  const cloud=window.ConciliaCloud;authReady=false;cloudDisplay();
