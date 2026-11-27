@@ -45,7 +45,7 @@ function draw(){
  <article class="prod-card"><span>Lançamentos processados</span><strong>${s.movements}</strong><small>${s.files} arquivo(s) importado(s) na sessão</small></article>
  <article class="prod-card"><span>Pendências e divergências</span><strong>${s.pending} <em>/ ${s.divergent}</em></strong><small>Sem classificação confirmada / alertas do Razão</small></article>
  </div>
- <div class="prod-columns"><article class="prod-section"><h3>Tempo de execução</h3><p>Inicie quando começar a trabalhar na conciliação. Pause nas interrupções e conclua ao terminar a conferência. O cronômetro pausa se a aba ficar oculta.</p><div class="prod-actions"><button data-prod="start" class="primary" ${empty||r?.runningSince?'disabled':''}>▶ Iniciar / Retomar</button><button data-prod="pause" class="secondary" ${!r?.runningSince?'disabled':''}>Ⅱ Pausar</button><button data-prod="finish" class="secondary" ${empty||!r?.startedAt?'disabled':''}>✓ Marcar como concluída</button></div><div class="prod-actions"><button data-prod="recalculate" class="secondary" ${empty?'disabled':''}>↻ Recalcular indicadores</button><button data-prod="reset" class="secondary" ${empty?'disabled':''}>↺ Zerar cronômetro</button><button data-prod="new-cycle" class="secondary" ${empty?'disabled':''}>＋ Novo ciclo</button><button data-prod="restore-cycle" class="secondary" ${empty?'disabled':''}>↶ Restaurar último ciclo</button></div><label class="prod-label">Tempo manual de referência (minutos por lançamento)<input id="prodBaseline" type="number" min="0.1" max="120" step="0.5" value="${baseline}" ${empty?'disabled':''}></label><p class="prod-disclaimer">A economia de tempo é uma projeção baseada na referência configurada. O tempo real depende de iniciar e pausar o cronômetro corretamente. Conclusão não significa conciliação contábil validada automaticamente.</p></article>
+ <div class="prod-columns"><article class="prod-section"><h3>Tempo de execução</h3><p>Inicie quando começar a trabalhar na conciliação. Pause nas interrupções e conclua ao terminar a conferência. O cronômetro pausa se a aba ficar oculta.</p><div class="prod-actions"><button data-prod="start" class="primary" ${empty||r?.runningSince?'disabled':''}>▶ Iniciar / Retomar</button><button data-prod="pause" class="secondary" ${!r?.runningSince?'disabled':''}>Ⅱ Pausar</button><button data-prod="finish" class="secondary" ${empty||!r?.startedAt?'disabled':''}>✓ Marcar como concluída</button></div><div class="prod-actions"><button data-prod="recalculate" class="secondary" ${empty?'disabled':''}>↻ Recalcular indicadores</button><button data-prod="reset" class="secondary" ${empty?'disabled':''}>↺ Zerar cronômetro</button><button data-prod="new-cycle" class="secondary" ${empty?'disabled':''}>＋ Novo ciclo</button><button data-prod="restore-cycle" class="secondary" ${empty||!((readLocal(CYCLES_KEY,{})[k]||[]).length)?'disabled':''}>↶ Restaurar último ciclo</button></div><label class="prod-label">Tempo manual de referência (minutos por lançamento)<input id="prodBaseline" type="number" min="0.1" max="120" step="0.5" value="${baseline}" ${empty?'disabled':''}></label><p class="prod-disclaimer">A economia de tempo é uma projeção baseada na referência configurada. O tempo real depende de iniciar e pausar o cronômetro corretamente. Conclusão não significa conciliação contábil validada automaticamente.</p></article>
  <article class="prod-section"><h3>Resumo de acompanhamento</h3><div class="prod-progress"><span>Classificações confirmadas</span><strong>${percent}%</strong></div><div class="prod-track"><div style="width:${percent}%"></div></div><dl><div><dt>Conciliações monitoradas neste navegador</dt><dd>${totals.sessions}</dd></div><div><dt>Marcadas como concluídas</dt><dd>${totals.completed}</dd></div><div><dt>Tempo total registrado</dt><dd>${fmt(totals.seconds)}</dd></div><div><dt>Razão: registros carregados</dt><dd>${s.ledger}</dd></div><div><dt>Tempo por lançamento</dt><dd>${s.movements?fmt(time/s.movements):'—'}</dd></div></dl><button data-prod="csv" class="secondary">⬇ Exportar histórico de produtividade (CSV)</button></article></div>
  <p class="prod-footnote">Os indicadores usam os lançamentos carregados na sessão atual. O histórico de tempo fica armazenado neste navegador, não sincronizado com a nuvem. Os arquivos temporários continuam com as regras atuais do ConCiliar+.</p>`;
 }
@@ -53,7 +53,7 @@ function draw(){
 const CYCLES_KEY='concilia-prod-cycles-v1';
 const AUDIT_KEY='concilia-prod-actions-v1';
 const readLocal=(name,fallback)=>{try{const v=JSON.parse(localStorage.getItem(name)||'null');return v&&typeof v==='object'?v:fallback;}catch{return fallback;}};
-const appendAudit=(action,k)=>{const v=readLocal(AUDIT_KEY,[]);const list=Array.isArray(v)?v:[];list.push({action,context:k,at:new Date().toISOString(),user:window.ConciliaCloud?.identity?.()||'usuário local'});localStorage.setItem(AUDIT_KEY,JSON.stringify(list.slice(-500)));};
+const appendAudit=(action,k)=>{try{const v=readLocal(AUDIT_KEY,[]);const list=Array.isArray(v)?v:[];list.push({action,context:k,at:new Date().toISOString(),user:window.ConciliaCloud?.identity?.()||'usuário local'});localStorage.setItem(AUDIT_KEY,JSON.stringify(list.slice(-500)));}catch(e){console.warn('Auditoria local de produtividade indisponível',e);}};
 function archiveCycle(k,r){
  const h=readLocal(CYCLES_KEY,{});
  const list=Array.isArray(h[k])?h[k]:[];
@@ -69,7 +69,8 @@ function restoreCycle(k){
  const previous=list.pop();
  if(records[k])list.push({record:JSON.parse(JSON.stringify(records[k])),archivedAt:new Date().toISOString()});
  h[k]=list.slice(-30);
- localStorage.setItem(CYCLES_KEY,JSON.stringify(h));
+ try{localStorage.setItem(CYCLES_KEY,JSON.stringify(h));}
+ catch(e){alert('Não foi possível salvar a versão anterior. Nenhum ciclo foi restaurado. Verifique o armazenamento do navegador.');return;}
  records[k]={...previous.record,runningSince:null};
  persist();appendAudit('RESTAURAR_CICLO',k);
 }
@@ -83,7 +84,10 @@ function change(action){
  if(action==='reset'||action==='new-cycle'){
   const detail=action==='reset'?'zerar a medição de tempo':'iniciar um novo ciclo de produtividade';
   if(!confirm('Deseja '+detail+' nesta empresa e competência? A medição atual será arquivada; extratos, lançamentos e Razão não serão apagados.'))return;
-  stop(r);archiveCycle(k,r);
+  // Arquivamento deve ser concluído ANTES de zerar; falha não pode apagar medições.
+  const previous={...r,seconds:elapsed(r),runningSince:null};
+  try{archiveCycle(k,previous);}
+  catch(e){alert('Não foi possível arquivar o ciclo anterior. A medição foi preservada. Verifique o espaço disponível no navegador.');return;}
   records[k]={seconds:0,runningSince:null,finishedAt:null,baseline:n(r.baseline)||3,startedAt:null};
   persist();appendAudit(action==='reset'?'ZERAR_CRONOMETRO':'NOVO_CICLO',k);
  }
