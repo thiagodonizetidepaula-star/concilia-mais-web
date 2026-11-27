@@ -103,3 +103,76 @@ body.authenticated .sidebar .brand::after {
     animation: none !important;
   }
 }
+
+/* Destaques dourados existentes em outras partes do ConCiliar+.
+   O reflexo corre sobre contornos e linhas, sem mudar as cores dos componentes. */
+@keyframes concilia-gold-line-travel {
+  0% { background-position: 110% 50%; }
+  100% { background-position: -110% 50%; }
+}
+body.authenticated .romeiro-outline.gold-outline,
+body.authenticated .romeiro-finish,
+body.authenticated .topbar-account .logout-button {
+  position: relative;
+  isolation: isolate;
+}
+body.authenticated .romeiro-outline.gold-outline::after,
+body.authenticated .romeiro-finish::after,
+body.authenticated .topbar-account .logout-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: 1;
+  pointer-events: none;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--concilia-gold-angle),
+    transparent 0deg 230deg,
+    rgba(248,188,58,.08) 265deg,
+    #f7ba40 297deg,
+    #fff5cd 316deg,
+    #ffc43c 332deg,
+    transparent 359deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: concilia-gold-border-run 6s linear infinite;
+}
+/* Linhas douradas de navegação, cabeçalho e tela de acesso. */
+body.authenticated .romeiro-board-tabs button.active::after,
+body.authenticated .topbar::after,
+body:not(.authenticated) .auth-header::after,
+body:not(.authenticated) .auth-stage .auth-card::after,
+body:not(.authenticated) .auth-stage .auth-logo::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(240,168,38,.25) 23%,
+    #fac451 43%,
+    #fff4c3 50%,
+    #fac451 57%,
+    rgba(240,168,38,.25) 77%,
+    transparent 100%
+  );
+  background-size: 220% 100%;
+  animation: concilia-gold-line-travel 6s linear infinite;
+}
+/* A linha da aba selecionada conserva sua altura e localização originais. */
+body.authenticated .romeiro-board-tabs button.active::after {
+  box-shadow: 0 0 7px rgba(239,174,43,.28);
+}
+@media (prefers-reduced-motion: reduce) {
+  body.authenticated .romeiro-outline.gold-outline::after,
+  body.authenticated .romeiro-finish::after,
+  body.authenticated .topbar-account .logout-button::after,
+  body.authenticated .romeiro-board-tabs button.active::after,
+  body.authenticated .topbar::after,
+  body:not(.authenticated) .auth-header::after,
+  body:not(.authenticated) .auth-stage .auth-card::after,
+  body:not(.authenticated) .auth-stage .auth-logo::after {
+    animation: none !important;
+  }
+}
