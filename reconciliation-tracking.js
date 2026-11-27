@@ -24,12 +24,15 @@
    ' concluídas · ' + (records.length - completed) + ' em andamento · ' +
    new Set(records.map(record => record.companyId)).size + ' empresas';
   $('#trackingHistory').innerHTML = table(
-   ['Empresa', 'Competência', 'Início', 'Conclusão', 'Duração', 'Situação', 'Observações', 'Ação'],
+   ['Empresa', 'Competência', 'Início', 'Conclusão', 'Duração', 'Situação', 'Retenção', 'Observações', 'Ação'],
    records.map(record => [
     safe(record.companyName), safe(record.month.split('-').reverse().join('/')),
     safe(datePT(record.start)), record.end ? safe(datePT(record.end)) : '—',
     record.end ? Core.dayDistance(record.start, record.end) + ' dia(s)' : '—',
-    badge(record.end ? 'CONCLUÍDA' : 'EM ANDAMENTO'), safe(record.notes || '—'),
+    badge(record.end ? 'CONCLUÍDA' : 'EM ANDAMENTO'),
+    safe(!record.end?'Em andamento':!record.dominioConfirmed||!record.dreConfirmed?'Aguardando Domínio/DRE':window.ConciliaRetention?.eligibleMonths(
+     {reconciliationTracking:{[record.month]:record}}).has(record.month)?'Prazo vencido · limpeza autorizada':'Protegido até vencer prazo'),
+    safe(record.notes || '—'),
     '<button type="button" class="secondary" data-tracking-company="' + safe(record.companyId) +
      '" data-tracking-month="' + safe(record.month) + '">Editar registro</button>'
    ])
