@@ -98,7 +98,7 @@ function updateField(field,raw){
  if(!Number.isFinite(v)||(field==='baseline'?(v<.1||v>120):(v<0||v>1000000))){alert('Informe um número válido. Referência: 0,1 a 120 minutos; quantidades: 0 a 1.000.000.');render();return;}
  saveRecord({...r,[field]:v},'Indicadores manuais atualizados.');
 }
-function csvSafe(value){const text=String(value??'');return /^[=+\-@\t\r]/.test(text)?'\''+text:text;}
+function csvSafe(value){if(typeof value==='number')return String(value);const text=String(value??'');return /^[=+\-@\t\r]/.test(text)?'\''+text:text;}
 function exportCSV(){
  const list=recorded(context()),rows=[['Empresa','Competência','Início','Conclusão','Duração (segundos)','Processados','Pendências','Divergências','Referência manual (min/lançamento)','Economia estimada (segundos)','Produtividade (%)']];
  for(const r of list){const m=metrics(r);rows.push([r.companyName||r.companyId,r.period,r.startedAt||'',r.finishedAt||'',Math.round(m.spent),m.processed,m.pending,m.divergent,r.baseline||3,Math.round(m.saved),m.productivity]);}
@@ -185,9 +185,10 @@ function init(){
   if(el.matches('[data-manual-filter]')){filter=el.value;render();}
   if(el.matches('[data-manual-company]')){selectedHistory=el.value;render();}
  });
- document.addEventListener('click',e=>{if(e.target.closest('#nav button:not(#prodNav)'))stopRunning();},true);
- for(const selector of ['#companySelect','#period','#cloudLogout','#restartWorkspace']){const control=$(selector);if(control)control.addEventListener('change',stopRunning,true);}
- document.addEventListener('visibilitychange',()=>{if(document.hidden)stopRunning();else if($('#p-produtividade')?.classList.contains('visible'))render();});
+ // A medição continua durante navegação entre telas e trabalho em outras abas.
+ // Ao trocar de empresa, o ciclo anterior continua identificado pela empresa original.
+ // Um fechamento/recarregamento da página pausa para não contar tempo perdido por dias.
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&$('#p-produtividade')?.classList.contains('visible'))render();});
  window.addEventListener('pagehide',stopRunning);
  setInterval(()=>{if(document.hidden||!$('#p-produtividade')?.classList.contains('visible'))return;const r=currentRecord();if(!r?.runningSince)return;const text=fmt(time(r));for(const el of document.querySelectorAll('[data-prod-timer],[data-prod-duration]'))el.textContent=text;},1000);
  window.lucide?.createIcons();
