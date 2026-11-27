@@ -41,6 +41,7 @@ function operationalSnapshot(){
    ['id',company.id],...draftFields.map(field=>[field,company[field]||(field==='reconciliationReview'?{}:[])])
   ])),
   reviews:state.reviews.filter(review=>review.importId||review.operational),
+  audit:state.audit.filter(item=>/(EXTRATO|RAZAO|RAZÕES|RAZOES|CONTROLE_FINANCEIRO|CRUZAMENTO_FINANCEIRO|TRIAGEM_AUTOMATICA|SUGESTOES_GERADAS|IMPORTACAO|RESTAURACAO)/i.test(String(item.action||''))),
   savedAt:new Date().toISOString()
  };
 }
@@ -52,6 +53,7 @@ function applyOperationalSnapshot(workspace,draft){
   if(saved)for(const field of draftFields)company[field]=saved[field]||(field==='reconciliationReview'?{}:[]);
  }
  workspace.reviews.push(...(draft.reviews||[]).filter(review=>recognized.has(review.companyId)&&!workspace.reviews.some(x=>x.id&&x.id===review.id)));
+ for(const item of draft.audit||[])if((!item.companyId||recognized.has(item.companyId))&&!workspace.audit.some(x=>x.at===item.at&&x.action===item.action&&x.companyId===item.companyId))workspace.audit.push(item);
  return recognized.has(draft.companyId)&&/^\d{4}-(0[1-9]|1[0-2])$/.test(draft.period||'')?draft:null;
 }
 function enqueueOperationalCloud(payload){
@@ -179,6 +181,7 @@ async function activateCloud(){
     companyId:'',period,
     companies:(remote.companies||[]).map(c=>Object.fromEntries([['id',c.id],...draftFields.map(field=>[field,c[field]||(field==='reconciliationReview'?{}:[])])])),
     reviews:(remote.reviews||[]).filter(review=>review.importId||review.operational),
+    audit:(remote.audit||[]).filter(item=>/(EXTRATO|RAZAO|RAZÕES|RAZOES|CONTROLE_FINANCEIRO|CRUZAMENTO_FINANCEIRO|TRIAGEM_AUTOMATICA|SUGESTOES_GERADAS|IMPORTACAO|RESTAURACAO)/i.test(String(item.action||''))),
     savedAt:new Date().toISOString()
    };
    await cloud.savePrivate('operational',legacyPayload,null);
