@@ -1780,6 +1780,18 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  const existing=c.transfers.find(t=>t.outId===outId&&t.inId===inId);if(existing)existing.status=decision;else c.transfers.push({outId,inId,status:decision});await store('TRANSFERENCIA_'+decision,`${outId} → ${inId}`);say('Decisão sobre a transferência registrada.')})}
  });
 }
+// Limpeza automática diária enquanto o aplicativo permanece aberto.
+// Sem autenticação e sincronização operacional válida, nunca tenta apagar dados.
+setInterval(async()=>{
+ if(!authReady||!operationalCloudReady||!window.ConciliaCloud?.authenticated?.())return;
+ try{
+  const cleanup=runRetentionCleanup();
+  if(!cleanup)return;
+  log('RETENCAO_OPERACIONAL_3_MESES',JSON.stringify(cleanup));
+  await saveDB();
+  render();
+ }catch(err){console.warn('Limpeza periódica adiada; dados locais preservados',err);}
+},24*60*60*1000);
 (async()=>{try{
  document.body.classList.remove('authenticated');
  window.lucide?.createIcons();
