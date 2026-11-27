@@ -169,6 +169,21 @@ async function activateCloud(){
  if(!cloud?.authenticated()){authReady=false;cloudDisplay();return;}
  const remote=await cloud.fetchWorkspace();
  if(remote&&!Array.isArray(remote.companies))throw Error('Workspace da nuvem inválido.');
+ // Antes de reduzir o workspace aos dados duráveis, preservar importações legadas
+ // que ainda possam existir nele. Não remover esses dados se o backup falhar.
+ const legacyOperational=(remote?.companies||[]).some(c=>draftFields.some(field=>Object.keys(c[field]||[]).length));
+ if(legacyOperational){
+  const existingDraft=await cloud.fetchPrivate('operational');
+  if(!existingDraft){
+   const legacyPayload={
+    companyId:'',period,
+    companies:(remote.companies||[]).map(c=>Object.fromEntries([['id',c.id],...draftFields.map(field=>[field,c[field]||(field==='reconciliationReview'?{}:[])])])),
+    reviews:(remote.reviews||[]).filter(review=>review.importId||review.operational),
+    savedAt:new Date().toISOString()
+   };
+   await cloud.savePrivate('operational',legacyPayload,null);
+  }
+ }
  // Preservar um retrato local de recuperação ANTES de carregar a nuvem.
  // Não enviar dados locais antigos automaticamente para a conta conectada.
  const previousLocal=await loadDB();
