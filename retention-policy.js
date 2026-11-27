@@ -9,7 +9,7 @@
   if(!validMonth(month))return NaN;
   const [y,m]=month.split('-').map(Number);
   // Último dia do terceiro mês posterior ao encerramento da competência, UTC.
-  return Date.UTC(y,m+4,0,23,59,59,999);
+  return Date.UTC(y,m+3,0,23,59,59,999);
  }
  function verifiedRecord(record){
   return !!record?.end&&!!record?.dominioConfirmed&&!!record?.dreConfirmed;
