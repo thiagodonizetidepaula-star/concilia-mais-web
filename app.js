@@ -105,13 +105,7 @@ function loadDraft(workspace){
 
 function saveDB({operational=true}={}){
  const key=operational&&authReady?draftKey():'';
- const draft=key?{
-  companyId,period,
-  companies:state.companies.map(company=>Object.fromEntries([
-   ['id',company.id],...draftFields.map(field=>[field,company[field]||(field==='reconciliationReview'?{}:[])])
-  ])),
-  reviews:state.reviews.filter(review=>review.importId||review.operational)
- }:null;
+ const draft=key?operationalSnapshot():null;
  const snapshot=draft?structuredClone(draft):null;
  return new Promise((resolve,reject)=>{
   const tx=db.transaction('app','readwrite');
@@ -197,13 +191,24 @@ async function activateCloud(){
  }
  state=durableWorkspace(remote||blankState());
  const localDraft=await loadDraft(state);
- let draft=localDraft;
- // A nuvem é a referência. Um rascunho local anterior continua guardado no IndexedDB.
+ const localCopy=await new Promise((resolve,reject)=>{
+  const req=db.transaction('app','readonly').objectStore('app').get(draftKey());
+  req.onsuccess=()=>resolve(req.result||null);
+  req.onerror=()=>reject(req.error);
+ });
+ let draft=localDraft,needsCloudRecovery=false;
+ // Comparar a última gravação: um rascunho offline mais recente não pode ser
+ // substituído silenciosamente por uma versão antiga recebida da nuvem.
  try{
   const remoteDraft=await cloud.fetchPrivate('operational');
   operationalCloudRevision=remoteDraft?.revision??null;
-  if(remoteDraft?.payload?.companies){
+  const localAt=Date.parse(localCopy?.savedAt||'')||0;
+  const cloudAt=Date.parse(remoteDraft?.payload?.savedAt||'')||0;
+  const preferLocal=!!localCopy?.companies&&localAt>cloudAt;
+  if(remoteDraft?.payload?.companies&&!preferLocal){
    draft=applyOperationalSnapshot(state,remoteDraft.payload);
+  }else if(preferLocal){
+   needsCloudRecovery=true;
   }
   operationalCloudReady=true;
  }catch(error){
@@ -212,9 +217,9 @@ async function activateCloud(){
  }
  companyId=draft?.companyId||'';
  if(draft){period=draft.period;$('#period').value=period;}
- if(operationalCloudReady&&operationalCloudRevision===null){
-  const initial=operationalSnapshot();
-  if(initial.companies.some(c=>draftFields.some(field=>Object.keys(c[field]||[]).length)))enqueueOperationalCloud(initial);
+ if(operationalCloudReady&&(operationalCloudRevision===null||needsCloudRecovery)){
+  const initial=needsCloudRecovery?localCopy:operationalSnapshot();
+  if(initial?.companies?.some(c=>draftFields.some(field=>Object.keys(c[field]||[]).length)))enqueueOperationalCloud(initial);
  }
  ultimoExcluido=null;cloudSyncEnabled=true;authReady=true;
  // Limpar automaticamente dados operacionais legados já salvos no workspace.
