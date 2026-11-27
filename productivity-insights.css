@@ -68,3 +68,9 @@
 @media(max-width:740px){#productivityPanel .prod-heading{padding:21px;border-radius:19px}#productivityPanel .prod-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.insights-mini{grid-template-columns:repeat(3,minmax(0,1fr))}.insights-mini>div{padding:12px}.insights-mini strong{font-size:22px}.insights-bank-list{grid-template-columns:1fr}.insights-chart{padding:18px}}
 @media(max-width:520px){#productivityPanel .prod-heading h2{font-size:25px}.insights-top h3{font-size:20px}.insights-mini{grid-template-columns:1fr 1fr}.insights-mini>div:nth-child(3){grid-column:1/-1}.insights-legends{grid-template-columns:1fr}.insights-chart-head{flex-wrap:wrap}.insights-filters select{min-width:170px}.insights-donut{width:153px;height:153px}.insights-donut strong{font-size:31px}}
 @media(prefers-reduced-motion:reduce){#productivityPanel .prod-card:hover{transform:none}.insights-bank-meter>span{transition:none}}
+
+/* Gráficos em destaque: os números ficam abaixo das visualizações interativas. */
+#prodInsights .insights-mini{margin-top:16px;margin-bottom:8px}
+#productivityPanel .prod-metrics-head{margin:24px 2px 13px}
+#productivityPanel .prod-metrics-head span{font-size:10px;letter-spacing:1.7px;font-weight:850;color:#4581af}
+#productivityPanel .prod-metrics-head h3{margin:5px 0 0;font-size:19px;letter-spacing:-.4px;color:#163451}
