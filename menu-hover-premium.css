@@ -48,3 +48,58 @@ body.authenticated .sidebar #nav button:focus-visible {
     transform: none !important;
   }
 }
+
+/* Reflexo dourado percorrendo somente a borda — sem trocar a identidade do menu. */
+@property --concilia-gold-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes concilia-gold-border-run {
+  to { --concilia-gold-angle: 360deg; }
+}
+@keyframes concilia-gold-underline-run {
+  from { background-position: 110% 50%; }
+  to { background-position: -110% 50%; }
+}
+body.authenticated .sidebar #nav button.active,
+body.authenticated .sidebar #nav button:not(.active):hover {
+  isolation: isolate;
+}
+/* A borda é uma camada sem interação: os botões continuam clicáveis. */
+body.authenticated .sidebar #nav button.active::after,
+body.authenticated .sidebar #nav button:not(.active):hover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  padding: 1.5px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--concilia-gold-angle),
+    transparent 0deg 235deg,
+    rgba(250,185,47,.10) 265deg,
+    #f7ba40 298deg,
+    #fff4c5 316deg,
+    #f6b934 332deg,
+    transparent 359deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: concilia-gold-border-run 5.5s linear infinite;
+}
+body.authenticated .sidebar .brand::after {
+  background: linear-gradient(90deg, transparent 10%, #b47a21 24%, #ffdc70 43%, #fff5ce 50%, #ffdc70 57%, #b47a21 76%, transparent 90%);
+  background-size: 220% 100%;
+  animation: concilia-gold-underline-run 6s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  body.authenticated .sidebar #nav button.active::after,
+  body.authenticated .sidebar #nav button:not(.active):hover::after,
+  body.authenticated .sidebar .brand::after {
+    animation: none !important;
+  }
+}
