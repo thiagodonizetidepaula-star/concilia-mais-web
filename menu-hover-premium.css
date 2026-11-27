@@ -1,0 +1,65 @@
+/* ConCiliar+ — microinterações premium do menu lateral. Somente visual. */
+@media (hover: hover) and (pointer: fine) {
+  body.authenticated .sidebar #nav button {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    will-change: auto;
+    transition: transform .24s cubic-bezier(.2,.8,.2,1),
+      color .2s ease, background .24s ease,
+      box-shadow .24s ease, border-color .24s ease;
+  }
+  body.authenticated .sidebar #nav button::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    opacity: 0;
+    transform: translateX(-14px);
+    background: linear-gradient(105deg, rgba(54,155,244,.32),rgba(37,134,224,.13) 68%,rgba(52,208,210,.05));
+    transition: opacity .24s ease, transform .3s cubic-bezier(.2,.8,.2,1);
+    pointer-events: none;
+  }
+  body.authenticated .sidebar #nav button:not(.active):hover {
+    color: #fff;
+    background: rgba(34,103,175,.23);
+    box-shadow: inset 3px 0 rgba(76,217,229,.93),
+      0 7px 19px rgba(0,13,39,.18);
+    transform: translateX(4px);
+  }
+  body.authenticated .sidebar #nav button:not(.active):hover::before {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  body.authenticated .sidebar #nav button svg {
+    transition: transform .24s ease, color .2s ease, filter .24s ease;
+  }
+  body.authenticated .sidebar #nav button:hover svg {
+    transform: scale(1.12);
+    color: #72e4ea;
+    filter: drop-shadow(0 0 5px rgba(68,207,234,.35));
+  }
+  body.authenticated .sidebar #nav button.active:hover {
+    transform: translateX(2px);
+    box-shadow: inset 3px 0 #ffca3d, 0 6px 19px rgba(0,12,35,.23);
+  }
+}
+body.authenticated .sidebar #nav button:focus-visible {
+  outline: 2px solid #79e6ed;
+  outline-offset: 2px;
+}
+@media (max-width: 720px) {
+  body.authenticated .sidebar #nav button:hover,
+  body.authenticated .sidebar #nav button.active:hover {
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.authenticated .sidebar #nav button,
+  body.authenticated .sidebar #nav button::before,
+  body.authenticated .sidebar #nav button svg {
+    transition: none !important;
+    transform: none !important;
+  }
+}
