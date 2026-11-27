@@ -32,7 +32,8 @@ function draw(){
  const r=k?entry(k):null,s=snapshot(),time=r?elapsed(r):0;
  const baseline=r?n(r.baseline):3;
  const manual=s.movements*baseline*60;
- const saved=Math.max(0,manual-time);
+ // Economia não é realizada antes do encerramento de uma medição.
+ const saved=r?.finishedAt?Math.max(0,manual-time):0;
  const percent=s.movements?Math.round(100*s.confirmed/s.movements):0;
  const totals=Object.values(records).reduce((a,x)=>{a.sessions++;a.seconds+=elapsed(x);a.completed+=x.finishedAt?1:0;return a;},{sessions:0,seconds:0,completed:0});
  root.innerHTML=`<div class="prod-heading"><div><span class="prod-kicker">INTELIGÊNCIA OPERACIONAL</span><h2>Dashboard de Produtividade</h2><p>Medição por empresa e competência, sem interferir na conciliação bancária.</p></div><div class="prod-status">${r?.finishedAt?'Conciliação concluída':r?.runningSince?'Cronômetro em andamento':'Aguardando medição'}</div></div>
@@ -41,8 +42,8 @@ function draw(){
  <div class="prod-metrics-head"><span>INDICADORES DA CONCILIAÇÃO</span><h3>Resumo da produtividade e dos tempos</h3></div>
  <div class="prod-grid">
  <article class="prod-card"><span>Tempo gasto nesta conciliação</span><strong data-prod-timer>${fmt(time)}</strong><small>Cronômetro da atividade</small></article>
- <article class="prod-card"><span>Tempo manual estimado</span><strong>${fmt(manual)}</strong><small>${baseline} min por lançamento (referência editável)</small></article>
- <article class="prod-card"><span>Tempo potencial economizado</span><strong data-prod-saved>${fmt(saved)}</strong><small>Estimativa: tempo manual menos tempo registrado</small></article>
+ <article class="prod-card"><span>Referência de tempo manual</span><strong>${fmt(manual)}</strong><small>Projeção fixa dos ${s.movements} lançamentos · ${baseline} min cada. Não é tempo do cronômetro.</small></article>
+ <article class="prod-card"><span>Economia estimada nesta medição</span><strong data-prod-saved>${fmt(saved)}</strong><small>${r?.finishedAt?'Ciclo concluído: referência manual menos tempo registrado':'Disponível após concluir a medição. Zerar cronômetro zera este indicador.'}</small></article>
  <article class="prod-card"><span>Produtividade</span><strong>${percent}%</strong><small>${s.confirmed} de ${s.movements} lançamentos classificados</small></article>
  <article class="prod-card"><span>Lançamentos processados</span><strong>${s.movements}</strong><small>${s.files} arquivo(s) importado(s) na sessão</small></article>
  <article class="prod-card"><span>Pendências e divergências</span><strong>${s.pending} <em>/ ${s.divergent}</em></strong><small>Sem classificação confirmada / alertas do Razão</small></article>
@@ -138,10 +139,10 @@ function init(){
  window.addEventListener('pagehide',saveCurrentBeforeChange);
  tick=setInterval(()=>{if(!$('#p-produtividade')?.classList.contains('visible')||document.hidden)return;
  const k=key(),r=k?records[k]:null;if(!r?.runningSince)return;
- const t=elapsed(r),seconds=Math.max(0,Math.round(t)),manual=snapshot().movements*n(r.baseline||3)*60;
+ const t=elapsed(r),seconds=Math.max(0,Math.round(t));
  const clock=$('[data-prod-timer]'),saved=$('[data-prod-saved]');
  if(clock)clock.textContent=fmt(seconds);
- if(saved)saved.textContent=fmt(Math.max(0,manual-t));
+ if(saved)saved.textContent=fmt(0);
  },1000);
  window.lucide?.createIcons();
 }
