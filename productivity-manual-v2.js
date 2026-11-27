@@ -56,7 +56,13 @@ function perform(action){
   if(r.runningSince)return;
   const now=Date.now();
   const next={...r,id:r.id||'med-'+now+'-'+Math.random().toString(36).slice(2,8),companyName:c.company?.name||r.companyName,startedAt:r.startedAt||new Date(now).toISOString(),runningSince:now};
-  saveRecord(next,r.startedAt?'Cronômetro retomado.':'Nova medição iniciada. Registre seus lançamentos manualmente.');
+  // Um único cronômetro em andamento por operador, ainda que mude de empresa.
+  const sessions={...state.sessions,[k]:next};
+  for(const [otherKey,other] of Object.entries(sessions)){
+   if(otherKey!==k&&other?.userId===c.userId&&other.runningSince)
+    sessions[otherKey]={...other,seconds:time(other),runningSince:null};
+  }
+  if(write({...state,sessions})){feedback(r.startedAt?'Cronômetro retomado.':'Nova medição iniciada. Registre seus lançamentos manualmente.');render();}
   return;
  }
  if(action==='pause'){
