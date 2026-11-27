@@ -34,6 +34,15 @@ const draftFields=['imports','movements','ledger','transfers','financialControls
 let draftRevision=0;
 
 let operationalCloudRevision=null,operationalCloudReady=false,operationalCloudQueue=Promise.resolve();
+/* Executa retenção somente em competências explicitamente encerradas e homologadas.
+   Não altera cadastros, regras aprendidas, nem o histórico gerencial. */
+function runRetentionCleanup(){
+ if(!window.ConciliaRetention||!state?.companies?.length)return null;
+ const result=window.ConciliaRetention.cleanupWorkspace(state);
+ const deleted=Object.values(result.deleted).reduce((a,b)=>a+b,0);
+ if(deleted)console.info('ConCiliar+: limpeza de dados operacionais elegíveis',result);
+ return deleted?result:null;
+}
 function operationalSnapshot(){
  return {
   companyId,period,
@@ -131,7 +140,19 @@ function saveDB({operational=true}={}){
  });
 }
 function log(type,detail){state.audit.push({at:new Date().toISOString(),companyId,period,actorId:window.ConciliaCloud?.accountId?.()||null,action:type,detail});}
-async function store(type,detail){if(!['EXTRATO_REFAZER','IMPORTACAO_EXCLUIDA','RESTAURACAO_IMPORTACOES'].includes(type))ultimoExcluido=null;log(type,detail);await saveDB();render();if(cloudSyncEnabled&&window.ConciliaCloud?.authenticated()){try{await window.ConciliaCloud.serializedSave(durableWorkspace(state));cloudMessage('Alterações salvas na nuvem e cópia local atualizada.');}catch(err){cloudSyncEnabled=false;cloudMessage('Falha ao sincronizar: '+err.message+'. Cópia local preservada. Faça backup JSON antes de continuar.',true)}}}
+async function store(type,detail){
+ if(!['EXTRATO_REFAZER','IMPORTACAO_EXCLUIDA','RESTAURACAO_IMPORTACOES'].includes(type))ultimoExcluido=null;
+ log(type,detail);
+ // Limpeza automática no salvamento; somente documentos de períodos homologados e vencidos.
+ const cleanup=runRetentionCleanup();
+ if(cleanup)log('RETENCAO_OPERACIONAL_3_MESES',JSON.stringify(cleanup));
+ await saveDB();
+ render();
+ if(cloudSyncEnabled&&window.ConciliaCloud?.authenticated()){
+  try{await window.ConciliaCloud.serializedSave(durableWorkspace(state));cloudMessage('Alterações salvas na nuvem e cópia local atualizada.');}
+  catch(err){cloudSyncEnabled=false;cloudMessage('Falha ao sincronizar: '+err.message+'. Cópia local preservada. Faça backup JSON antes de continuar.',true)}
+ }
+}
 function table(headers,rows){if(!rows.length)return empty('Nenhum registro para exibir.');return `<div class="tablewrap"><table><thead><tr>${headers.map(h=>`<th>${safe(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${v??''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
 function badge(s){const kind=/CONFIRM|CONCILIADO|OK/.test(s)?'ok':/PENDENTE|SUGERIDA|AMBIGU|DUPLIC/.test(s)?'warn':'';return `<span class="badge ${kind}">${safe(s)}</span>`}
 function datePT(d){return String(d||'').split('-').reverse().join('/')}
@@ -225,6 +246,15 @@ async function activateCloud(){
  // Limpar automaticamente dados operacionais legados já salvos no workspace.
  // A eventual falha de limpeza remota não traz lançamentos antigos à sessão.
  await saveDB({operational:false});
+ // Ao entrar novamente, o prazo vencido é aplicado mesmo sem novos lançamentos.
+ // Exige que a versão local/remota já tenha sido restaurada antes desta verificação.
+ if(operationalCloudReady){
+  const cleanup=runRetentionCleanup();
+  if(cleanup){
+   log('RETENCAO_OPERACIONAL_3_MESES',JSON.stringify(cleanup));
+   await saveDB();
+  }
+ }
  const hasOldImports=(remote?.companies||[]).some(c=>(c.imports||[]).length||(c.movements||[]).length||(c.ledger||[]).length||(c.financialControls||[]).length||(c.transfers||[]).length);
  if(hasOldImports){
   try{await cloud.serializedSave(durableWorkspace(state));}
