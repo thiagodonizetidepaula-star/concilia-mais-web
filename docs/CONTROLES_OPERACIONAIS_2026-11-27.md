@@ -36,3 +36,29 @@ Data: 2026-11-27. Esta branch não é uma publicação em produção.
 - Criar backup validado antes de qualquer migração ou implantação.
 
 **Regra de execução:** nenhuma migração destrutiva, merge automático ou deploy em produção sem testes e validação.
+
+## Atualização de execução (27/11/2026)
+
+- Dashboard reforçado: em falha de arquivamento no armazenamento local, a ação de zerar é cancelada sem apagar a medição.
+- Exportação CSV agora inclui ciclos arquivados e atuais.
+- Metadados de auditoria operacional no app: competência e identificador do usuário conectado.
+- Nova tela **Regras aprendidas**, por empresa: editar rótulo, definir/remover preferência de código analítico validado, ativar/desativar, arquivar/restaurar.
+- Regras desativadas ou arquivadas não geram sugestões; restauração exige ação do operador.
+- Simulações executadas em JavaScript: iniciar/zerar/restaurar/novo ciclo; falha de armazenamento; edição, código bancário inválido, desativação e arquivamento.
+- **Ainda não houve teste completo no navegador, merge nem deploy de produção.**
+- **Auditoria operacional continua local**: evento com identificador não constitui trilha central imutável.
+- O código existente usa rascunhos operacionais em IndexedDB, enquanto o Supabase sincroniza cadastros. Versionamento remoto precisa de desenho específico para evitar perda de conciliações.
+
+### Verificação de segurança Supabase (somente leitura)
+
+O projeto identificado no Supabase foi `Concilia+ Web`, ref `csnvudadurtzhudlplij`.
+O verificador de segurança em 27/11/2026 exibiu avisos sobre três funções SECURITY DEFINER executáveis por usuários autenticados (`company_can_read`, `company_can_write`, `company_is_owner`) e proteção contra senhas vazadas desativada.
+Esses avisos precisam de revisão do modelo de permissões; não revogar acesso automaticamente sem testar as políticas RLS que dependem dessas funções.
+Documentação de referência: https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable e https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection.
+
+### Ainda pendente de implantação
+- Desfazer/refazer lançamentos com trilha de eventos e testes contábeis.
+- Snapshots de conciliação recuperáveis e idempotência por arquivo.
+- Conferência automática de saldos além dos leitores já existentes.
+- Biblioteca de modelos personalizável, preservando os leitores de bancos atuais.
+- Auditoria de usuários central, com RLS validada e armazenamento imutável.
