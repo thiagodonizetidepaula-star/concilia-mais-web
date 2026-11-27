@@ -32,10 +32,102 @@ const metrics=r=>{
  const productivity=r.finishedAt&&manual>0?Math.round(saved/manual*100):0;
  return {spent,manual,saved,productivity,processed:integer(r.processed),pending:integer(r.pending),divergent:integer(r.divergent)};
 };
-const write=next=>{
- try{localStorage.setItem(STORAGE,JSON.stringify(next));state=next;return true;}
- catch(e){console.error('Falha ao salvar produtividade manual',e);alert('Não foi possível salvar a medição. Os dados anteriores foram mantidos. Verifique o armazenamento do navegador.');return false;}
+let cloudRevision=null,cloudReady=false,cloudStatus='Aguardando conexão com a nuvem',cloudQueue=Promise.resolve(),localVersion=0;
+const ownState=(all,userId)=>({
+ sessions:Object.fromEntries(Object.entries(all.sessions||{}).filter(([k,r])=>r?.userId===userId&&k.startsWith(userId+'::'))),
+ completed:(all.completed||[]).filter(r=>r.userId===userId),
+ drafts:(all.drafts||[]).filter(r=>r.userId===userId)
+});
+const mergeStates=(remote,local,userId)=>{
+ const base=sample(),a=ownState(remote||base,userId),b=ownState(local||base,userId);
+ const sessions={...a.sessions};
+ for(const [k,r] of Object.entries(b.sessions)){
+  const prev=sessions[k];
+  if(!prev||String(r.updatedAt||'')>String(prev.updatedAt||''))sessions[k]=r;
+ }
+ const completed=new Map();
+ for(const item of [...a.completed,...b.completed]){
+  const id=String(item.id||item.companyId+'::'+item.startedAt+'::'+item.finishedAt);
+  if(!completed.has(id))completed.set(id,item);
+ }
+ const drafts=new Map();
+ for(const item of [...a.drafts,...b.drafts]){
+  const id=[item.id,item.archivedAt,item.scope].join('::');
+  if(!drafts.has(id))drafts.set(id,item);
+ }
+ return {sessions,completed:[...completed.values()],drafts:[...drafts.values()]};
 };
+const updateCloudBadge=()=>{
+ const el=$('[data-prod-cloud]');
+ if(el){el.textContent=cloudStatus;el.dataset.state=cloudStatus.startsWith('Salvo')?'saved':cloudStatus.startsWith('Aguardando')?'waiting':'pending';}
+};
+const write=next=>{
+ try{
+  const stamp=new Date().toISOString();
+  const sessions={...next.sessions};
+  for(const [k,r] of Object.entries(sessions))if(r!==state.sessions[k])sessions[k]={...r,updatedAt:stamp};
+  next={...next,sessions};
+  localStorage.setItem(STORAGE,JSON.stringify(next));
+  state=next;localVersion++;
+  cloudStatus='Aguardando sincronização com Supabase';
+  updateCloudBadge();
+  if(cloudReady)queueCloudSave();
+  return true;
+ }catch(e){console.error('Falha ao salvar produtividade manual',e);alert('Não foi possível salvar a medição. Os dados anteriores foram mantidos.');return false;}
+};
+async function syncCloud(){
+ const cloud=window.ConciliaCloud,userId=cloud?.accountId?.();
+ if(!userId||!cloud?.fetchPrivate)return false;
+ cloudReady=false;cloudStatus='Sincronizando histórico com Supabase';updateCloudBadge();
+ try{
+  const result=await cloud.fetchPrivate('productivity');
+  if(cloud.accountId()!==userId)return false;
+  cloudRevision=result?.revision??null;
+  const merged=mergeStates(result?.payload||sample(),state,userId);
+  state={sessions:{...state.sessions,...merged.sessions},completed:[...state.completed.filter(r=>r.userId!==userId),...merged.completed],drafts:[...state.drafts.filter(r=>r.userId!==userId),...merged.drafts]};
+  localStorage.setItem(STORAGE,JSON.stringify(state));
+  cloudReady=true;
+  // Inicialização faz também migração segura do histórico deste navegador para a conta na nuvem.
+  await flushCloudSave();
+  render();return true;
+ }catch(e){
+  cloudStatus='Falha na nuvem — dados locais preservados. Clique em Sincronizar';
+  console.error('Sincronização inicial falhou',e);updateCloudBadge();render();
+  return false;
+ }
+}
+async function flushCloudSave(){
+ const cloud=window.ConciliaCloud,userId=cloud?.accountId?.();
+ if(!userId||!cloudReady)return false;
+ for(let retry=0;retry<3;retry++){
+  try{
+   const version=localVersion,payload=ownState(state,userId);
+   const revision=await cloud.savePrivate('productivity',payload,cloudRevision);
+   if(cloud.accountId()!==userId)return false;
+   cloudRevision=revision;
+   cloudStatus='Salvo no Supabase';updateCloudBadge();
+   if(version!==localVersion){queueCloudSave();}
+   return true;
+  }catch(err){
+   if(/Conflito de sincronização/.test(err.message||'')&&retry<2){
+    const remote=await cloud.fetchPrivate('productivity');
+    cloudRevision=remote?.revision??null;
+    const merged=mergeStates(remote?.payload||sample(),state,userId);
+    state={sessions:{...state.sessions,...merged.sessions},completed:[...state.completed.filter(r=>r.userId!==userId),...merged.completed],drafts:[...state.drafts.filter(r=>r.userId!==userId),...merged.drafts]};
+    localStorage.setItem(STORAGE,JSON.stringify(state));
+    continue;
+   }
+   cloudStatus='Falha ao salvar na nuvem — clique em Sincronizar';
+   updateCloudBadge();console.error('Produtividade pendente de sincronização',err);
+   return false;
+  }
+ }
+ return false;
+}
+function queueCloudSave(){
+ cloudQueue=cloudQueue.catch(()=>false).then(()=>flushCloudSave());
+ return cloudQueue;
+}
 const feedback=message=>{if(typeof say==='function')say(message);else console.info(message);};
 const currentRecord=()=>{const c=context(),k=scopeOf(c);return k?state.sessions[k]||null:null;};
 const canEdit=r=>!!(r?.startedAt&&!r.finishedAt);
@@ -47,9 +139,10 @@ function saveRecord(r,action){
  const next={...state,sessions:{...state.sessions,[k]:r}};
  if(write(next)){feedback(action);render();return true;}return false;
 }
-function perform(action){
+async function perform(action){
  const c=context(),k=scopeOf(c),r=k?state.sessions[k]||blank(c):null;
  if(action==='csv'){exportCSV();return;}
+ if(action==='sync'){await syncCloud();return;}
  if(!k){alert('Selecione uma empresa, a competência e entre na sua conta antes de iniciar a medição.');return;}
  if(action==='start'){
   if(r.finishedAt){alert('Esta medição já foi concluída. Clique em "Zerar tudo / Novo ciclo" antes de iniciar outra.');return;}
@@ -150,7 +243,7 @@ function draw(){
  const c=context(),k=scopeOf(c),r=k?state.sessions[k]||blank(c):null,m=metrics(r),enabled=!!k,started=!!r?.startedAt,finished=!!r?.finishedAt,active=canEdit(r);
  const stateText=finished?'Medição concluída':r?.runningSince?'Cronômetro em andamento':started?'Medição pausada':'Aguardando início manual';
  const input=(label,name,value)=>'<label class="prod-manual-field">'+label+'<input type="number" min="0" max="1000000" step="1" data-prod-field="'+name+'" value="'+value+'" '+(!active?'disabled':'')+'></label>';
- root.innerHTML='<div class="prod-heading"><div><span class="prod-kicker">CONTROLE PESSOAL DE EVOLUÇÃO</span><h2>Dashboard de Produtividade</h2><p>Inicie, registre manualmente seus resultados e compare cada conciliação.</p></div><div class="prod-status">'+stateText+'</div></div>'+
+ root.innerHTML='<div class="prod-heading"><div><span class="prod-kicker">CONTROLE PESSOAL DE EVOLUÇÃO</span><h2>Dashboard de Produtividade</h2><p>Inicie, registre manualmente seus resultados e compare cada conciliação.</p><div class="prod-cloud-row"><span data-prod-cloud>'+esc(cloudStatus)+'</span><button type="button" class="secondary" data-prod="sync">Sincronizar agora</button></div></div><div class="prod-status">'+stateText+'</div></div>'+
  (!enabled?'<p class="prod-notice">Selecione uma empresa, competência e entre na sua conta para iniciar sua medição.</p>':'<p class="prod-context"><strong>'+esc(c.company?.name||'Empresa')+'</strong> · Competência '+esc(c.period)+'</p>')+
  evolution()+
  '<div class="prod-metrics-head"><span>MEDIÇÃO MANUAL ATUAL</span><h3>Indicadores do ciclo iniciado por você</h3></div>'+
@@ -183,7 +276,7 @@ function init(){
  if(!$('#prodNav')){const button=document.createElement('button');button.type='button';button.id='prodNav';button.dataset.page='produtividade';button.innerHTML='<i data-lucide="chart-no-axes-combined"></i> Dashboard de Produtividade';nav.append(button);}
  if(!$('#p-produtividade')){const page=document.createElement('section');page.className='page';page.id='p-produtividade';page.innerHTML='<div id="productivityPanel"></div>';main.append(page);}
  const button=$('#prodNav');
- button.addEventListener('click',()=>{document.querySelectorAll('.page').forEach(x=>x.classList.toggle('visible',x.id==='p-produtividade'));document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('active',x===button));$('#pageTitle').textContent='Dashboard de Produtividade';$('#eyebrow').textContent='EVOLUÇÃO MANUAL';$('#subtitle').textContent='Sessões, tempo e histórico de conciliações.';render();});
+ button.addEventListener('click',()=>{if(!cloudReady&&window.ConciliaCloud?.authenticated?.())syncCloud();document.querySelectorAll('.page').forEach(x=>x.classList.toggle('visible',x.id==='p-produtividade'));document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('active',x===button));$('#pageTitle').textContent='Dashboard de Produtividade';$('#eyebrow').textContent='EVOLUÇÃO MANUAL';$('#subtitle').textContent='Sessões, tempo e histórico de conciliações.';render();});
  $('#productivityPanel').addEventListener('click',e=>{const button=e.target.closest('button[data-prod]');if(button&&!button.disabled){e.preventDefault();perform(button.dataset.prod);}});
  $('#productivityPanel').addEventListener('change',e=>{
   const el=e.target;
@@ -199,6 +292,6 @@ function init(){
  setInterval(()=>{if(document.hidden||!$('#p-produtividade')?.classList.contains('visible'))return;const r=currentRecord();if(!r?.runningSince)return;const text=fmt(time(r));for(const el of document.querySelectorAll('[data-prod-timer],[data-prod-duration]'))el.textContent=text;},1000);
  window.lucide?.createIcons();
 }
-window.ConciliaManualProductivity={render,metrics,history:()=>recorded(context())};
+window.ConciliaManualProductivity={render,metrics,history:()=>recorded(context()),syncCloud};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
