@@ -94,7 +94,7 @@ function saveDB({operational=true}={}){
   };
  });
 }
-function log(type,detail){state.audit.push({at:new Date().toISOString(),companyId,action:type,detail});}
+function log(type,detail){state.audit.push({at:new Date().toISOString(),companyId,period,actorId:window.ConciliaCloud?.accountId?.()||null,action:type,detail});}
 async function store(type,detail){if(!['EXTRATO_REFAZER','IMPORTACAO_EXCLUIDA','RESTAURACAO_IMPORTACOES'].includes(type))ultimoExcluido=null;log(type,detail);await saveDB();render();if(cloudSyncEnabled&&window.ConciliaCloud?.authenticated()){try{await window.ConciliaCloud.serializedSave(durableWorkspace(state));cloudMessage('Alterações salvas na nuvem e cópia local atualizada.');}catch(err){cloudSyncEnabled=false;cloudMessage('Falha ao sincronizar: '+err.message+'. Cópia local preservada. Faça backup JSON antes de continuar.',true)}}}
 function table(headers,rows){if(!rows.length)return empty('Nenhum registro para exibir.');return `<div class="tablewrap"><table><thead><tr>${headers.map(h=>`<th>${safe(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${v??''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
 function badge(s){const kind=/CONFIRM|CONCILIADO|OK/.test(s)?'ok':/PENDENTE|SUGERIDA|AMBIGU|DUPLIC/.test(s)?'warn':'';return `<span class="badge ${kind}">${safe(s)}</span>`}
