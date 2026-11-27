@@ -46,6 +46,8 @@
    form.elements.start.value = record?.start || '';
    form.elements.end.value = record?.end || '';
    form.elements.notes.value = record?.notes || '';
+   form.elements.dominioConfirmed.checked = !!record?.dominioConfirmed;
+   form.elements.dreConfirmed.checked = !!record?.dreConfirmed;
   }
   $('#reconciliationTrackingContext').textContent = key
    ? company.name + ' · ' + period.split('-').reverse().join('/')
@@ -72,8 +74,12 @@
    if (end && end < start) throw Error('A data de conclusão deve ser igual ou posterior ao início.');
    const previous = company.reconciliationTracking?.[month];
    const notes = form.elements.notes.value.trim();
+   const dominioConfirmed = !!end && form.elements.dominioConfirmed.checked;
+   const dreConfirmed = !!end && form.elements.dreConfirmed.checked;
+   if((form.elements.dominioConfirmed.checked || form.elements.dreConfirmed.checked) && !end)
+     throw Error('Informe a data de conclusão antes de confirmar o Domínio e a DRE.');
    company.reconciliationTracking ||= {};
-   company.reconciliationTracking[month] = {start, end, notes, updatedAt: new Date().toISOString()};
+   company.reconciliationTracking[month] = {start, end, notes, dominioConfirmed, dreConfirmed, updatedAt: new Date().toISOString()};
    saving = true;
    render();
    try {
