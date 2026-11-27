@@ -1,0 +1,37 @@
+/* Dashboard manual v2: premium, responsivo, independente do motor contábil. */
+#productivityPanel .prod-evolution{margin-top:19px}
+#productivityPanel .prod-evolution .insights-mini{margin:17px 0 0}
+#productivityPanel .prod-evolution .insights-mini strong{font-size:26px}
+#productivityPanel .prod-evolution .insights-mini .prod-small-number{font-size:24px;letter-spacing:-.8px}
+#productivityPanel .prod-evolution .insights-layout{margin-top:16px}
+.prod-evolution-line{width:100%;max-height:260px;display:block;overflow:visible}
+.prod-empty-chart{display:grid;place-items:center;min-height:174px;background:linear-gradient(135deg,#f5f9fe,#fff);border:1px dashed #d6e4f2;border-radius:14px;color:#8295a8;font-size:13px;text-align:center;padding:20px}
+.prod-day-list{display:flex;flex-direction:column;gap:14px;padding:8px 0 2px}
+.prod-day{display:grid;grid-template-columns:75px minmax(40px,1fr) 25px;align-items:center;gap:12px;font-size:12px;color:#516982}
+.prod-day>div{height:10px;background:#e7eff7;border-radius:20px;overflow:hidden}
+.prod-day>div i{height:100%;display:block;background:linear-gradient(90deg,#20bead,#408ff1);border-radius:20px}
+.prod-day strong{color:#184269;text-align:right}
+.prod-history{margin-top:16px}
+.prod-history-scroll{overflow-x:auto;max-height:440px;scrollbar-color:#b2c7dd transparent}
+.prod-history table{border-collapse:collapse;width:100%;min-width:900px;text-align:left}
+.prod-history th{background:#f2f7fd;color:#54718d;font-size:11px;text-transform:uppercase;letter-spacing:.45px;position:sticky;top:0;white-space:nowrap}
+.prod-history td,.prod-history th{padding:12px 11px;border-bottom:1px solid #e8eef5}
+.prod-history td{font-size:12px;color:#334d69;font-variant-numeric:tabular-nums}
+.prod-history td strong{font-weight:790;color:#163b60}
+.prod-history td small{display:block;color:#8497aa;margin-top:4px}
+.prod-history tbody tr:hover{background:#f5faff}
+.prod-muted{color:#8293a3;text-align:center;padding:18px!important;font-size:12px}
+#productivityPanel .prod-manual-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:19px 0}
+#productivityPanel .prod-manual-field{display:flex;flex-direction:column;gap:9px;font-size:12px;font-weight:760;color:#4e6881}
+#productivityPanel .prod-manual-field input{width:100%;min-width:0;padding:12px;border-radius:11px;border:1px solid #c8d9eb;background:#f8fbff;color:#173f65;font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;outline-offset:2px;box-sizing:border-box}
+#productivityPanel .prod-manual-field input:focus{border-color:#428fe0;box-shadow:0 0 0 3px rgba(66,143,224,.11);outline:0}
+#productivityPanel .prod-manual-field input:disabled{opacity:.55;background:#f0f3f7}
+#productivityPanel .prod-actions button{cursor:pointer;transition:background .2s,transform .2s}
+#productivityPanel .prod-actions button:not(:disabled):hover{transform:translateY(-1px)}
+#productivityPanel .prod-actions button:disabled{cursor:not-allowed}
+#productivityPanel .prod-section{min-width:0}
+#productivityPanel [data-prod-saved],#productivityPanel [data-prod-productivity]{font-variant-numeric:tabular-nums}
+@media(max-width:950px){#productivityPanel .prod-evolution .insights-layout{grid-template-columns:1fr}}
+@media(max-width:670px){#productivityPanel .prod-manual-fields{grid-template-columns:1fr 1fr}#productivityPanel .prod-manual-fields .prod-manual-field:last-child{grid-column:1/-1}#productivityPanel .prod-evolution .insights-mini{grid-template-columns:1fr 1fr}#productivityPanel .prod-evolution .insights-mini>div:last-child{grid-column:1/-1}}
+@media(max-width:450px){#productivityPanel .prod-manual-fields{grid-template-columns:1fr}#productivityPanel .prod-manual-fields .prod-manual-field:last-child{grid-column:auto}#productivityPanel .prod-evolution .insights-mini{grid-template-columns:1fr}#productivityPanel .prod-evolution .insights-mini>div:last-child{grid-column:auto}}
+@media(prefers-reduced-motion:reduce){#productivityPanel .prod-actions button{transition:none!important}#productivityPanel .prod-actions button:not(:disabled):hover{transform:none}}
