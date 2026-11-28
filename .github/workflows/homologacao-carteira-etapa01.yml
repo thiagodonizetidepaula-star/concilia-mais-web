@@ -50,6 +50,8 @@ jobs:
           echo "Chromium: renderização DOM confirmada em ambiente fictício." | tee -a homologacao-resultado.txt
       - name: Validar interface da Melhoria 02 com Chromium
         run: |
+          set -e
+          CHROME="$(command -v google-chrome || command -v chromium)"
           "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-documentos-desktop.png" "file://$PWD/testes/documentos-homologacao-visual.html"
           "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --hide-scrollbars --window-size=390,850 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-documentos-mobile.png" "file://$PWD/testes/documentos-homologacao-visual.html"
           "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --virtual-time-budget=2500 --dump-dom "file://$PWD/testes/documentos-homologacao-visual.html" > homologacao-documentos-dom.html
