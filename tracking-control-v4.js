@@ -57,8 +57,8 @@ function fieldEditor(field,label,type,val){
  return '<label>'+esc(label)+'<input data-track4-value="'+field+'" type="'+(type==='date'?'date':'number')+'" '+(type==='integer'?'min="0" step="1"':'')+' value="'+esc(val??'')+'"></label>';
 }
 function timerUi(c,period){
- const t=T.timer(c,period),running=!!t.runningSince,end=!!t.finishedAt,seconds=t.manualSeconds??T.elapsed(t);
- return '<div class="track4-timer"><h4>Cronômetro da competência</h4><strong data-track4-clock>'+sec(seconds)+'</strong><small>'+(running?'Em execução':'Pausado/finalizado')+' · '+(t.manualSeconds!=null?'Tempo ajustado manualmente':'Tempo automático')+'</small>'+
+ const t=T.timer(c,period),running=!!t.runningSince&&!T.stale(t),end=!!t.finishedAt,seconds=t.manualSeconds??T.elapsed(t);
+ return '<div class="track4-timer"><h4>Cronômetro da competência</h4><strong data-track4-clock>'+sec(seconds)+'</strong><small>'+(T.stale(t)?'Sessão interrompida; pause e retome para continuar':running?'Em execução':'Pausado/finalizado')+' · '+(t.manualSeconds!=null?'Tempo ajustado manualmente':'Tempo automático')+'</small>'+
  '<div class="track4-actions">'+[['start','Iniciar'],['pause','Pausar'],['resume','Continuar'],['finish','Finalizar'],['reset','Zerar'],['restart','Reiniciar'],['edit-time','Editar tempo'],['restore-auto','Restaurar tempo automático']].map(([a,b])=>'<button type="button" data-track4-timer="'+a+'" '+(a==='pause'&&!running||a==='start'&&!!t.startedAt||a==='resume'&&(!t.startedAt||running||end)||a==='finish'&&(!t.startedAt||end)||a==='restore-auto'&&t.manualSeconds==null?'disabled':'')+'>'+b+'</button>').join('')+'</div><p>Ao pausar ou finalizar, só é somado o período efetivamente trabalhado. Zerar/reiniciar mantém o histórico anterior. Apenas uma medição ativa por funcionário neste controle; alterações entre dispositivos exigem revisão da nuvem.</p></div>';
 }
 function detail(){
@@ -151,6 +151,11 @@ function init(){
  el.addEventListener('input',e=>{if(e.target.dataset.track4Filter==='search'){search=e.target.value;const caret=e.target.selectionStart;render();const input=el.querySelector('[data-track4-filter="search"]');input?.focus();input?.setSelectionRange(caret,caret);}});
  el.addEventListener('submit',e=>{if(e.target.id!=='track4EditForm')return;e.preventDefault();saveEdit(e.target).catch(err=>alert(err.message));});
  interval=setInterval(()=>{const c=validCompanies().find(x=>x.id===selected);if(!c)return;const t=T.timer(c,p());if(!t.runningSince)return;const el=$('[data-track4-clock]');if(el)el.textContent=sec(t.manualSeconds??T.elapsed(t));},1000);
+ // Heartbeat protege contra contagem de horas após fechar ou perder a conexão.
+ // É salvo somente enquanto a página está ativa; a revisão de nuvem bloqueia
+ // escrita concorrente entre abas/dispositivos.
+ setInterval(()=>{if(document.hidden||busy||!ready())return;const c=validCompanies().find(x=>x.id===selected);if(!c)return;const t=T.timer(c,p());if(t.runningSince&&!T.stale(t))doTimer('heartbeat').catch(err=>console.warn('Cronômetro: heartbeat não confirmado',err.message));},30000);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)return;const c=validCompanies().find(x=>x.id===selected);if(c&&T.timer(c,p()).runningSince&&!busy)doTimer('pause').catch(err=>console.warn('Cronômetro: pausa ao ocultar não confirmada',err.message));});
 }
 window.ConciliaTrackingV4={render,summary:()=>T.summarize(validCompanies(),p(),uid()),currentPeriod:p};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
