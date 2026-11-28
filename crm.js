@@ -9,6 +9,7 @@ const now=()=>new Date();
 const summary=()=>C.summary(state.companies,cloudUser(),now(),config());
 const fmtCnpj=v=>{const s=String(v||'').replace(/\D/g,'');return s.length===14?s.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5'):String(v||'');};
 const fmtDate=s=>s?s.split('-').reverse().join('/'):'Não informado';
+const eventLabel={reminder1:'1º lembrete',charge1:'1ª cobrança',reminder2:'2º lembrete',charge2:'2ª cobrança'};
 const option=(v,name,selected)=>'<option value="'+esc(v)+'"'+(String(v)===String(selected)?' selected':'')+'>'+esc(name)+'</option>';
 const formatPeriod=s=>s?s.split('-').reverse().join('/'):'';
 let tab='charge',search='',filterYear='all',filterPeriod='all',filterStatus='',selected=null,selectedPeriods=[],configEditing=false,configDraft=null,historyOpen=false,busy=false;
@@ -34,17 +35,17 @@ function configHtml(){
  return '<section class="crm-settings"><div class="crm-row"><div><h3>Configurações de Cobranças</h3><p>Recorrência mensal e anual · horário de Brasília · nenhuma alteração automática em feriados/fins de semana.</p></div><div class="crm-actions">'+(configEditing?'<button type="button" data-crm-config="save">Salvar</button><button type="button" data-crm-config="cancel" class="secondary">Cancelar</button>':'<button type="button" data-crm-config="edit">Editar</button>')+'<button type="button" data-crm-config="restore" class="secondary">Restaurar datas padrão</button></div></div>'+
  '<div class="crm-dates">'+[['reminder1','1º lembrete'],['charge1','1ª cobrança'],['reminder2','2º lembrete'],['charge2','2ª cobrança']].map(([k,label])=>'<label>'+label+'<input '+(configEditing?'':'disabled')+' name="'+k+'" data-crm-setting="'+k+'" type="number" min="1" max="31" value="'+(configEditing?d[k]:x[k])+'"></label>').join('')+
  '<label>Meses curtos (29–31)<select name="shortMonth" data-crm-setting="shortMonth" '+(configEditing?'':'disabled')+'>'+option('last-day','Último dia do mês',configEditing?d.shortMonth:x.shortMonth)+option('skip','Não agendar neste mês',configEditing?d.shortMonth:x.shortMonth)+'</select></label></div>'+
- '<small>Próximos eventos: '+next.slice(0,4).map(e=>esc(e.type)+' em '+fmtDate(e.date)).join(' · ')+'</small></section>';
+ '<small>Próximos eventos: '+next.slice(0,4).map(e=>esc(eventLabel[e.type]||e.type)+' em '+fmtDate(e.date)).join(' · ')+'</small></section>';
 }
 function listHtml(){
  const dat=summary(),rows=allRows(),next=dat.nextReminder,charge=dat.nextCharge;
  const stats=[['Empresas a cobrar',dat.companiesDue],['Cobradas na rodada',dat.roundCharged],['Ainda não cobradas',dat.roundPending],['Aguardando retorno',dat.awaitingReturn],['Com pendências',dat.documentPending],['Atrasos recorrentes',dat.recurrent]];
  const years=[...new Set(C.authorizedCompanies(state.companies,cloudUser()).flatMap(c=>Object.keys(c.documentHistory||{}).map(x=>x.slice(0,4))))].sort().reverse();
  const periods=[...new Set(C.authorizedCompanies(state.companies,cloudUser()).flatMap(c=>Object.keys(c.documentHistory||{})))].sort().reverse();
- return '<header class="crm-heading"><div><span>RELACIONAMENTO CONTÁBIL</span><h2>CRM Contábil</h2><p>Cobranças realizadas manualmente no Outlook corporativo. Nenhum e-mail é enviado pelo aplicativo.</p></div><div><small>Brasília: '+fmtDate(dat.today)+'</small></div></header>'+
+ return '<header class="crm-heading"><div><span>RELACIONAMENTO CONTÁBIL</span><h2>Gestão manual de cobranças</h2><p>Cobranças realizadas manualmente no Outlook corporativo. Nenhum e-mail é enviado pelo aplicativo.</p></div><div><small>Brasília: '+fmtDate(dat.today)+'</small></div></header>'+
  '<div class="crm-metrics">'+stats.map(([n,v])=>'<div><strong>'+v+'</strong><small>'+n+'</small></div>').join('')+'</div>'+
  '<div class="crm-next"><div><strong>Próximo lembrete</strong><p>'+esc(next?fmtDate(next.date)+' — '+(next.round===1?'1ª':'2ª')+' rodada':'Sem evento')+'</p></div><div><strong>Próxima cobrança</strong><p>'+esc(charge?fmtDate(charge.date)+' — '+(charge.round===1?'1ª':'2ª')+' rodada':'Sem evento')+'</p></div></div>'+
- '<div class="crm-alerts" aria-live="polite">'+(dat.alerts.length?dat.alerts.map(e=>'<div><b>'+(e.overdue?'Acompanhar evento vencido: ':'Evento programado: ')+esc(e.type)+'</b> · '+fmtDate(e.date)+' · '+e.companies+' empresa(s) com pendências</div>').join(''):'Nenhum evento de cobrança ocorreu ainda neste mês.')+'</div>'+
+ '<div class="crm-alerts" aria-live="polite">'+(dat.alerts.length?dat.alerts.map(e=>'<div><b>'+(e.overdue?'Acompanhar evento vencido: ':'Evento programado: ')+esc(eventLabel[e.type]||e.type)+'</b> · '+fmtDate(e.date)+' · '+e.companies+' empresa(s) com pendências</div>').join(''):'Nenhum evento de cobrança ocorreu ainda neste mês.')+'</div>'+
  configHtml()+
  '<section class="crm-filter"><label>Pesquisar empresa, e-mail ou CNPJ<input type="search" id="crmSearch" value="'+esc(search)+'" placeholder="Pesquisar carteira..."></label>'+
  '<label>Ano<select data-crm-filter="year">'+option('all','Todos',filterYear)+years.map(y=>option(y,y,filterYear)).join('')+'</select></label>'+
