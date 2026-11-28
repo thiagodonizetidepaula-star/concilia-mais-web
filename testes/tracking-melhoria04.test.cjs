@@ -3,6 +3,12 @@ const test=require('node:test'),assert=require('node:assert/strict'),vm=require(
 const root=path.join(__dirname,'..'),win={},src=fs.readFileSync(path.join(root,'tracking-core-v4.js'),'utf8');
 vm.runInNewContext(src,{window:win,Date,Number,Object,Math,JSON,Set,String,RegExp,Intl});const T=win.ConciliaTrackingCore;
 const comp=(name='A',inactive=false)=>({id:name,name:'Empresa '+name,cnpj:'23963478000112',dominio:'114',walletAssignedUserIds:['u1'],clientInactive:inactive,plan:[{code:'192'}],rules:[{history:'FGTS',code:'192'}],partners:[{name:'Pessoa'}],imports:[],movements:[],transfers:[],ledger:[],documentHistory:{'2026-10':{status:'Pendente'},'2026-11':{status:'Recebido'},'2026-12':{status:'Não se aplica'}},reconciliationTracking:{},reconciliationReview:{}});
+function beats(c,from,to){
+ for(let at=from+30000;at<to;at+=30000){
+  const x=T.timerTransition(c,'2026-11','heartbeat','u1',new Date(at));
+  c.reconciliationTracking['2026-11'].workTimer=x;
+ }
+}
 test('conciliação aplicável: 55 ativas e 5 inativas sem dupla contagem',()=>{
  const companies=Array.from({length:60},(_,i)=>comp('N'+i,i>=55));
  const a=T.summarize(companies,'2026-11','u1');
@@ -74,8 +80,10 @@ test('empresa inativa, não aplicável não entra na evolução percentual',()=>
 test('iniciar, pausar e retomar cronômetro contabiliza só intervalos ativos',()=>{
  const c=comp(),t0=new Date('2026-11-12T12:00:00Z');
  let t=T.timerTransition(c,'2026-11','start','u1',t0);c.reconciliationTracking['2026-11']={workTimer:t};
+ beats(c,t0.valueOf(),Date.parse('2026-11-12T12:30:00Z'));
  t=T.timerTransition(c,'2026-11','pause','u1',new Date('2026-11-12T12:30:00Z'));c.reconciliationTracking['2026-11'].workTimer=t;
  t=T.timerTransition(c,'2026-11','resume','u1',new Date('2026-11-12T14:00:00Z'));c.reconciliationTracking['2026-11'].workTimer=t;
+ beats(c,Date.parse('2026-11-12T14:00:00Z'),Date.parse('2026-11-12T14:20:00Z'));
  t=T.timerTransition(c,'2026-11','finish','u1',new Date('2026-11-12T14:20:00Z'));
  assert.equal(Math.round(t.seconds),3000);assert.equal(t.runningSince,null);assert.equal(t.history.length,4);
 });
@@ -96,6 +104,7 @@ test('zerar e reiniciar preservam histórico anterior do cronômetro',()=>{
 test('edição manual do tempo não muda duração automática',()=>{
  const c=comp(),start=new Date('2026-11-12T12:00:00Z');
  c.reconciliationTracking['2026-11']={workTimer:T.timerTransition(c,'2026-11','start','u1',start)};
+ beats(c,start.valueOf(),Date.parse('2026-11-12T12:10:00Z'));
  let t=T.timerTransition(c,'2026-11','pause','u1',new Date('2026-11-12T12:10:00Z'));c.reconciliationTracking['2026-11'].workTimer=t;
  t=T.timerTransition(c,'2026-11','edit-time','u1',new Date('2026-11-12T12:10:00Z'),100);
  assert.equal(t.manualSeconds,100);assert.equal(Math.round(t.seconds),600);
