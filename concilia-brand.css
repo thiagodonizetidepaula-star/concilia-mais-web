@@ -90,3 +90,35 @@ body.authenticated .sidebar .brand-workspace-side small{
 @media(prefers-reduced-motion:reduce){
   body.authenticated .sidebar .brand-workspace-side{transition:none!important}
 }
+
+/* Aureola dourada animada — cartao da Romeiro, apenas decorativo. */
+body.authenticated .sidebar .brand-workspace-side{
+  isolation:isolate;
+  animation:romeiro-gold-halo 4.4s ease-in-out infinite;
+}
+body.authenticated .sidebar .brand-workspace-side::after{
+  content:"";
+  position:absolute;
+  z-index:2;
+  inset:0;
+  border-radius:inherit;
+  padding:2px;
+  pointer-events:none;
+  background:conic-gradient(from 0deg,#a66b13 0deg,#f7d978 55deg,#fff4bc 82deg,#bf8522 118deg,#eebc58 175deg,#fff0ae 225deg,#b47a20 285deg,#f5d078 335deg,#a66b13 360deg);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  mask-composite:exclude;
+  animation:romeiro-gold-turn 7s linear infinite;
+}
+@keyframes romeiro-gold-turn{
+  to{transform:rotate(360deg) scale(1.5)}
+}
+@keyframes romeiro-gold-halo{
+  0%,100%{box-shadow:0 9px 22px rgba(0,7,26,.28),0 0 6px rgba(229,170,49,.25),inset 0 1px 0 #fff}
+  50%{box-shadow:0 10px 24px rgba(0,7,26,.3),0 0 17px rgba(246,199,86,.56),inset 0 1px 0 #fff}
+}
+@media(prefers-reduced-motion:reduce){
+  body.authenticated .sidebar .brand-workspace-side,
+  body.authenticated .sidebar .brand-workspace-side::after{animation:none!important}
+}
