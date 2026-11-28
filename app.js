@@ -140,6 +140,25 @@ function saveDB({operational=true}={}){
  });
 }
 function log(type,detail){state.audit.push({at:new Date().toISOString(),companyId,period,actorId:window.ConciliaCloud?.accountId?.()||null,action:type,detail});}
+/* Salvar APENAS dados gerenciais da Melhoria 04, sem acionar a rotina de
+   retenção de documentos operacionais que acompanha o store() legado. */
+async function storeManagementV4(type,detail){
+ if(!cloudSyncEnabled||!window.ConciliaCloud?.authenticated?.())throw Error('Conexão segura à nuvem obrigatória.');
+ const beforeRevision=window.ConciliaCloud.revision();
+ const beforeAudit=state.audit.length;
+ log(type,detail);
+ try{
+  await window.ConciliaCloud.serializedSave(durableWorkspace(state));
+  if(window.ConciliaCloud.revision()===beforeRevision)throw Error('Confirmação da revisão da nuvem ausente.');
+  await saveDB({operational:false});
+  render();
+  return window.ConciliaCloud.revision();
+ }catch(error){
+  state.audit.length=beforeAudit;
+  throw error;
+ }
+}
+window.ConciliaSaveManagementV4=storeManagementV4;
 async function store(type,detail){
  if(!['EXTRATO_REFAZER','IMPORTACAO_EXCLUIDA','RESTAURACAO_IMPORTACOES'].includes(type))ultimoExcluido=null;
  log(type,detail);
