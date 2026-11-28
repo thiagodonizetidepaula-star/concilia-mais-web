@@ -151,5 +151,43 @@ function groupByMonths(records,year,dateField='executionAt'){
   const rows=arr(records).filter(r=>date(r[dateField]||r.finishedAt||r.createdAt).slice(0,7)===month);
   return {period:month,count:rows.length};});
 }
-return {bounds,included,filterRows,sessions,reviewTransition,quality,metricAtGoal,goalProgress,businessDays,planning,learning,savings,groupByMonths};
+function operational(companies,userId,B,filter={},tracking){
+ if(!B)return {summary:null,rows:[],note:'Núcleo BI indisponível'};
+ const f=filter||{},accepted=B.authorized(companies,userId).filter(c=>!f.companyId||c.id===f.companyId);
+ const {from,to}=bounds(f);
+ const months=[];let p=from.slice(0,7);while(p<=to.slice(0,7)){
+  months.push(p);const [y,m]=p.split('-').map(Number);p=(y+(m===12?1:0))+'-'+String(m===12?1:m+1).padStart(2,'0');
+ }
+ const records=[];
+ for(const c of accepted)for(const period of months){
+  if(f.period&&period!==f.period)continue;
+  const r=B.record(c,period,tracking);
+  const t=c.reconciliationTracking?.[period]||{};
+  const done=date(t.end||t.finishedAt||'');
+  // Para indicadores de conclusão diária/semanal, usar a data real de término.
+  if(['day','week','custom'].includes(f.range)&&(!day(done)||done<from||done>to))continue;
+  if(f.status&&f.status!=='all'&&r.status!==f.status)continue;
+  records.push(r);
+ }
+ const a=B.aggregate(records);a.totalCompanies=accepted.length;
+ const note=['day','week','custom'].includes(f.range)?'Conciliações: data real de término. Movimentos mensais não são distribuídos artificialmente por dia.':'Métricas conforme competência.';
+ if(['day','week','custom'].includes(f.range)){
+  // Contagens de movimentos vêm da data explícita, nunca das somas mensais.
+  let movementCount=0,confirmed=0,automatic=0,excel=0;
+  for(const c of accepted)for(const m of arr(c.movements)){
+   const d=date(m.date);if(!day(d)||d<from||d>to)continue;
+   if(f.period&&d.slice(0,7)!==f.period)continue;
+   movementCount++;if(m.status==='CONFIRMADO'){
+    confirmed++;
+    const origin=String(m.confidence||'');
+    if(origin.includes('Excel colado'))excel++;
+    else if(/aprendizado|automat|automát|regra aprendida/i.test(origin))automatic++;
+   }
+  }
+  Object.assign(a,{movements:movementCount,classified:confirmed,automated:automatic,excel,
+    manual:Math.max(0,confirmed-automatic-excel),automaticRate:pct(automatic,confirmed),excelRate:pct(excel,confirmed)});
+ }
+ return {summary:a,rows:records,note,from,to};
+}
+return {operational,bounds,included,filterRows,sessions,reviewTransition,quality,metricAtGoal,goalProgress,businessDays,planning,learning,savings,groupByMonths};
 });
