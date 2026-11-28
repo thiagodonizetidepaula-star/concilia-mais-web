@@ -40,3 +40,12 @@ Consultar `docs/ETAPA01_CARTEIRA_CLIENTES_RELATORIO_20261127.md`, `docs/MELHORIA
 
 ## Status desta passagem
 Auditoria read-only executada para refs, banco, backup e serviço Render; documentação adicionada na branch de melhoria, sem merge, migração nem publicação. Produção continua no commit anterior até que as condições de segurança e homologação estejam atendidas.
+
+
+## Auditoria complementar — preparação do release 01–04
+- Backup privado criado: `e2a5d544-cfb0-4b03-98f2-8202634fcbe2` (revisão 696), SHA-256 calculado para workspace e payload agregado.
+- Recuperação não destrutiva em tabela temporária transacional: 1 registro, JSONB dos dados do workspace, operacionais e de produtividade iguais aos valores atuais; hashes válidos. `ROLLBACK` aplicado. Não substitui recuperação física nem teste de login após restauração.
+- Contagens SQL: 62 empresas (60 carteira importada, 55 ativas, 5 inativas), 76 e-mails, históricos completos de 12 meses nas 60, 4 empresas com planos de contas somando 2.415 registros, 62 CNPJs distintos.
+- Simulação read-only do RLS com identidade da própria workspace (1 linha visível) e identidade não relacionada (0 linhas).
+- As três funções de acesso `company_can_read`, `company_can_write`, `company_is_owner` têm `SECURITY DEFINER`, `search_path` fixo, e referenciam `auth.uid()`; são usadas em diversas políticas RLS. `anon` não pode executar, `authenticated` pode. Revogação simples quebraria essas políticas; não alterar sem teste de regressão. Aviso remanescente sobre proteção de senhas vazadas.
+- Workflows existentes incluem testes Node, Chromium e Supabase local; a execução verde no **commit atual** não foi comprovada com as interfaces disponíveis. Não declarar homologação do commit final. Não fazer merge/deploy.
