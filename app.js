@@ -1444,9 +1444,12 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
   log('CLASSIFICACOES_EXCEL_AUTO_VALIDADAS',result.applied+' classificação(ões) validadas com histórico e memória individual.');
   try{
    // Sem executar limpeza de três meses nesta operação. Grava rascunho operacional e workspace.
+   const beforeOperationalRevision=operationalCloudRevision;
    await saveDB();
+   await operationalCloudQueue;
+   if(!operationalCloudReady||operationalCloudRevision===beforeOperationalRevision)throw Error('Rascunho operacional não foi confirmado no backup em nuvem.');
    await cloud.serializedSave(durableWorkspace(state));
-   if(!cloudSyncEnabled||cloud.revision()===revision)throw Error('Não houve confirmação de persistência na nuvem.');
+   if(!cloudSyncEnabled||cloud.revision()===revision)throw Error('Não houve confirmação de persistência da memória na nuvem.');
   }catch(err){
    result.undo();state.audit.length=oldAuditLength;
    try{await saveDB();}catch(e){console.error('Falha na reversão local',e);}
