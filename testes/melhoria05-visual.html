@@ -1,6 +1,6 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="../melhoria05.css"><title>Homologação visual Melhoria 05</title><style>body{font:13px system-ui;background:#e9eef6;margin:0;padding:14px}main{max-width:1550px;margin:auto}.test-banner{background:#fff3cf;border-radius:9px;padding:12px;color:#6a4813;font-weight:800}</style></head><body><main><p class="test-banner">SOMENTE HOMOLOGAÇÃO — 7 EMPRESAS FICTÍCIAS — NENHUMA CONEXÃO COM PRODUÇÃO</p><div id="melhoria05Panel"></div></main>
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="../melhoria05.css"><link rel="stylesheet" href="../melhoria05-advanced.css"><title>Homologação visual Melhoria 05</title><style>body{font:13px system-ui;background:#e9eef6;margin:0;padding:14px}main{max-width:1550px;margin:auto}.test-banner{background:#fff3cf;border-radius:9px;padding:12px;color:#6a4813;font-weight:800}</style></head><body><main><p class="test-banner">SOMENTE HOMOLOGAÇÃO — 7 EMPRESAS FICTÍCIAS — NENHUMA CONEXÃO COM PRODUÇÃO</p><div id="melhoria05Panel"></div></main>
 <script src="../dashboard-bi-metrics.js"></script>
-<script src="../melhoria05-core.js"></script>
+<script src="../melhoria05-core.js"></script><script src="../melhoria05-analytics.js"></script>
 <script>
 const userId='user-test-visual',period='2026-11';
 const firms=Array.from({length:7},(_,i)=>({id:'fake-'+i,name:'EMPRESA SINTÉTICA '+(i+1),dominio:String(790+i),walletAssignedUserIds:[userId],
@@ -10,11 +10,11 @@ const firms=Array.from({length:7},(_,i)=>({id:'fake-'+i,name:'EMPRESA SINTÉTICA
 window.ConciliaCloud={accountId:()=>userId,connect:()=>({from:()=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:{revision:1,payload:{version:1,quality:[],goals:[],diary:[],competencies:[],achievements:[],development:[]}},error:null})})})})})};
 window.ConciliaTrackingCore={effective:(c,p)=>({data:{...c.reconciliationTracking?.[p],status:c.reconciliationTracking?.[p]?.end?'Concluída':'Em andamento',effectiveSeconds:3600,pendingRemaining:1}})};
 </script>
-<script src="../melhoria05-ui.js"></script>
+<script src="../melhoria05-ui.js"></script><script src="../melhoria05-reports.js"></script><script src="../melhoria05-advanced-ui.js"></script>
 <script>
 window.addEventListener('load',()=>{
  window.Concilia05.render({companies:firms,userId});
- setTimeout(()=>{const root=document.querySelector('#melhoria05Panel');const ok=root.querySelectorAll('[data-m05-tab]').length===9&&root.querySelectorAll('.m05-kpi').length>=4&&root.querySelector('select[data-m05-filter="company"]')?.options.length===8;
+ setTimeout(()=>{const root=document.querySelector('#melhoria05Panel');const ok=root.querySelectorAll('[data-m05-tab]').length===9&&root.querySelectorAll('.m05-kpi').length>=4&&root.querySelector('select[data-m05-filter="company"]')?.options.length===8&&root.querySelectorAll('[data-m05x]').length>=10&&root.querySelector('.m05-ext-filters')!==null;
  document.body.dataset.melhoria05Homologada=String(!!ok)},500);
 });
 </script></body></html>
