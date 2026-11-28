@@ -7,6 +7,7 @@ on:
       - feature/melhoria03-crm-manual-homologacao-20261128
       - feature/melhoria04-controle-conciliacoes-homologacao-20261128
       - feature/refinamento-ciclo01-04-20261128
+      - feature/dashboards-bi-integrados-ciclo01-20261128
   workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -26,6 +27,8 @@ jobs:
           node-version: "22"
       - name: Conferir sintaxe JavaScript
         run: |
+          node --check dashboard-bi-metrics.js
+          node --check dashboard-bi.js
           node --check classification-learning.js
           node --check app.js
           node --check document-import.js
@@ -43,7 +46,20 @@ jobs:
       - name: Testes de homologação da Carteira e regressão existente
         run: |
           set -o pipefail
-          node --test testes/refinamentos-ciclo01-04.test.cjs testes/tracking-melhoria04.test.cjs testes/crm-melhoria03.test.cjs testes/document-management-melhoria02.test.cjs testes/carteira-clientes-etapa01.test.cjs testes/plano-dominio-t-vazio.test.cjs testes/auditoria-detalhada.test.cjs testes/multibancos-pdf.test.cjs testes/restaurar-tudo.test.cjs tests/tax-reconciliation.test.js 2>&1 | tee homologacao-resultado.txt
+          node --test testes/dashboard-bi-integrado.test.cjs testes/refinamentos-ciclo01-04.test.cjs testes/tracking-melhoria04.test.cjs testes/crm-melhoria03.test.cjs testes/document-management-melhoria02.test.cjs testes/carteira-clientes-etapa01.test.cjs testes/plano-dominio-t-vazio.test.cjs testes/auditoria-detalhada.test.cjs testes/multibancos-pdf.test.cjs testes/restaurar-tudo.test.cjs tests/tax-reconciliation.test.js 2>&1 | tee homologacao-resultado.txt
+      - name: Verificar backup completo ZIP do código candidato
+        run: |
+          python3 scripts/backup_release.py | tee backup-candidato.json
+          python3 - <<'PY'
+          import json,zipfile
+          with zipfile.ZipFile('CONCILIAR_PLUS_PROJETO_COMPLETO.zip') as z:
+            assert z.testzip() is None
+            meta=json.loads(z.read('RELEASE_METADATA.json'))
+            assert meta['files'] >= 35
+            assert 'dashboard-bi-metrics.js' in z.namelist()
+            assert 'docs/DICIONARIO_DE_INDICADORES.md' in z.namelist()
+            print('BACKUP ZIP TESTADO:',meta['commit'],meta['files'],'arquivos')
+          PY
       - name: Verificar visual em Chromium com dados fictícios
         run: |
           set -e
@@ -89,6 +105,16 @@ jobs:
           "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --virtual-time-budget=2500 --dump-dom "file://$PWD/testes/controle-melhoria04-visual.html" > homologacao-controle-v4-dom.html
           grep -q 'data-tracking4-homologado="true"' homologacao-controle-v4-dom.html
           echo "Controle 04: UI portfolio desktop/mobile e tabela de 10 clientes fictícios confirmadas" | tee -a homologacao-resultado.txt
+      - name: Validar dashboard BI responsivo e filtros no Chromium
+        run: |
+          set -e
+          CHROME="$(command -v google-chrome || command -v chromium)"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-bi-desktop.png" "file://$PWD/testes/dashboard-bi-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --hide-scrollbars --window-size=390,850 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-bi-mobile.png" "file://$PWD/testes/dashboard-bi-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --virtual-time-budget=2500 --dump-dom "file://$PWD/testes/dashboard-bi-visual.html" > homologacao-bi-dom.html
+          grep -q 'data-bi-homologado="true"' homologacao-bi-dom.html
+          grep -q 'Dashboards integrados' homologacao-bi-dom.html
+          echo "BI integrado: visual desktop/mobile, 4 perspectivas, filtros e indicadores aprovados" | tee -a homologacao-resultado.txt
       - name: Publicar evidências da homologação (somente artefato CI)
         if: always()
         uses: actions/upload-artifact@v4
@@ -96,6 +122,9 @@ jobs:
           name: carteira-clientes-homologacao-etapa01
           path: |
             homologacao-resultado.txt
+            homologacao-bi-desktop.png
+            homologacao-bi-mobile.png
+            homologacao-bi-dom.html
             homologacao-carteira-desktop.png
             homologacao-carteira-mobile.png
             homologacao-documentos-desktop.png

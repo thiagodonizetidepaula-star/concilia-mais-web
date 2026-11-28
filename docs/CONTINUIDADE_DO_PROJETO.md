@@ -87,3 +87,15 @@ Auditoria read-only executada para refs, banco, backup e serviço Render; docume
 - Limitações remanescentes: avisos `WARN` do Security Advisor sobre três `SECURITY DEFINER` usadas pelas políticas RLS (anon sem EXECUTE; autenticados sujeitos a `auth.uid()`) e proteção de senha vazada não habilitada na configuração atual. Não adquirir plano pago nem alterar permissões essenciais sem migração testada. O teste interativo com credenciais profissionais no URL público **não foi executado**; verificação operacional foi no laboratório autenticado e verificação de publicação pelo Render.
 - Recuperação da versão anterior: no Render existente, redeploy do commit anterior `1923bee56e04517071a53306c3a2a54a2cdd8341` caso haja regressão grave; não substituir dados vivos do Supabase automaticamente. Comparar revisões e hashes antes de qualquer restauração.
 - Sem Vercel, nenhuma infraestrutura nova, nenhuma contratação, nenhuma migração destrutiva, nenhuma Melhoria 05.
+
+
+## Diretriz permanente — BI evolutivo e continuidade do ConCiliar+
+**Reafirmar automaticamente em TODOS os ciclos futuros e em novos contextos do ChatGPT Work/Codex:** qualquer melhoria já autorizada deve incluir avaliação formal de impacto nos dashboards existentes antes de ser marcada como pronta. A avaliação e sua decisão devem constar no PR/CHANGELOG. Havendo dados novos auditáveis, atualizar indicadores, séries, filtros, comparativos e testes correspondentes; não existindo base suficiente, registrar a lacuna sem inventar valores.
+
+**Quatro dimensões invariáveis:** produtividade dos colaboradores; desempenho operacional por empresa; carteira consolidada; aprendizagem e automação do ConCiliar+. Não interpretar índices operacionais como resultados financeiros ou medir qualidade apenas pelo tempo.
+
+**Arquitetura:** métricas puras em `dashboard-bi-metrics.js` e apresentação em `dashboard-bi.js/css` na Visão Geral existente; dicionário em `docs/DICIONARIO_DE_INDICADORES.md`. Extensões futuras devem reutilizar este contrato, não criar abas ou fontes paralelas. A interface usa referência visual azul-marinho/ciano/âmbar, sem reproduzir números nem marca da imagem.
+
+**Controle e segurança:** ler somente empresas acessíveis ao usuário autenticado, preservando RLS, regras de carteira, cronômetros manuais e histórico. Desconsiderar competências futuras no cálculo de atraso, não comparar pessoas sem permissão, não fingir números de horas ou automação sem evidência. Nenhuma migração destrutiva. Não contratar serviços, nem utilizar Vercel. Não iniciar Melhoria 05.
+
+**Releases:** abrir branch isolada, criar e validar backup, testar cálculos/segurança/Chromium/Supabase local, merge no GitHub apenas com CI aprovado, confirmar Render original live, testar integridade do Supabase e criar ZIP completo **do código publicado** sem dados/segredos corporativos. Recuperação exige comparar commit e revisão antes de reverter.

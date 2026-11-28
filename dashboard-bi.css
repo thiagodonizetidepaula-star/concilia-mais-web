@@ -1,0 +1,48 @@
+/* ConCiliar+ — BI integrado 2026. Visual inspirado em referência, sem copiar marcas ou dados. */
+#conciliaBI{margin:20px 0 24px;color:#eaf3ff;font:inherit}
+#conciliaBI *{box-sizing:border-box}
+#conciliaBI .bi-shell{background:#080f20;border:1px solid #253354;border-radius:20px;padding:22px;box-shadow:0 18px 55px #06102122;isolation:isolate}
+#conciliaBI .bi-head{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap;margin:0 0 20px}
+#conciliaBI .bi-head span{display:block;font-size:10px;font-weight:900;letter-spacing:1.5px;color:#20cee6}
+#conciliaBI .bi-head h2{font-size:23px;font-weight:850;letter-spacing:-.6px;color:#fff;margin:7px 0}
+#conciliaBI .bi-head p{font-size:12px;color:#98aacb;margin:5px 0}
+#conciliaBI .bi-head small{color:#a6b9d1;font-size:11px;background:#14213d;border:1px solid #253354;padding:9px 12px;border-radius:9px}
+#conciliaBI .bi-tabs{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding-bottom:16px}
+#conciliaBI .bi-tabs button{background:#111b35;color:#a9bed4;border:1px solid #263957;border-radius:9px;padding:10px 14px;min-height:39px;cursor:pointer;font-size:11px;font-weight:750}
+#conciliaBI .bi-tabs button[aria-selected="true"]{color:#07182d;background:#20cee6;border-color:#20cee6}
+#conciliaBI button:focus-visible,#conciliaBI input:focus-visible,#conciliaBI select:focus-visible{outline:3px solid #ffa600;outline-offset:2px}
+#conciliaBI .bi-filters{display:grid;grid-template-columns:105px 134px minmax(170px,1.3fr) minmax(170px,1fr) auto;align-items:end;gap:10px;margin:2px 0 20px}
+#conciliaBI .bi-filters label{font-size:10px;color:#98aacb;font-weight:800;display:flex;flex-direction:column;gap:6px;min-width:0}
+#conciliaBI .bi-filters input,#conciliaBI .bi-filters select{width:100%;min-width:0;height:39px;border-radius:9px;border:1px solid #293b5b;background:#111b35;color:#eaf2ff;padding:8px 9px;font:inherit;font-size:11px}
+#conciliaBI .bi-filters button{height:39px;background:#14213d;border:1px solid #354765;border-radius:9px;color:#a5bbd5;padding:0 12px;font-size:11px;font-weight:800;cursor:pointer}
+#conciliaBI .bi-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+#conciliaBI .bi-kpi{min-width:0;background:#111b35;border:1px solid #253354;border-top:2px solid #20cee6;border-radius:14px;padding:17px 15px;min-height:105px;display:flex;flex-direction:column;gap:7px}
+#conciliaBI .bi-kpi>span{font-size:11px;font-weight:700;color:#a4b5d4;line-height:1.4}
+#conciliaBI .bi-kpi strong{font-size:27px;color:#20cee6;font-weight:870;letter-spacing:-.8px;line-height:1.15;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+#conciliaBI .bi-kpi small{font-size:10px;color:#899fbd;line-height:1.4}
+#conciliaBI .bi-kpi.bi-amber{border-top-color:#ffa600}#conciliaBI .bi-kpi.bi-amber strong{color:#ffa600}
+#conciliaBI .bi-kpi.bi-cyan{border-top-color:#35d99c}#conciliaBI .bi-kpi.bi-cyan strong{color:#35d99c}
+#conciliaBI .bi-graphs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
+#conciliaBI .bi-graph{min-width:0;min-height:260px;border:1px solid #253354;background:#111b35;border-radius:14px;padding:18px}
+#conciliaBI .bi-graph h3{font-size:13px;font-weight:800;color:#c9dbf2;line-height:1.5;margin:0 0 16px}
+#conciliaBI .bi-graph p{margin:12px 0 0;color:#8399b8;font-size:10px;line-height:1.6}
+#conciliaBI .bi-line{display:block;width:100%;max-height:215px;overflow:visible}
+#conciliaBI .bi-bars{display:grid;gap:11px;align-content:start;padding:6px 0}
+#conciliaBI .bi-bar-row{display:grid;grid-template-columns:minmax(55px,1fr) minmax(65px,2.3fr) 52px;gap:10px;align-items:center;min-height:17px}
+#conciliaBI .bi-bar-row small{font-size:10px;color:#a8bbd4;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#conciliaBI .bi-bar-row b{font-size:11px;color:#def7ff;text-align:right;font-variant-numeric:tabular-nums}
+#conciliaBI .bi-bar-track{height:11px;background:#243654;border-radius:8px;overflow:hidden}
+#conciliaBI .bi-bar-track i{display:block;height:100%;background:linear-gradient(90deg,#168ea9,#20cee6);border-radius:8px}
+#conciliaBI .bi-ring{width:182px;height:182px;margin:4px auto;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#20cee6 0 var(--bi-progress),#253354 var(--bi-progress) 100%)}
+#conciliaBI .bi-ring span{width:140px;height:140px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;background:#111b35}
+#conciliaBI .bi-ring strong{font-size:25px;color:#20cee6}#conciliaBI .bi-ring small{font-size:10px;color:#98aacb}
+#conciliaBI .bi-empty{color:#899fba;text-align:center;padding:55px 15px;font-size:12px;line-height:1.6}
+#conciliaBI .bi-foot{margin-top:17px;padding-top:14px;border-top:1px solid #253354;color:#899fba;font-size:10px;line-height:1.65}
+@media(max-width:1100px){#conciliaBI .bi-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}#conciliaBI .bi-filters{grid-template-columns:repeat(2,minmax(0,1fr))}#conciliaBI .bi-filters button{grid-column:2}}
+@media(max-width:730px){#conciliaBI .bi-shell{padding:14px}#conciliaBI .bi-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}#conciliaBI .bi-graphs{grid-template-columns:1fr}#conciliaBI .bi-tabs button{flex:1 1 120px}#conciliaBI .bi-kpi strong{font-size:23px}}
+@media(max-width:400px){#conciliaBI .bi-kpis{grid-template-columns:1fr 1fr;gap:7px}#conciliaBI .bi-kpi{padding:12px 10px}#conciliaBI .bi-filters{grid-template-columns:1fr}#conciliaBI .bi-filters button{grid-column:1}}
+@media(prefers-reduced-motion:reduce){#conciliaBI *,#conciliaBI *:before,#conciliaBI *:after{animation:none!important;transition:none!important}}
+
+#conciliaBI .bi-kpi[data-bi-go]{cursor:pointer;transition:transform .15s ease,border-color .15s ease}
+#conciliaBI .bi-kpi[data-bi-go]:hover{transform:translateY(-2px);border-color:#20cee6}
+#conciliaBI .bi-kpi[data-bi-go]:focus-visible{outline:3px solid #ffa600;outline-offset:2px}

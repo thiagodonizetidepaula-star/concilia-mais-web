@@ -69,6 +69,23 @@ async function run(){
   await loginViaUI(pageA,creds[0]);stats.push('UI: login real usuário A no ConCiliar+: OK');
   await importPlan(pageA,path.join(dataDir,'plano-dominio-homologacao.pdf'));
   await walletCount(pageA,1);
+  // Painel BI integrado: somente dados da conta autenticada, sem atualizar tabelas de produção.
+  await pageA.locator('button[data-page="visao"]').click();
+  await pageA.waitForFunction(()=>document.querySelector('#conciliaBI .bi-kpi')?.textContent,{timeout:15000});
+  assert.equal(await pageA.locator('#conciliaBI .bi-tabs button').count(),4,'Quatro perspectivas integradas');
+  assert.equal(await pageA.locator('#conciliaBI [data-bi-filter]').count(),4,'Filtros reais de competência/empresa/pesquisa');
+  assert.match(await pageA.locator('#conciliaBI .bi-head').textContent(),/1 empresas visíveis/);
+  await pageA.locator('[data-bi-tab="tecnologia"]').click();
+  assert.match(await pageA.locator('#conciliaBI').textContent(),/Taxa de automação/);
+  await pageA.locator('[data-bi-tab="empresa"]').click();
+  assert.match(await pageA.locator('#conciliaBI').textContent(),/Movimentações por empresa/);
+  await pageA.locator('[data-bi-filter="search"]').fill('empresa-inexistente-xx');
+  assert.match(await pageA.locator('#conciliaBI .bi-head').textContent(),/0 empresas visíveis/);
+  await pageA.locator('[data-bi-reset]').click();
+  assert.match(await pageA.locator('#conciliaBI .bi-head').textContent(),/1 empresas visíveis/);
+  stats.push('BI integrado: login real, 4 perspectivas, filtros e cálculo de carteira autorizada: OK');
+  await pageA.locator('button[data-page="carteira"]').click();
+  await pageA.locator('.wallet-client-card').first().waitFor({state:'visible',timeout:10000});
   stats.push('PDF digital com layout do Domínio: importação por botão existente e cadastro na carteira: OK');
   const c=pageA.locator('.wallet-client-card').first();
   assert.match(await c.textContent(),/EMPRESA HOMOLOGACAO LTDA/);
@@ -244,6 +261,10 @@ async function run(){
   const aa=await checkStored(creds[0],1);assert.equal(aa[0].name,'EMPRESA HOMOLOGACAO ATUALIZADA LTDA');
   const ctxB=await browser.newContext(),pageB=await ctxB.newPage();annotate(pageB);
   await loginViaUI(pageB,creds[1]);
+  await pageB.locator('button[data-page="visao"]').click();
+  await pageB.waitForFunction(()=>!!document.querySelector('#conciliaBI .bi-head'),{timeout:10000});
+  assert.doesNotMatch(await pageB.locator('#conciliaBI').textContent(),/EMPRESA HOMOLOGACAO ATUALIZADA/,'BI não revela empresa do usuário A');
+  stats.push('BI RLS: usuário B não visualiza os dados do usuário A: OK');
   await walletCount(pageB,1); // Uma empresa própria criada via RPC, nunca a empresa de A.
   assert.doesNotMatch(await pageB.locator('#walletPanel').textContent(),/EMPRESA HOMOLOGACAO ATUALIZADA/);
   await pageB.locator('button[data-page="documentos"]').click();

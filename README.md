@@ -21,3 +21,8 @@ Aplicativo web em português para testar conciliação contábil por empresa, se
 - A exportação CSV das cinco colunas é **prévia**, não um layout homologado do Domínio.
 
 Repositório: https://github.com/thiagodonizetidepaula-star/concilia-mais-web
+
+
+## Dashboards BI integrados do ConCiliar+
+A Visão Geral contém quatro perspectivas **dentro da página existente**, com módulos `dashboard-bi-metrics.js`, `dashboard-bi.js`, `dashboard-bi.css` e filtros de ano, competência, empresa e pesquisa. O layout azul-marinho/ciano utiliza dados reais do workspace acessível e não altera saldos/classificações. Os testes são executados no GitHub Actions com Chromium e Supabase local temporário; não é necessário instalar dependências pagas. Consulte `docs/DICIONARIO_DE_INDICADORES.md` e `docs/MANUAL_TECNICO.md`.
+O indicador profissional não deve ser confundido com qualidade ou desempenho financeiro; ausência de medição não gera zero fictício. Nenhum token, senha ou backup corporativo é incluído no ZIP público do projeto.

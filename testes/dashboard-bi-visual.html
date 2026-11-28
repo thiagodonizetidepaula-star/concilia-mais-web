@@ -1,0 +1,15 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Homologação do BI integrado</title><link rel="stylesheet" href="../dashboard-bi.css"><style>body{background:#eff3fa;margin:0;padding:16px;font:13px system-ui}main{max-width:1500px;margin:auto}.evidence{background:#fff4d2;color:#6f5110;border-radius:9px;padding:10px;font-weight:800}</style></head><body><main><p class="evidence">HOMOLOGAÇÃO VISUAL · DADOS TOTALMENTE FICTÍCIOS · SEM SUPABASE DE PRODUÇÃO</p><div id="conciliaBI"></div></main>
+<script src="../dashboard-bi-metrics.js"></script><script src="../dashboard-bi.js"></script><script>
+const year=new Date().getFullYear(),p=String(year)+'-'+String(new Date().getMonth()+1).padStart(2,'0');
+const companies=Array.from({length:7},(_,i)=>({id:'synthetic-'+i,name:'EMPRESA FICTÍCIA '+String(i+1).padStart(2,'0'),dominio:'0'+(800+i),cnpj:'11.222.333/0001-81',walletAssignedUserIds:['user-fixture'],clientInactive:i===6,documentHistory:{[p]:{status:i%2?'Pendente':'Recebido'}},reconciliationTracking:{[p]:{start:p+'-01',end:i%3?p+'-09':null,deadline:p+'-25'}},crmHistory:[{type:'charge',periods:[p]}],learnedCodes:[{key:'fake-'+i}],movements:[{id:'m'+i,date:p+'-06',status:'CONFIRMADO',confidence:i%2?'Aprendizado comprovado':'Excel colado — validado automaticamente'},{id:'z'+i,date:p+'-07',status:'PENDENTE'}]}));
+window.ConciliaTrackingCore={effective:(c,period)=>({data:{...c.reconciliationTracking?.[period],status:c.reconciliationTracking?.[period]?.end?'Concluída':'Em andamento',effectiveSeconds:3600,pendingRemaining:1}})};
+function assertBI(){
+ window.ConciliaBI.render({companies,userId:'user-fixture'});
+ const k=document.querySelectorAll('.bi-kpi').length,charts=document.querySelectorAll('.bi-graph').length;
+ const tabs=document.querySelectorAll('[data-bi-tab]').length,filters=document.querySelectorAll('[data-bi-filter]').length;
+ const valid=k>=6&&charts===4&&tabs===4&&filters===4&&document.querySelector('.bi-head h2')?.textContent==='Dashboards integrados';
+ document.body.dataset.biHomologado=String(valid);
+ if(!valid)document.querySelector('.evidence').textContent+=' · FALHA DE MONTAGEM';
+}
+window.addEventListener('load',()=>{setTimeout(assertBI,100);});
+</script></body></html>
