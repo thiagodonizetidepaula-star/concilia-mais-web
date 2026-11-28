@@ -37,6 +37,7 @@ let operationalCloudRevision=null,operationalCloudReady=false,operationalCloudQu
 /* Executa retenção somente em competências explicitamente encerradas e homologadas.
    Não altera cadastros, regras aprendidas, nem o histórico gerencial. */
 function runRetentionCleanup(){
+ if(window.CONCILIA_READONLY_PREVIEW)return null;
  if(!window.ConciliaRetention||!state?.companies?.length)return null;
  const result=window.ConciliaRetention.cleanupWorkspace(state);
  const deleted=Object.values(result.deleted).reduce((a,b)=>a+b,0);
@@ -141,6 +142,7 @@ function saveDB({operational=true}={}){
 }
 function log(type,detail){state.audit.push({at:new Date().toISOString(),companyId,period,actorId:window.ConciliaCloud?.accountId?.()||null,action:type,detail});}
 async function store(type,detail){
+ if(window.CONCILIA_READONLY_PREVIEW)throw Error('Prévia de consulta: salvar ou importar dados está desabilitado.');
  if(!['EXTRATO_REFAZER','IMPORTACAO_EXCLUIDA','RESTAURACAO_IMPORTACOES'].includes(type))ultimoExcluido=null;
  log(type,detail);
  // Limpeza automática no salvamento; somente documentos de períodos homologados e vencidos.
@@ -189,7 +191,7 @@ async function activateCloud(){
  // Antes de reduzir o workspace aos dados duráveis, preservar importações legadas
  // que ainda possam existir nele. Não remover esses dados se o backup falhar.
  const legacyOperational=(remote?.companies||[]).some(c=>draftFields.some(field=>Object.keys(c[field]||[]).length));
- if(legacyOperational){
+ if(legacyOperational&&!window.CONCILIA_READONLY_PREVIEW){
   const existingDraft=await cloud.fetchPrivate('operational');
   if(!existingDraft){
    const legacyPayload={
@@ -238,7 +240,7 @@ async function activateCloud(){
  }
  companyId=draft?.companyId||'';
  if(draft){period=draft.period;$('#period').value=period;}
- if(operationalCloudReady&&(operationalCloudRevision===null||needsCloudRecovery)){
+ if(!window.CONCILIA_READONLY_PREVIEW&&operationalCloudReady&&(operationalCloudRevision===null||needsCloudRecovery)){
   const initial=needsCloudRecovery?localCopy:operationalSnapshot();
   if(initial?.companies?.some(c=>draftFields.some(field=>Object.keys(c[field]||[]).length)))enqueueOperationalCloud(initial);
  }
@@ -248,7 +250,7 @@ async function activateCloud(){
  await saveDB({operational:false});
  // Ao entrar novamente, o prazo vencido é aplicado mesmo sem novos lançamentos.
  // Exige que a versão local/remota já tenha sido restaurada antes desta verificação.
- if(operationalCloudReady){
+ if(!window.CONCILIA_READONLY_PREVIEW&&operationalCloudReady){
   const cleanup=runRetentionCleanup();
   if(cleanup){
    log('RETENCAO_OPERACIONAL_3_MESES',JSON.stringify(cleanup));
@@ -256,7 +258,7 @@ async function activateCloud(){
   }
  }
  const hasOldImports=(remote?.companies||[]).some(c=>(c.imports||[]).length||(c.movements||[]).length||(c.ledger||[]).length||(c.financialControls||[]).length||(c.transfers||[]).length);
- if(hasOldImports){
+ if(hasOldImports&&!window.CONCILIA_READONLY_PREVIEW){
   try{await cloud.serializedSave(durableWorkspace(state));}
   catch(err){cloudSyncEnabled=false;cloudMessage('Histórico antigo ignorado nesta sessão, mas a limpeza na nuvem falhou: '+err.message+'. Confira a conexão.',true);}
  }
@@ -264,7 +266,7 @@ async function activateCloud(){
  cloudDisplay();
  if(draft)say('Rascunho local recuperado. Confira a empresa e a competência no cabeçalho.');
  if(cloudSyncEnabled)cloudMessage(operationalCloudReady?'Cadastros sincronizados. Backup dos rascunhos operacionais habilitado; confirme a sincronização após trabalhar.':'Cadastros sincronizados. Atenção: backup dos rascunhos operacionais pendente.');
- try{await window.ConciliaManualProductivity?.syncCloud?.();}catch(err){console.warn('Produtividade: sincronização adiada',err);}
+ try{if(!window.CONCILIA_READONLY_PREVIEW)await window.ConciliaManualProductivity?.syncCloud?.();}catch(err){console.warn('Produtividade: sincronização adiada',err);}
 }
 async function initializeCloud(){
  const cloud=window.ConciliaCloud;authReady=false;cloudDisplay();
