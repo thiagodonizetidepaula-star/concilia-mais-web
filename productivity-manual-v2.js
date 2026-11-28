@@ -243,8 +243,8 @@ function draw(){
  const root=$('#productivityPanel');if(!root)return;
  const c=context(),k=scopeOf(c),r=k?state.sessions[k]||blank(c):null,m=metrics(r),enabled=!!k,started=!!r?.startedAt,finished=!!r?.finishedAt,active=canEdit(r);
  const stateText=finished?'Medição concluída':r?.runningSince?'Cronômetro em andamento':started?'Medição pausada':'Pronto para começar';
- const syncError=/^(Falha|Erro)/.test(cloudStatus);
- const syncWarning=syncError?'<div class="prod-sync-warning" role="alert">Não foi possível proteger todas as alterações na nuvem. Seus registros locais foram mantidos. <button type="button" class="secondary" data-prod="sync">Tentar salvar novamente</button></div>':'';
+ const syncError=/^(Falha|Erro)/.test(cloudStatus),unsaved=!cloudReady&&localVersion>0;
+ const syncWarning=syncError||unsaved?'<div class="prod-sync-warning" role="alert">'+(syncError?'Não foi possível proteger todas as alterações na nuvem.':'Há alterações salvas neste dispositivo aguardando proteção na nuvem.')+' Seus registros locais foram preservados. <button type="button" class="secondary" data-prod="sync">Tentar salvar novamente</button></div>':'';
  const input=(label,name,value)=>'<label class="prod-manual-field">'+label+'<input type="number" min="0" max="1000000" step="1" data-prod-field="'+name+'" value="'+value+'" '+(!active?'disabled':'')+'></label>';
  root.innerHTML='<div class="prod-heading"><div><span class="prod-kicker">CONTROLE PESSOAL DE EVOLUÇÃO</span><h2>Dashboard de Produtividade</h2><p>Inicie, registre seus resultados e acompanhe sua evolução. O salvamento ocorre automaticamente.</p></div><div class="prod-status">'+stateText+'</div></div>'+syncWarning+
  (!enabled?'<p class="prod-notice">Selecione uma empresa, competência e entre na sua conta para iniciar sua medição.</p>':'<p class="prod-context"><strong>'+esc(c.company?.name||'Empresa')+'</strong> · Competência '+esc(c.period)+'</p>')+
