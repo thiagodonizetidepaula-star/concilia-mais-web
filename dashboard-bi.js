@@ -16,9 +16,14 @@ function spark(values,label){
  const p=values.filter(x=>Number.isFinite(x.value));
  if(!p.length)return empty('Ainda não existem medições suficientes para este gráfico.');
  const w=720,h=180,l=26,r=25,top=18,b=33,max=Math.max(1,...p.map(x=>x.value));
- const coords=values.map((x,i)=>({x:l+(w-l-r)*(values.length===1?.5:i/(values.length-1)),y:top+(h-b-top)*(1-(Number(x.value)||0)/max),...x}));
- const path=coords.map(c=>c.x.toFixed(1)+','+c.y.toFixed(1)).join(' ');
- return '<svg viewBox="0 0 '+w+' '+h+'" class="bi-line" role="img" aria-label="'+esc(label)+'"><line x1="'+l+'" y1="'+(h-b)+'" x2="'+(w-r)+'" y2="'+(h-b)+'" stroke="#355173"/><polyline points="'+path+'" fill="none" stroke="#20cee6" stroke-width="3" stroke-linejoin="round"/>'+
+ const coords=values.map((x,i)=>Number.isFinite(x.value)?({x:l+(w-l-r)*(values.length===1?.5:i/(values.length-1)),y:top+(h-b-top)*(1-x.value/max),...x,index:i}):null).filter(Boolean);
+ const groups=[];let current=[];
+ for(const p of values.map((x,i)=>Number.isFinite(x.value)?coords.find(c=>c.index===i):null)){
+  if(!p){if(current.length)groups.push(current);current=[];}else current.push(p);
+ }
+ if(current.length)groups.push(current);
+ const paths=groups.filter(g=>g.length>1).map(g=>'<polyline points="'+g.map(c=>c.x.toFixed(1)+','+c.y.toFixed(1)).join(' ')+'" fill="none" stroke="#20cee6" stroke-width="3" stroke-linejoin="round"/>').join('');
+ return '<svg viewBox="0 0 '+w+' '+h+'" class="bi-line" role="img" aria-label="'+esc(label)+'"><line x1="'+l+'" y1="'+(h-b)+'" x2="'+(w-r)+'" y2="'+(h-b)+'" stroke="#355173"/>'+paths+
  coords.map(c=>'<circle cx="'+c.x+'" cy="'+c.y+'" r="4" fill="#20cee6"><title>'+esc(c.label)+': '+fmt(c.value)+'</title></circle>').join('')+
  coords.filter((_,i)=>i%Math.ceil(coords.length/6)===0||i===coords.length-1).map(c=>'<text x="'+c.x+'" y="'+(h-9)+'" fill="#a5b6cf" font-size="11" text-anchor="middle">'+esc(c.label)+'</text>').join('')+'</svg>';
 }
