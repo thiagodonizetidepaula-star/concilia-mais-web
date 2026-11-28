@@ -5,6 +5,7 @@ on:
       - feature/carteira-clientes-etapa01-review-20261127
       - feature/melhoria02-gestao-documentos-homologacao-20261128
       - feature/melhoria03-crm-manual-homologacao-20261128
+      - feature/melhoria04-controle-conciliacoes-homologacao-20261128
   workflow_dispatch:
 permissions:
   contents: read
@@ -26,6 +27,8 @@ jobs:
           node --check document-management.js
           node --check crm-core.js
           node --check crm.js
+          node --check tracking-core-v4.js
+          node --check tracking-control-v4.js
           node --check client-wallet.js
           node --check core.js
           node --check partners.js
@@ -34,7 +37,7 @@ jobs:
           node --check retention-policy.js
       - name: Testes de homologação da Carteira e regressão existente
         run: |
-          node --test testes/crm-melhoria03.test.cjs testes/document-management-melhoria02.test.cjs testes/carteira-clientes-etapa01.test.cjs testes/plano-dominio-t-vazio.test.cjs testes/auditoria-detalhada.test.cjs testes/multibancos-pdf.test.cjs testes/restaurar-tudo.test.cjs tests/tax-reconciliation.test.js 2>&1 | tee homologacao-resultado.txt
+          node --test testes/tracking-melhoria04.test.cjs testes/crm-melhoria03.test.cjs testes/document-management-melhoria02.test.cjs testes/carteira-clientes-etapa01.test.cjs testes/plano-dominio-t-vazio.test.cjs testes/auditoria-detalhada.test.cjs testes/multibancos-pdf.test.cjs testes/restaurar-tudo.test.cjs tests/tax-reconciliation.test.js 2>&1 | tee homologacao-resultado.txt
       - name: Verificar visual em Chromium com dados fictícios
         run: |
           set -e
