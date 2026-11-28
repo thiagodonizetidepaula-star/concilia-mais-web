@@ -88,7 +88,7 @@ function company(){
  const all=companies().filter(c=>!view.companyId||c.id===view.companyId);
  const times=all.map(c=>{
   const r=B.record(c,view.period||view.month,window.ConciliaTrackingCore);
-  const complexity=C.complexity({movements:r.movements,accounts:Array.isArray(c.bankAccounts)?c.bankAccounts.length:null,pending:r.pending,manual:r.manual,rework:r.rework});
+  const complexity=C.complexity({movements:r.movements,accounts:Array.isArray(c.accounts)?c.accounts.length:null,pending:r.pending,manual:r.manual,rework:r.rework});
   return {company:c,r,complexity};
  });
  const data=times.map(x=>({label:x.company.name,value:x.r.movements})).sort((a,b)=>b.value-a.value).slice(0,12);
