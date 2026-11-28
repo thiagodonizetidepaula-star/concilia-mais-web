@@ -115,7 +115,7 @@
    groups,rows};
  }
  function evolution(companies,year,uid){
-  if(!/^20\\d{2}$/.test(String(year)))throw Error('Ano inválido.');
+  if(!/^20\d{2}$/.test(String(year)))throw Error('Ano inválido.');
   const months=[];
   for(let m=1;m<=12;m++){
    const p=monthKey(year,m),s=summarize(companies,p,uid);
