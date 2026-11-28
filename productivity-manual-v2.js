@@ -145,6 +145,7 @@ async function perform(action){
  if(action==='sync'){await syncCloud();return;}
  if(!k){alert('Selecione uma empresa, a competência e entre na sua conta antes de iniciar a medição.');return;}
  if(action==='start'){
+  if(window.ConciliaTrackingV4?.hasRunning?.()){alert('Há um cronômetro ativo no Controle de Conciliações. Pause ou finalize esse cronômetro para evitar contagem simultânea.');return;}
   if(r.finishedAt){alert('Esta medição já foi concluída. Clique em "Zerar tudo / Novo ciclo" antes de iniciar outra.');return;}
   if(r.runningSince)return;
   const now=Date.now();
@@ -294,6 +295,6 @@ function init(){
  setInterval(()=>{if(document.hidden||!$('#p-produtividade')?.classList.contains('visible'))return;const r=currentRecord();if(!r?.runningSince)return;const text=fmt(time(r));for(const el of document.querySelectorAll('[data-prod-timer],[data-prod-duration]'))el.textContent=text;},1000);
  window.lucide?.createIcons();
 }
-window.ConciliaManualProductivity={render,metrics,history:()=>recorded(context()),syncCloud};
+window.ConciliaManualProductivity={render,metrics,history:()=>recorded(context()),syncCloud,hasRunning:()=>Object.values(state.sessions).some(r=>r?.userId===context().userId&&!!r.runningSince)};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
