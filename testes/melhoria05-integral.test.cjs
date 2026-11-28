@@ -25,3 +25,36 @@ test('operações diárias filtram movimentos por data comprovada',()=>{const r=
 test('relatório tem dez abas, fórmulas e período',()=>{const report=R.build({filter:f,state:C.blank(),companies:[c],owner:user,analytics:A,B});assert.equal(report.sheets.length,10);assert.equal(report.criteria.length,6);assert.ok(report.periodDescription.includes('2026-11'));});
 test('relatório HTML profissional inclui tabela e gráfico, sem JSON bruto',()=>{const report=R.build({filter:f,state:C.blank(),companies:[c],owner:user,analytics:A,B});let h=R.html(report);assert.ok(h.includes('<table>'));assert.ok(h.includes('chart'));assert.ok(!h.includes('JSON.stringify'));});
 test('relatório anônimo não vaza cliente nem CNPJ nem texto livre',()=>{const r=C.create('achievement',{title:'CLIENTE TESTE CONFIDENCIAL',description:'CNPJ 00.000.000/0001-00'},user);const s=C.saveRecord(C.blank(),'achievement',r,user);const report=R.build({filter:f,state:s,companies:[c],owner:user,analytics:A,B},true);let serialized=JSON.stringify(report);assert.ok(!serialized.includes('TESTE CLIENTE CONFIDENCIAL'));assert.ok(!serialized.includes('00.000.000/0001-00'));});
+
+test('meta diária usa apenas conciliação encerrada no dia próprio',()=>{
+ const goal=C.create('goal',{title:'Hoje',metric:'concluded',baseline:0,target:2,frequency:'day',start:'2026-11-05',period:'2026-11'},user);
+ const result=A.goalProgress(goal,[c],user,B);
+ assert.equal(result.actual,1);
+ assert.equal(result.progress,50);
+});
+test('meta anual não multiplica por meses futuros o mesmo universo de empresas',()=>{
+ const goal=C.create('goal',{title:'Ano 2026',metric:'concluded',baseline:0,target:10,frequency:'year',start:'2026-01-01',deadline:'2026-12-31'},user);
+ const result=A.goalProgress(goal,[c],user,B);
+ assert.equal(result.actual,2);
+ assert.equal(result.progress,20);
+});
+test('aprendizagem de regras considera só eventos realmente registrados nos lançamentos',()=>{
+ const x={...c,movements:[{id:'1',date:'2026-11-04',status:'CONFIRMADO',counterpart:'123',learningUsage:{origin:'REGRA_APRENDIDA',suggestedCode:'123',suggestedAt:'2026-11-03T10:00:00Z'}},
+ {id:'2',date:'2026-11-05',status:'PENDENTE',learningUsage:{origin:'REGRA_APRENDIDA',suggestedCode:'222',suggestedAt:'2026-11-05T10:00:00Z'}},
+ {id:'3',date:'2026-11-06',status:'CONFIRMADO',counterpart:'444',learningUsage:{origin:'REGRA_APRENDIDA',suggestedCode:'555',suggestedAt:'2026-11-06T10:00:00Z'}}]};
+ const result=A.learningFromCompanies([x],user,B,f);
+ assert.equal(result.suggested,3);assert.equal(result.confirmed,1);assert.equal(result.corrected,1);
+});
+test('matriz profissional só aceita categorias documentadas',()=>{
+ const r=C.create('competency',{title:'Conciliação bancária',category:'Contabilidade',level:'Aplicação prática',evidence:'Exemplo anonimizado'},user);
+ assert.equal(r.category,'Contabilidade');
+ assert.throws(()=>C.edit(r,{category:'Título inexistente'},user),/inválido/);
+});
+test('relatório anônimo remove também companyId nos filtros',()=>{
+ const report=R.build({filter:{...f,companyId:'c1'},state:C.blank(),companies:[c],owner:user,analytics:A,B},true);
+ assert.ok(!JSON.stringify(report.filter).includes('c1'));
+});
+test('futuro não gera empresa em atraso fictício na carteira anual',()=>{
+ const rs=A.operational([c],user,B,{range:'year',year:2027,day:'2027-01-02'});
+ assert.equal(rs.summary.remaining,0);
+});
