@@ -8,6 +8,9 @@ on:
       - feature/melhoria04-controle-conciliacoes-homologacao-20261128
       - feature/refinamento-ciclo01-04-20261128
   workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
