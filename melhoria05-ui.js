@@ -106,7 +106,7 @@ function automation(){
 }
 function goals(){
  const a=bi(),gs=ownRecords('goals');
- return section('Metas individuais e planejamento',button('Cadastrar meta','data-m05-form="goal"')+gs.length?'<div class="m05-rows">'+gs.map(g=>{const x=C.resultGoals(g,a);return '<article class="m05-item"><div><b>'+esc(g.title)+'</b><small>'+esc(g.metric)+' · '+esc(g.direction)+' · prazo '+dateBR(g.deadline)+'</small><strong>'+pct(x.progress)+'</strong><small>Origem: '+esc(x.source)+' · '+esc(g.status)+'</small></div>'+button('Concluir','data-m05-complete="'+esc(g.id)+'"')+'</article>';}).join('')+'</div>':empty('Cadastre sua primeira meta, com base em indicadores medidos ou atualização manual identificada.'))+
+ return section('Metas individuais e planejamento',button('Cadastrar meta','data-m05-form="goal"')+(gs.length?'<div class="m05-rows">'+gs.map(g=>{const x=C.resultGoals(g,a);return '<article class="m05-item"><div><b>'+esc(g.title)+'</b><small>'+esc(g.metric)+' · '+esc(g.direction)+' · prazo '+dateBR(g.deadline)+'</small><strong>'+pct(x.progress)+'</strong><small>Origem: '+esc(x.source)+' · '+esc(g.status)+'</small></div>'+button('Concluir','data-m05-complete="'+esc(g.id)+'"')+'</article>';}).join('')+'</div>':empty('Cadastre sua primeira meta, com base em indicadores medidos ou atualização manual identificada.'))+
  section('Planejamento','<p>Restantes no período: <b>'+fmt(a.remaining)+'</b>. Prazos e capacidade diária exigem calendário de disponibilidade informado; o sistema não inventa previsões nem avalia competência pelo cumprimento isolado de metas.</p>');
 }
 function professional(){
@@ -178,7 +178,7 @@ async function persist(kind,record){
   else res=await table.update({payload:snapshot,revision:revision+1,updated_at:new Date().toISOString()}).eq('user_id',id).eq('revision',revision).select('revision').maybeSingle();
   if(res.error)throw res.error;if(!res.data||owner!==id)throw Error('Conflito de versão ou troca de sessão; nenhum dado sobrescrito');
   revision=res.data.revision;store=snapshot;error='';
- }catch(e){error='Não salvo: '+String(e.message||e).slice(0,170)+' — atualize a página antes de tentar novamente';ready=false;requested=false;}
+ }catch(e){error='Não salvo: '+String(e.message||e).slice(0,170)+' — atualize a página antes de tentar novamente';ready=false;requested=true;}
  finally{saving=false;render();}
 }
 function fillForm(kind){const host=$('#m05FormHost');if(!host||!kindNames[kind]||!ready)return;host.innerHTML=form(kind);host.scrollIntoView({behavior:'smooth',block:'nearest'});}
