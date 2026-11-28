@@ -146,6 +146,27 @@ function savings(manual,auto){
  }
  return {pairs,measured:pairs.length>0,disclaimer:'Comparação observacional por complexidade; não é causalidade comprovada.'};
 }
+function learningFromCompanies(companies,userId,B,filter={}){
+ if(!B)return {suggested:0,confirmed:0,corrected:0,byCompany:[]};
+ const cs=B.authorized(companies,userId).filter(c=>!filter.companyId||c.id===filter.companyId);
+ let suggested=0,confirmed=0,corrected=0;const rows=[];
+ const b=bounds(filter);
+ for(const c of cs){
+  let uses=0;
+  for(const m of arr(c.movements)){
+   const u=m.learningUsage;if(!u||u.origin!=='REGRA_APRENDIDA')continue;
+   const d=date(u.suggestedAt||'');
+   if(!day(d)||d<b.from||d>b.to)continue;
+   if(filter.period&&date(m.date).slice(0,7)!==filter.period)continue;
+   suggested++;uses++;
+   if(m.status==='CONFIRMADO'&&String(m.counterpart||'')===String(u.suggestedCode||''))confirmed++;
+   if(m.status==='CONFIRMADO'&&String(m.counterpart||'')!==String(u.suggestedCode||''))corrected++;
+  }
+  if(uses)rows.push({companyId:c.id,name:c.name||'',uses});
+ }
+ return {suggested,confirmed,corrected,confirmationRate:pct(confirmed,suggested),byCompany:rows,
+  note:'Somente sugestões registradas a partir desta versão; confirmação exige código final idêntico.'};
+}
 function groupByMonths(records,year,dateField='executionAt'){
  return Array.from({length:12},(_,i)=>{const month=String(year)+'-'+String(i+1).padStart(2,'0');
   const rows=arr(records).filter(r=>date(r[dateField]||r.finishedAt||r.createdAt).slice(0,7)===month);
@@ -189,5 +210,5 @@ function operational(companies,userId,B,filter={},tracking){
  }
  return {summary:a,rows:records,note,from,to};
 }
-return {operational,bounds,included,filterRows,sessions,reviewTransition,quality,metricAtGoal,goalProgress,businessDays,planning,learning,savings,groupByMonths};
+return {learningFromCompanies,operational,bounds,included,filterRows,sessions,reviewTransition,quality,metricAtGoal,goalProgress,businessDays,planning,learning,savings,groupByMonths};
 });
