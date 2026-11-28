@@ -10,7 +10,7 @@ const date=x=>String(x||'').slice(0,10);
 const today=()=>new Date().toISOString().slice(0,10);
 let view={range:'month',day:today(),month:today().slice(0,7),year:Number(today().slice(0,4)),start:today().slice(0,7)+'-01',end:today(),period:'',companyId:'',status:'all',activityType:'all'},root=null;
 const card=(title,body)=>'<article class="m05-card"><h3>'+esc(title)+'</h3>'+body+'</article>';
-const button=(label,attr)=>'<button type="button" '+attr+'>'+esc(label)+'</button>';
+const button=(label,attr='')=>'<button '+(attr.includes('type=')?'':'type="button" ')+attr+'>'+esc(label)+'</button>';
 const input=(name,label,type='text',extra='')=>'<label>'+esc(label)+'<input type="'+type+'" name="'+name+'" '+extra+'></label>';
 const inputValue=(name,label,type,value)=>input(name,label,type,'value="'+esc(value??'')+'"');
 const owner=()=>window.Concilia05?.owner?.()||'';
