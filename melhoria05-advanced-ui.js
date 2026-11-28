@@ -88,16 +88,35 @@ function company(){
   return {company:c,r,complexity};
  });
  const data=times.map(x=>({label:x.company.name,value:x.r.movements})).sort((a,b)=>b.value-a.value).slice(0,12);
+ const timeline=all.length===1?B.timeline(all,owner(),view.year,{tracking:window.ConciliaTrackingCore}):[];
  return card('05.2 · Histórico das empresas e complexidade documentada',bars(data,'Movimentações por empresa')+
+ (timeline.length?bars(timeline.map(r=>({label:r.period.slice(5),value:r.movements})),'Evolução mensal de movimentações da empresa selecionada'):'')+
  '<div class="m05-ext-scroll"><table><thead><tr><th>Empresa</th><th>Domínio</th><th>Movimentos</th><th>Classificadas</th><th>Automação</th><th>Complexidade</th></tr></thead><tbody>'+
  times.map(x=>'<tr><td>'+esc(x.company.name)+'</td><td>'+esc(x.company.dominio)+'</td><td>'+n(x.r.movements)+'</td><td>'+n(x.r.classified)+'</td><td>'+pct(x.r.classified?x.r.automatic/x.r.classified*100:null)+'</td><td>'+esc(x.complexity.level||'Não avaliável')+'</td></tr>').join('')+'</tbody></table></div>'+
  '<p class="m05-ext-note">Critérios objetivos por volume, contas, pendências, classificação manual e retrabalho. Se algum dado não existe, exibir Não avaliável.</p>');
 }
+function professional(){
+ const data=['diary','achievements','competencies','development','goals'].flatMap(k=>selected(k).map(r=>({
+  id:r.id,group:k,at:date(r.date||r.updatedAt||r.createdAt),title:r.title,
+  category:r.category||'Desenvolvimento',status:r.level||r.status||'Registrado',source:r.source||'manual'
+ }))).sort((a,b)=>b.at.localeCompare(a.at)).slice(0,120);
+ const groups=records('competencies').reduce((out,r)=>{const k=r.category||'Não categorizada';out[k]=(out[k]||0)+1;return out;},{});
+ const timeline=A.groupByMonths(data.map(r=>({executionAt:r.at})),view.year);
+ return card('05.7 · Evolução profissional e portfólio interno',
+  bars(Object.entries(groups).map(([label,value])=>({label,value})),'Competências por área')+
+  bars(timeline.map(r=>({label:r.period.slice(5),value:r.count})),'Registros de evolução profissional por mês')+
+  '<p class="m05-ext-note">Autoavaliação com evidência e origem identificada. Não atribuir nível automaticamente por quantidade de atividades nem divulgar textos internos em portfólio externo.</p>'+
+  (data.length?'<div class="m05-ext-scroll"><table><thead><tr><th>Data</th><th>Área</th><th>Registro</th><th>Categoria</th><th>Status/nível</th><th>Origem</th></tr></thead><tbody>'+
+  data.map(r=>'<tr><td>'+esc(r.at)+'</td><td>'+esc(r.group)+'</td><td>'+esc(r.title)+'</td><td>'+esc(r.category)+'</td><td>'+esc(r.status)+'</td><td>'+esc(r.source)+'</td></tr>').join('')+'</tbody></table></div>':
+  '<p>Sem evidências registradas para os filtros selecionados.</p>'));
+}
 function planning(){
  const gs=selected('goals');const summaries=gs.map(g=>({g,result:A.goalProgress(g,companies(),owner(),B,window.ConciliaTrackingCore)}));
  const cal=records('calendar').slice(-1)[0]||{};
- const remaining=A.operational(companies(),owner(),B,view,window.ConciliaTrackingCore).summary?.remaining;
- let calc;try{calc=A.planning(remaining,{from:today(),deadline:cal.deadline,dailyHours:cal.dailyHours,daysOff:cal.daysOff},null);}catch{calc={days:null,perDay:null,risk:'Confira o calendário'};}
+ const summary=A.operational(companies(),owner(),B,view,window.ConciliaTrackingCore).summary;
+ const remaining=summary?.remaining,measured=A.sessions(selected('activities'),filter());
+ const averageSeconds=measured.measured>0&&measured.effectiveSeconds>0?measured.effectiveSeconds/measured.measured:summary?.averageSeconds??null;
+ let calc;try{calc=A.planning(remaining,{from:today(),deadline:cal.deadline,dailyHours:cal.dailyHours,daysOff:cal.daysOff},averageSeconds);}catch{calc={days:null,perDay:null,risk:'Confira o calendário'};}
  const form='<form data-m05x-form="calendar" class="m05-ext-form"><div class="m05-ext-grid">'+
  input('deadline','Prazo planejado','date')+input('dailyHours','Horas disponíveis por dia','number','step="0.25" min="0" max="24"')+
  input('daysOff','Folgas e indisponibilidades (AAAA-MM-DD separadas por vírgula)')+'</div>'+button('Registrar calendário','type="submit" class="m05-primary"')+'</form>';
@@ -138,7 +157,8 @@ function panel(){
  if(tab==='quality')return s+quality();
  if(tab==='automation')return s+learning();
  if(tab==='goals')return s+planning();
- if(tab==='reports'||tab==='professional')return s+reportSummary();
+ if(tab==='professional')return s+professional()+reportSummary();
+ if(tab==='reports')return s+reportSummary();
  return s+card('Inteligência gerencial · análises fundamentadas',
  '<p>As perspectivas detalhadas mantêm separadas as datas de execução das competências contábeis e indicam ausência de dados medidos. Os registros de origem podem ser consultados nas tabelas das respectivas perspectivas.</p>'+
  reportSummary());
