@@ -68,3 +68,14 @@ Este histórico diferencia **desenvolvido** de **publicado**. Nenhuma Melhoria 0
 - Nova migração proposta `user_melhoria05_states` com RLS por usuário e controle de revisão; **não aplicada na produção**.
 - Testes de núcleo, fixtures Chromium e E2E Supabase temporário; o CI define o resultado, não esta documentação.
 - Backups e código oficial anteriores preservados, sem merge/Render, Vercel, cobranças ou Melhoria 06.
+
+
+## [Melhoria 05 — continuação não publicada do segundo ciclo] 2026-11-28
+- Auditoria individual do prompt original: matriz em `docs/MATRIZ_REQUISITOS_MELHORIA05.md` com 1.118 itens e status conservador; sem declaração prematura de completude.
+- Adicionado motor `melhoria05-analytics.js` para intervalos diários/semanais/mensais/trimestrais/semestrais/anuais/personalizados, competência separada de execução, agregação histórica, revisão e metas por período correto.
+- Acrescentados registros privados de atividades, eventos de regras e calendário, sem interferir nos dados contábeis. O plano de contas, saldos e cronômetros originais são preservados.
+- Implementado `melhoria05-advanced-ui.js` e `melhoria05-advanced.css`: filtros integrados, séries, tabelas, aprovações/retrabalhos, metas e histórico profissional em BI azul-marinho.
+- Relatórios profissionais `melhoria05-reports.js` em PDF via impressão e Excel em dez abas temáticas mais capa, com fórmulas, comparativos e anonimização de nomes/CNPJs/campos livres.
+- `app.js` registra uso prospectivo de regras aprendidas como metadado auditável no movimento e distingue sugestão de confirmação/correção.
+- Testes estendidos em `testes/melhoria05-integral.test.cjs`, fixtures Chromium e E2E Autenticação + RLS + registro + PDF/XLSX no Supabase local.
+- **Nada da Melhoria 05 foi mesclado à main, implantado no Render ou migrado no Supabase de produção.** PR #82 permanece em rascunho; Melhoria 06 não iniciada.

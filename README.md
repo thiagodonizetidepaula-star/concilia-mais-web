@@ -40,3 +40,11 @@ Os registros de qualidade, metas, autoavaliações, diário, realizações e PDI
 Relatórios XLSX usam a biblioteca `XLSX` já presente; PDF depende da impressão/salvamento nativo do navegador. O portfólio exportável remove nomes/identificadores de clientes e textos livres para evitar vazamento de informações corporativas. A ausência de dados é representada por **Sem dados / Sem medição**, nunca por valores inventados.
 
 Para extensão: incluir novos critérios em `docs/DICIONARIO_DE_INDICADORES.md`, testar RLS de dois usuários e concorrência CAS, validar logs dos GitHub Actions na mesma versão, revisar documentação, criar ZIP de homologação, e **aguardar autorização do segundo ciclo**. Não iniciar Melhoria 06.
+
+
+## Segundo ciclo: Melhoria 05 — inteligência operacional (somente homologação)
+O código candidato reside em `feature/melhoria-05-inteligencia-operacional` (PR #82, rascunho), sem publicação no Render. O módulo interno **Visão Geral → Inteligência operacional e desenvolvimento** amplia os dashboards existentes, sem criar novo aplicativo.
+
+Consulte `docs/MANUAL_MELHORIA05.md` para uso, `docs/MATRIZ_REQUISITOS_MELHORIA05.md` para rastreabilidade completa e `docs/DICIONARIO_DE_INDICADORES.md` para fórmulas. A migração RLS está apenas proposta e deve ser testada isoladamente. Os dados privados não são exportados no ZIP do código.
+
+A rotina CI executa testes unitários, regressão, Chromium responsivo, Supabase local com dois usuários e validação do pacote candidato. **Não publicar ou mesclar na main sem autorização específica para o segundo ciclo.** 

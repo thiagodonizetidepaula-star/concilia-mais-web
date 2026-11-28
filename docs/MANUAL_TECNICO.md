@@ -119,3 +119,14 @@ Os registros de qualidade, metas, autoavaliações, diário, realizações e PDI
 Relatórios XLSX usam a biblioteca `XLSX` já presente; PDF depende da impressão/salvamento nativo do navegador. O portfólio exportável remove nomes/identificadores de clientes e textos livres para evitar vazamento de informações corporativas. A ausência de dados é representada por **Sem dados / Sem medição**, nunca por valores inventados.
 
 Para extensão: incluir novos critérios em `docs/DICIONARIO_DE_INDICADORES.md`, testar RLS de dois usuários e concorrência CAS, validar logs dos GitHub Actions na mesma versão, revisar documentação, criar ZIP de homologação, e **aguardar autorização do segundo ciclo**. Não iniciar Melhoria 06.
+
+
+## Melhoria 05 — extensão modular e governança (candidata, 2026-11-28)
+**Sem merge ou publicação do segundo ciclo.** Matriz original com 1.118 requisitos listados por linha: `docs/MATRIZ_REQUISITOS_MELHORIA05.md`. Manual operacional: `docs/MANUAL_MELHORIA05.md`.
+
+**Contrato de código:** `melhoria05-core.js` (tipos, auditoria, metas e eventos privados), `melhoria05-analytics.js` (filtros puros, séries, revisões, comparação, metas, dias úteis, learning e estimativas), `melhoria05-ui.js` (persistência RLS/CAS e nove perspectivas), `melhoria05-advanced-ui.js` (filtros e drilldowns), `melhoria05-reports.js` (PDF HTML para impressão + Excel temático), `melhoria05.css` e `melhoria05-advanced.css` (BI sem CSS global), `app.js` (metadados prospectivos de uso de regra no próprio movimento), `index.html` (carregamento integrado).
+**Persistência proposta:** `supabase/migrations/20261128050000_melhoria05_user_states.sql`, com `user_id` FK, JSONB payload, revision CAS e RLS de dono; aplicada **somente ao laboratório Supabase** até autorização expressa para o segundo ciclo.
+
+**Limites e fontes:** competência não é dia de execução. Cronômetro 04 e Produtividade Manual são fontes distintas; o módulo 05 nunca soma ambas sem vínculo auditável. `learningUsage` registra sugestões de regras novas prospectivamente com `ruleKeys`, código sugerido e data, sem mudar débito/crédito; confirmação é observada apenas quando o lançamento realmente está CONFIRMADO com código igual. Nenhuma data retroativa é inferida. `melhoria05-reports.js` produz relatórios privados filtrados e saída externa que descarta campos livres confidenciais.
+
+**Testes candidatos:** `testes/melhoria05-nucleo.test.cjs`, `testes/melhoria05-integral.test.cjs`, `testes/melhoria05-visual.html`, `testes/homologacao-melhoria05.cjs` e todas as regressões 01–04. CI deverá comprovar RLS real (dois usuários fictícios), CAS, exportação XLSX, HTML diagramado para PDF, cronômetros isolados, responsividade, fórmulas e históricos. Nenhum CI verde em commit antigo confirma alterações posteriores. Backup ZIP com commit exato e hashes após a homologação da branch.

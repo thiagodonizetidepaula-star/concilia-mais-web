@@ -113,3 +113,11 @@ Os registros de qualidade, metas, autoavaliações, diário, realizações e PDI
 Relatórios XLSX usam a biblioteca `XLSX` já presente; PDF depende da impressão/salvamento nativo do navegador. O portfólio exportável remove nomes/identificadores de clientes e textos livres para evitar vazamento de informações corporativas. A ausência de dados é representada por **Sem dados / Sem medição**, nunca por valores inventados.
 
 Para extensão: incluir novos critérios em `docs/DICIONARIO_DE_INDICADORES.md`, testar RLS de dois usuários e concorrência CAS, validar logs dos GitHub Actions na mesma versão, revisar documentação, criar ZIP de homologação, e **aguardar autorização do segundo ciclo**. Não iniciar Melhoria 06.
+
+
+## Continuidade da Melhoria 05 — PR #82 mantido em rascunho
+A documentação `docs/MATRIZ_REQUISITOS_MELHORIA05.md` acompanha individualmente os itens do prompt original. O desenvolvimento reaproveita a Visão Geral e a Carteira, Controle 04, Documentos, CRM, Aprendizagem, Produtividade e o núcleo BI, sem criar outra aplicação. A branch autorizada é `feature/melhoria-05-inteligencia-operacional` e o PR #82 não pode ser mesclado à `main` sem consentimento posterior explícito.
+
+Para retomar em outra conversa, abrir PR #82, verificar HEAD atualizado e CI no MESMO SHA; conferir `docs/MANUAL_MELHORIA05.md`, `docs/MATRIZ_REQUISITOS_MELHORIA05.md` e `docs/DICIONARIO_DE_INDICADORES.md`. A migração `supabase/migrations/20261128050000_melhoria05_user_states.sql` é proposta local e **não foi aplicada à produção**. Nunca adicionar service_role no navegador nem ampliar permissões gerenciais. Registros pessoais ficam no payload privado por usuário; os três payloads anteriores (workspace, operacional e produtividade) continuam independentes e preservados. A política de retenção já aprovada permanece; o novo módulo não apaga históricos existentes.
+
+Verificar antes de declarar homologação integral: fórmula de metas próprias, dados ausentes/zero, ajustes manuais, histórico de revisão, comprovantes de classificação, calendários, relatórios PDF/XLSX, isolamento RLS, duas sessões concorrentes e interface desktop/mobile. Se algum item não tiver teste, manter a classificação pertinente na matriz. Ao final gerar ZIP do **código da branch** sem dados dos clientes. O ZIP não substitui o backup privado já existente do Supabase. Não iniciar Melhoria 06.

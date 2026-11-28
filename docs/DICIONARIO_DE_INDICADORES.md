@@ -64,3 +64,24 @@ Os registros de qualidade, metas, autoavaliações, diário, realizações e PDI
 Relatórios XLSX usam a biblioteca `XLSX` já presente; PDF depende da impressão/salvamento nativo do navegador. O portfólio exportável remove nomes/identificadores de clientes e textos livres para evitar vazamento de informações corporativas. A ausência de dados é representada por **Sem dados / Sem medição**, nunca por valores inventados.
 
 Para extensão: incluir novos critérios em `docs/DICIONARIO_DE_INDICADORES.md`, testar RLS de dois usuários e concorrência CAS, validar logs dos GitHub Actions na mesma versão, revisar documentação, criar ZIP de homologação, e **aguardar autorização do segundo ciclo**. Não iniciar Melhoria 06.
+
+
+## Indicadores complementares BI-021 a BI-032 — Melhoria 05 (somente branch)
+Todas as fórmulas são puras em `melhoria05-analytics.js`; não representam DRE, rentabilidade ou avaliação automática de funcionários. Os índices dependem de fonte e período válidos, e um divisor nulo equivale a **Sem dados**, não a zero.
+
+| ID | Indicador e fórmula | Fonte e filtros | Limitação |
+|---|---|---|---|
+| BI-021 | Atividades registradas = IDs distintos concluídos com origem | `user_melhoria05_states.payload.activities`, execução / funcionário / empresa | Não soma outro cronômetro sem correspondência |
+| BI-022 | Tempo efetivo = soma de `effectiveSeconds` válidos, em segundos | Atividades do proprietário, data real | Pausa/espera não contam como trabalho |
+| BI-023 | Movimento/hora = movimentos medidos / horas efetivas válidas | Mesmas atividades com volume e tempo | Nenhuma taxa sem tempo efetivo maior que zero |
+| BI-024 | Primeira aprovação = ocorrências aprovadas na primeira revisão / ocorrências com primeira revisão × 100 | `quality.reviewEvents`, proprietário e data | Revisões ausentes não entram no denominador |
+| BI-025 | Retrabalho = ocorrências devolvidas uma ou mais vezes / ocorrências com primeira revisão × 100 | `quality.reviewEvents` | Um evento não pode contar duas vezes |
+| BI-026 | Média de resolução = soma durações válidas / ocorrências resolvidas com datas válidas | `quality.createdAt` e `resolvedAt` | Falta de data exclui a observação |
+| BI-027 | Dia útil = segunda a sexta excluindo as folgas informadas | `calendar.deadline`, `daysOff` | Não se presume calendário/férias ou feriados sem registro |
+| BI-028 | Ritmo necessário = conciliações restantes / dias úteis disponíveis | BI-005 e BI-027 | Sem dias úteis = indisponível, não previsão garantida |
+| BI-029 | Capacidade condicional = dias × horas disponíveis × 3.600 / segundos históricos por atividade comparável | Eventos de tempo e calendário | Estimativa, não resultado observado |
+| BI-030 | Uso real de regra = movimentos distintos com `learningUsage.origin='REGRA_APRENDIDA'` | `movements.learningUsage` a partir desta versão | Não reconstruir histórico antigo |
+| BI-031 | Confirmação da memória = sugestões efetivamente confirmadas com mesmo código / sugestões registradas × 100 | `learningUsage.suggestedCode` e status CONFIRMADO | Excel colado não é automação |
+| BI-032 | Progresso de meta = (valor atual na referência própria − base)/(alvo − base)×100, limitado [0,100] | `goals`, `metricAtGoal`, empresa/competência/frequência da meta | Sem granularidade suficiente = Sem medição; nunca usar mês aberto indevidamente |
+
+**Granularidade:** filtros por dia/semana usam datas explícitas; não distribuir volume mensal artificialmente por dia. Competências futuras não devem criar atrasos automáticos. Arquitetura modular deve herdar o contrato anterior BI-001–020. `docs/MATRIZ_REQUISITOS_MELHORIA05.md` registra escopo e evidência por item.
