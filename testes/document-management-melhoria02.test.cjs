@@ -122,3 +122,10 @@ test('mesclagem em memória jamais modifica o workspace original',()=>{
  const before=JSON.stringify(original);imp.merge(original,p,'dryrun','user-a');
  assert.equal(JSON.stringify(original),before);
 });
+
+test('status padronizado mantém classificação Cobrado, mas preserva o valor bruto com espaço final',()=>{
+ const x=imp.status('Cobrado ');
+ assert.equal(x.value,'Cobrado');
+ assert.equal(x.raw,'Cobrado ');
+ assert.equal(x.empty,false);
+});
