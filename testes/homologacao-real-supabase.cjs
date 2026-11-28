@@ -75,6 +75,7 @@ async function run(){
   await c.locator('[data-wallet="edit"]').click();
   await pageA.locator('#walletEditor input[name="name"]').fill('EMPRESA HOMOLOGACAO ATUALIZADA LTDA');
   await pageA.locator('#walletEditor input[name="fantasyName"]').fill('Marca Homologação');
+  await pageA.locator('#walletEditor input[name="dominio"]').fill('0077');
   await pageA.locator('#walletEditor textarea[name="emails"]').fill('financeiro@empresa-ficticia.test; contabil@empresa-ficticia.test');
   await pageA.locator('#walletEditor textarea[name="clientNotes"]').fill('Registro fictício de homologação.');
   await pageA.locator('#walletEditor button[type=submit]').click();
@@ -211,12 +212,17 @@ async function run(){
   await pageA.locator('button[data-page="carteira"]').click();
   await pageA.locator('#walletSearch').fill('HOMOLOGACAO');
   assert.equal(await pageA.locator('.wallet-client-card').count(),1);
+  await pageA.locator('#walletSearch').fill('007');
+  assert.equal(await pageA.locator('.wallet-client-card').count(),1,'Código Domínio parcial com zeros à esquerda');
+  await pageA.locator('#walletSearch').fill('11.222.333/0001-81');
+  assert.equal(await pageA.locator('.wallet-client-card').count(),1,'CNPJ formatado');
   await pageA.locator('#walletSearch').fill('zzzzz-nao-encontra');
   assert.equal(await pageA.locator('.wallet-client-card').count(),0);
   await pageA.locator('[data-wallet="clear-search"]').click();
   assert.equal(await pageA.locator('.wallet-client-card').count(),1);
   stats.push('Refinamento Carteira: pesquisa parcial e limpeza retornam resultados corretos: OK');
   await pageA.locator('button[data-page="crm"]').click();
+  if(await pageA.locator('[data-crm-action="back"]').count())await pageA.locator('[data-crm-action="back"]').click();
   assert.ok(await pageA.locator('.crm-client-card').count()>0,'Novo CRM em cartões');
   stats.push('Refinamento CRM: cartões expansíveis presentes no navegador autenticado: OK');
 
