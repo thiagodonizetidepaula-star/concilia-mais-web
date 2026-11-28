@@ -23,14 +23,26 @@ function rows(){const q=search.trim().toLowerCase(),qs=search.replace(/\D/g,'');
 .filter(({rec})=>!status||rec.status===status).filter(({rec})=>!docs||rec.docs===docs).filter(({rec})=>!review||rec.reviewStatus===review).filter(({rec})=>!delay||rec.delayReason===delay).filter(({rec})=>!deadlineFilter||(deadlineFilter==='overdue'?!!rec.deadline&&rec.deadline<T.todayBrazil()&&!['Concluída','Aprovada'].includes(rec.status):deadlineFilter==='on-time'?!!rec.deadline&&!!rec.end&&rec.end<=rec.deadline:deadlineFilter==='unset'?!rec.deadline:true));
 }
 function renderSummary(){
- const s=T.summarize(validCompanies(),p(),uid()),items=[
- ['Carteira ativa',s.active],['Aplicáveis',s.applicable],['Concluídas',s.done],['Em andamento',s.inProgress],
- ['Não iniciadas',s.notStarted],['Aguardando documentos',s.awaitingDocs],['Aguardando esclarecimentos',s.awaitingClarification],
- ['Pendências internas',s.internalPending],['Exportadas',s.exported],['Domínio confirmado',s.dominioConfirmed],
- ['Aguardando revisão',s.awaitingReview],['Aprovadas',s.approved],['Restantes',s.remaining],
- ['Dentro do prazo',s.withinDeadline],['Em atraso',s.overdue]];
- return '<div class="track4-summary">'+items.map(([k,v])=>'<button type="button" data-track4-counter="'+esc(k)+'" title="Filtrar situação quando disponível"><strong>'+v+'</strong><small>'+esc(k)+'</small></button>').join('')+'</div>'+
- '<div class="track4-progress"><span>Progresso da carteira: <b>'+s.percent+'%</b> ('+s.done+' de '+s.applicable+' aplicáveis)</span><div role="progressbar" aria-valuenow="'+s.percent+'" aria-valuemin="0" aria-valuemax="100"><span style="width:'+s.percent+'%"></span></div></div>';
+ const v=T.summarize(validCompanies(),p(),uid());
+ const primary=[['Carteira ativa',v.active],['Aplicáveis',v.applicable],['Concluídas',v.done],['Em andamento',v.inProgress],['Aguardando documentos',v.awaitingDocs],['Pendências internas',v.internalPending],['Restantes',v.remaining],['Aprovadas',v.approved]];
+ const secondary=[['Não iniciadas',v.notStarted],['Aguardando esclarecimentos',v.awaitingClarification],['Exportadas',v.exported],['Domínio confirmado',v.dominioConfirmed],['Aguardando revisão',v.awaitingReview],['Dentro do prazo',v.withinDeadline],['Em atraso',v.overdue]];
+ const buttons=items=>items.map(([k,n])=>'<button type="button" data-track4-counter="'+esc(k)+'" title="Consultar as empresas correspondentes quando disponível"><strong>'+n+'</strong><small>'+esc(k)+'</small></button>').join('');
+ return '<div class="track4-summary">'+buttons(primary)+'</div>'+
+ '<details class="track4-secondary"><summary>Outros indicadores da competência</summary><div class="track4-summary">'+buttons(secondary)+'</div></details>'+
+ '<div class="track4-progress"><span>Progresso da carteira: <b>'+v.percent+'%</b> ('+v.done+' de '+v.applicable+' aplicáveis)</span><div role="progressbar" aria-valuenow="'+v.percent+'" aria-valuemin="0" aria-valuemax="100"><span style="width:'+v.percent+'%"></span></div></div>';
+}
+function renderCharts(){
+ const v=T.summarize(validCompanies(),p(),uid()),months=T.evolution(validCompanies(),year,uid());
+ if(!v.applicable&&!months.some(x=>x.applicable))return '<div class="track4-chart-empty">Sem dados suficientes para apresentar gráficos nesta competência. Os indicadores serão atualizados à medida que as atividades forem registradas.</div>';
+ const donut=v.applicable?Math.max(0,Math.min(100,v.percent)):0;
+ const activeMonths=months.filter(x=>x.applicable||x.completed||x.workedSeconds);
+ const mx=Math.max(1,...activeMonths.map(x=>x.completed));
+ const mt=Math.max(1,...activeMonths.map(x=>x.workedSeconds));
+ return '<section class="track4-visuals" aria-label="Gráficos reais da carteira">'+
+ '<article class="track4-viz-card"><h3>Situação da carteira</h3><div class="track4-donut" style="--donut:'+donut+'%"><div><strong>'+donut+'%</strong><small>concluídas</small></div></div><p>'+v.done+' concluída(s) · '+v.remaining+' restante(s) entre '+v.applicable+' aplicáveis</p></article>'+
+ '<article class="track4-viz-card"><h3>Conciliações concluídas por competência</h3>'+(activeMonths.length?'<div class="track4-chart-bars">'+activeMonths.map(x=>'<div title="'+esc(x.period)+': '+x.completed+' concluídas"><small>'+esc(x.period.slice(5))+'</small><i style="height:'+Math.max(2,Math.round(x.completed/mx*100))+'%"></i><b>'+x.completed+'</b></div>').join('')+'</div>':'<p>Sem conciliações concluídas registradas.</p>')+'</article>'+
+ '<article class="track4-viz-card"><h3>Tempo efetivo registrado por competência</h3>'+(activeMonths.some(x=>x.workedSeconds)?'<div class="track4-time-bars">'+activeMonths.map(x=>'<div><small>'+esc(x.period)+'</small><span><i style="width:'+Math.round(x.workedSeconds/mt*100)+'%"></i></span><b>'+sec(x.workedSeconds)+'</b></div>').join('')+'</div>':'<p>O tempo trabalhado ainda não foi registrado nas competências consultadas.</p>')+'</article>'+
+ '</section>';
 }
 function renderEvolution(){
  const months=T.evolution(validCompanies(),year,uid());
@@ -91,7 +103,7 @@ function render(){
  const root=$('#trackingV4Panel');if(!root)return;
  if(!uid()||!window.ConciliaCloud?.authenticated?.()){root.textContent='Entre na conta para consultar as conciliações da sua carteira.';return;}
  if(selected&&!validCompanies().some(c=>c.id===selected))selected='';
- root.innerHTML='<div class="track4-heading"><div><span>GESTÃO DAS CONCILIAÇÕES</span><h2>Acompanhamento mensal da carteira</h2><p>Indicadores automáticos e ajustes manuais separados das classificações contábeis.</p></div></div>'+renderSummary()+(selected?detail():renderList()+renderEvolution());
+ root.innerHTML='<div class="track4-heading"><div><span>GESTÃO DAS CONCILIAÇÕES</span><h2>Acompanhamento mensal da carteira</h2><p>Indicadores automáticos e ajustes manuais separados das classificações contábeis.</p></div></div>'+renderSummary()+(selected?detail():renderCharts()+renderList()+renderEvolution());
 }
 function rollback(c,period,old){if(old)c.reconciliationTracking[period]=old;else delete c.reconciliationTracking[period];}
 async function persist(c,period,old,type){
