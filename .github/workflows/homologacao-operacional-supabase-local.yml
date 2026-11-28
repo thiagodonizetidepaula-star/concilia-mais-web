@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/carteira-clientes-etapa01-review-20261127
+      - feature/melhoria02-gestao-documentos-homologacao-20261128
   workflow_dispatch:
 permissions:
   contents: read
