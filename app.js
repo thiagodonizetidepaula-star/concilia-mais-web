@@ -151,7 +151,7 @@ async function storeManagementV4(type,detail){
   await window.ConciliaCloud.serializedSave(durableWorkspace(state));
   if(window.ConciliaCloud.revision()===beforeRevision)throw Error('Confirmação da revisão da nuvem ausente.');
   await saveDB({operational:false});
-  render();
+  if(!type.endsWith('HEARTBEAT'))render();
   return window.ConciliaCloud.revision();
  }catch(error){
   state.audit.length=beforeAudit;
