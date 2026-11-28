@@ -207,8 +207,14 @@ async function run(){
    const c=state.companies.find(c=>c.name.includes('ATUALIZADA'));
    return c?.movements.some(m=>m.id==='auto-refino-e2e-1'&&m.status==='CONFIRMADO'&&m.counterpart==='10000');
   },{timeout:20000});
-  assert.ok((await pageA.locator('#pasteClassificationsStatus').textContent()).includes('confirmada'));
-  stats.push('Refinamento Excel: colagem classificada e aprendida automaticamente sem confirmação redundante: OK');
+  await pageA.waitForFunction(()=>document.querySelector('#pasteClassificationsStatus')?.textContent?.includes('confirmada'),{timeout:20000});
+  const learnedCompany=(await checkStored(creds[0],1))[0];
+  assert.ok((learnedCompany.learnedCodes||[]).length>0,'Memória de aprendizagem persistiu no workspace autenticado');
+  const operational=await api('/rest/v1/user_operational_drafts?select=payload,revision&user_id=eq.'+creds[0].id,{accessToken:creds[0].token});
+  assert.equal(operational.length,1,'Rascunho operacional persistiu para a conta');
+  const opCompany=operational[0].payload.companies.find(x=>x.id===learnedCompany.id);
+  assert.ok(opCompany?.movements?.some(m=>m.id==='auto-refino-e2e-1'&&m.status==='CONFIRMADO'&&m.counterpart==='10000'),'Movimento confirmado foi gravado no backend');
+  stats.push('Refinamento Excel: confirmação sem segundo clique e persistência REAL das movimentações e aprendizagem no Supabase local: OK');
   await pageA.locator('button[data-page="carteira"]').click();
   await pageA.locator('#walletSearch').fill('HOMOLOGACAO');
   assert.equal(await pageA.locator('.wallet-client-card').count(),1);
