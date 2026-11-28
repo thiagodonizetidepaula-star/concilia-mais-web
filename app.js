@@ -602,16 +602,22 @@ function applyLearnedCode(c,m){
   if(!rule||rule.disabled||rule.archived)continue;
   const override=String(rule.overrideCode||'');
   const validOverride=override&&c.plan.some(p=>String(p.code)===override&&p.analytic)&&!c.accounts.some(a=>String(a.chartCode)===override);
-  if(validOverride){evidence.push({code:override,total:1,verified:true});continue;}
+  if(validOverride){evidence.push({ruleKey:key,code:override,total:1,verified:true});continue;}
   const codes=Object.entries(rule.codes||{}).filter(([code])=>c.plan.some(p=>String(p.code)===code&&p.analytic)&&!c.accounts.some(a=>String(a.chartCode)===code));
   const total=Object.values(rule.codes||{}).reduce((n,v)=>n+v,0);
   if(codes.length!==1||codes[0][1]!==total||(!rule.verifiedExamples&&total<2))continue;
-  evidence.push({code:codes[0][0],total,verified:!!rule.verifiedExamples});
+  evidence.push({ruleKey:key,code:codes[0][0],total,verified:!!rule.verifiedExamples});
  }
  const distinct=[...new Set(evidence.map(e=>e.code))];
  if(distinct.length!==1)return false;
  m.suggested=distinct[0];
  m.confidence='Aprendizado da empresa: '+Math.max(...evidence.map(e=>e.total))+' ocorrência(s) — exige confirmação';
+ // Melhoria 05: fonte de uso real, prospectiva e idempotente, vinculada ao lançamento.
+ // Não contabilizar a sugestão como confirmação ou movimentação conciliada.
+ if(!m.learningUsage||m.learningUsage.suggestedCode!==distinct[0]){
+  m.learningUsage={ruleKeys:[...new Set(evidence.map(e=>e.ruleKey))],suggestedCode:distinct[0],
+   suggestedAt:new Date().toISOString(),origin:'REGRA_APRENDIDA',sourceMovementId:m.id};
+ }
  return true;
 }
 function applyLearningPeriod(c,ym){
