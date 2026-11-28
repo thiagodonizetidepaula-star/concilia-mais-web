@@ -28,7 +28,7 @@ const button=(label,attr='')=>'<button type="button" '+attr+'>'+esc(label)+'</bu
 const ownRecords=(key)=>C.normalize(store)[key].filter(r=>r.ownerId===owner&&companyAllowed(r.companyId));
 const formFields={
  quality:[['title','Descrição da ocorrência','text'],['category','Categoria','category'],['severity','Gravidade','severity'],['description','Detalhes e evidências','textarea'],['cause','Causa confirmada, se conhecida','text'],['correctiveAction','Ação corretiva','text']],
- goal:[['title','Nome da meta','text'],['metric','Indicador relacionado','metric'],['baseline','Valor inicial','number'],['target','Objetivo','number'],['direction','Sentido da meta','direction'],['deadline','Prazo','date'],['description','Observações','textarea']],
+ goal:[['title','Nome da meta','text'],['metric','Indicador relacionado','metric'],['baseline','Valor inicial','number'],['target','Objetivo','number'],['manualActual','Resultado manual (quando necessário)','number'],['direction','Sentido da meta','direction'],['deadline','Prazo','date'],['description','Observações','textarea']],
  competency:[['title','Competência avaliada','text'],['level','Nível (autoavaliação)','level'],['evidence','Evidência verificada','textarea']],
  diary:[['title','Aprendizado ou atividade','text'],['date','Data','date'],['description','Registro profissional','textarea']],
  achievement:[['title','Realização','text'],['date','Data','date'],['description','Evidência','textarea']],
@@ -39,17 +39,20 @@ function options(name){
  metric:['concluded','movements','classified','documentReceived','charges','automated','excel','pending','learnedRules']};
  return d[name]||[];
 }
-function field(def){
+function field(def,old){
  const [name,label,type]=def,required=['title','metric','target'].includes(name)?' required':'';
- if(type==='textarea')return '<label>'+esc(label)+'<textarea name="'+esc(name)+'" rows="3"></textarea></label>';
- if(options(type).length)return '<label>'+esc(label)+'<select name="'+esc(name)+'">'+options(type).map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('')+'</select></label>';
- return '<label>'+esc(label)+'<input name="'+esc(name)+'" type="'+type+'" '+required+(type==='number'?' min="0" step="any"':'')+'></label>';
+ const value=old?.[name]??'';
+ if(type==='textarea')return '<label>'+esc(label)+'<textarea name="'+esc(name)+'" rows="3">'+esc(value)+'</textarea></label>';
+ if(options(type).length)return '<label>'+esc(label)+'<select name="'+esc(name)+'">'+options(type).map(x=>'<option value="'+esc(x)+'" '+(String(value)===String(x)?'selected':'')+'>'+esc(x)+'</option>').join('')+'</select></label>';
+ return '<label>'+esc(label)+'<input name="'+esc(name)+'" type="'+type+'" value="'+esc(value)+'" '+required+(type==='number'?' min="0" step="any"':'')+'></label>';
 }
-function form(kind){
- const opts=companyList().map(c=>'<option value="'+esc(c.id)+'">'+esc((c.dominio||'')+' '+c.name)+'</option>').join('');
- return '<form id="m05NewForm" class="m05-entry" data-kind="'+kind+'"><div class="m05-form-head"><strong>Novo registro — '+esc(kindNames[kind])+'</strong><button type="button" data-m05-close>Fechar</button></div>'+
- '<div class="m05-fields"><label>Empresa (opcional)<select name="companyId"><option value="">Registro profissional geral</option>'+opts+'</select></label>'+
- '<label>Competência (opcional)<input name="period" type="month" value="'+esc(mon())+'"></label>'+formFields[kind].map(field).join('')+'</div><button type="submit" class="m05-primary">Salvar com histórico</button></form>';
+function form(kind,old){
+ const opts=companyList().map(c=>'<option value="'+esc(c.id)+'" '+(old?.companyId===c.id?'selected':'')+'>'+esc((c.dominio||'')+' '+c.name)+'</option>').join('');
+ const status=old?'<label>Situação<select name="status">'+['Ativa','Pausada','Concluída','Arquivada','Aberta','Em análise','Em desenvolvimento','Não avaliado','Resolvida','Aprovada','Autoavaliação'].map(x=>'<option value="'+esc(x)+'" '+(old.status===x?'selected':'')+'>'+esc(x)+'</option>').join('')+'</select></label>':'';
+ return '<form id="m05NewForm" class="m05-entry" data-kind="'+kind+'" '+(old?'data-edit-id="'+esc(old.id)+'"':'')+'><div class="m05-form-head"><strong>'+(old?'Editar':'Novo registro')+' — '+esc(kindNames[kind])+'</strong><button type="button" data-m05-close>Fechar</button></div>'+
+ '<div class="m05-fields">'+(old?'':'<label>Empresa (opcional)<select name="companyId"><option value="">Registro profissional geral</option>'+opts+'</select></label>')+
+ (old?'':'<label>Competência (opcional)<input name="period" type="month" value="'+esc(mon())+'"></label>')+
+ formFields[kind].map(def=>field(def,old)).join('')+status+'</div><button type="submit" class="m05-primary">'+(old?'Salvar alteração auditada':'Salvar com histórico')+'</button></form>';
 }
 function records(kind){
  const key={quality:'quality',goal:'goals',competency:'competencies',diary:'diary',achievement:'achievements',development:'development'}[kind];
@@ -58,7 +61,7 @@ function records(kind){
  return '<div class="m05-rows">'+list.slice(0,100).map(r=>'<article class="m05-item"><div><b>'+esc(r.title)+'</b><small>'+esc(r.status||'—')+' · '+dateBR(r.updatedAt)+' · '+esc(r.source||'manual')+'</small><p>'+esc(r.description||r.evidence||r.action||'')+'</p></div><div class="m05-actions">'+
  (kind==='quality'&&r.status!=='Resolvida'?button('Marcar resolvida','data-m05-resolve="'+esc(r.id)+'"'):'')+
  (kind==='goal'&&r.status!=='Concluída'?button('Concluir meta','data-m05-complete="'+esc(r.id)+'"'):'')+
- button('Detalhes','data-m05-detail="'+esc(kind)+'|'+esc(r.id)+'"')+'</div></article>').join('')+'</div>';
+ button('Editar','data-m05-edit="'+esc(kind)+'|'+esc(r.id)+'"')+button('Detalhes','data-m05-detail="'+esc(kind)+'|'+esc(r.id)+'"')+'</div></article>').join('')+'</div>';
 }
 function sessionHistory(){
  try{return (window.ConciliaManualProductivity?.history?.()||[]).filter(r=>r.userId===owner&&companyAllowed(r.companyId));}catch{return [];}
@@ -106,7 +109,7 @@ function automation(){
 }
 function goals(){
  const a=bi(),gs=ownRecords('goals');
- return section('Metas individuais e planejamento',button('Cadastrar meta','data-m05-form="goal"')+(gs.length?'<div class="m05-rows">'+gs.map(g=>{const x=C.resultGoals(g,a);return '<article class="m05-item"><div><b>'+esc(g.title)+'</b><small>'+esc(g.metric)+' · '+esc(g.direction)+' · prazo '+dateBR(g.deadline)+'</small><strong>'+pct(x.progress)+'</strong><small>Origem: '+esc(x.source)+' · '+esc(g.status)+'</small></div>'+button('Concluir','data-m05-complete="'+esc(g.id)+'"')+'</article>';}).join('')+'</div>':empty('Cadastre sua primeira meta, com base em indicadores medidos ou atualização manual identificada.')))+
+ return section('Metas individuais e planejamento',button('Cadastrar meta','data-m05-form="goal"')+(gs.length?'<div class="m05-rows">'+gs.map(g=>{const x=C.resultGoals(g,a);return '<article class="m05-item"><div><b>'+esc(g.title)+'</b><small>'+esc(g.metric)+' · '+esc(g.direction)+' · prazo '+dateBR(g.deadline)+'</small><strong>'+pct(x.progress)+'</strong><small>Origem: '+esc(x.source)+' · '+esc(g.status)+'</small></div>'+button('Editar','data-m05-edit="goal|'+esc(g.id)+'"')+button('Concluir','data-m05-complete="'+esc(g.id)+'"')+'</article>';}).join('')+'</div>':empty('Cadastre sua primeira meta, com base em indicadores medidos ou atualização manual identificada.')))+
  section('Planejamento','<p>Restantes no período: <b>'+fmt(a.remaining)+'</b>. Prazos e capacidade diária exigem calendário de disponibilidade informado; o sistema não inventa previsões nem avalia competência pelo cumprimento isolado de metas.</p>');
 }
 function professional(){
@@ -181,7 +184,12 @@ async function persist(kind,record){
  }catch(e){error='Não salvo: '+String(e.message||e).slice(0,170)+' — atualize a página antes de tentar novamente';ready=false;requested=true;}
  finally{saving=false;render();}
 }
-function fillForm(kind){const host=$('#m05FormHost');if(!host||!kindNames[kind]||!ready)return;host.innerHTML=form(kind);host.scrollIntoView({behavior:'smooth',block:'nearest'});}
+function fillForm(kind,id){const host=$('#m05FormHost');if(!host||!kindNames[kind]||!ready)return;
+ const key={quality:'quality',goal:'goals',competency:'competencies',diary:'diary',achievement:'achievements',development:'development'}[kind];
+ const old=id?ownRecords(key).find(r=>r.id===id):null;
+ if(id&&!old)throw Error('Registro não encontrado ou sem autorização');
+ host.innerHTML=form(kind,old);host.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
 async function exportAs(type){
  const payload=reportPayload(),identity=owner;
  if(!identity||!ready)throw Error('Entre na conta para exportar');
@@ -208,6 +216,7 @@ function init(){
   if(e.target.closest('[data-m05-close]')){$('#m05FormHost').replaceChildren();return;}
   if(e.target.closest('[data-m05-refresh]')){ready=false;requested=false;render();return;}
   const f=e.target.closest('[data-m05-form]');if(f){fillForm(f.dataset.m05Form);return;}
+  const edit=e.target.closest('[data-m05-edit]');if(edit){const [kind,id]=edit.dataset.m05Edit.split('|');try{fillForm(kind,id)}catch(err){alert(err.message)}return;}
   const d=e.target.closest('[data-m05-detail]');if(d){const [kind,id]=d.dataset.m05Detail.split('|'),key={quality:'quality',goal:'goals',competency:'competencies',diary:'diary',achievement:'achievements',development:'development'}[kind],record=ownRecords(key).find(x=>x.id===id);
    if(record)alert('Registro auditável (somente leitura):\n'+JSON.stringify(record,null,2));return;}
   const r=e.target.closest('[data-m05-resolve]');if(r){const prev=ownRecords('quality').find(x=>x.id===r.dataset.m05Resolve);if(prev)try{const next=C.edit(prev,{status:'Resolvida',resolvedAt:new Date().toISOString()},owner);await persist('quality',next);}catch(err){alert(err.message);}return;}
@@ -218,7 +227,15 @@ function init(){
  root.addEventListener('submit',async e=>{if(e.target.id!=='m05NewForm')return;e.preventDefault();
   const kind=e.target.dataset.kind,d=Object.fromEntries(new FormData(e.target).entries());
   for(const k of ['baseline','target','manualActual'])if(d[k]!==undefined&&d[k]!=='')d[k]=Number(d[k]);
-  try{const r=C.create(kind,d,owner);await persist(kind,r);}catch(err){alert(err.message||String(err));}
+  try{
+   const editId=e.target.dataset.editId;
+   let record;if(editId){
+     const key={quality:'quality',goal:'goals',competency:'competencies',diary:'diary',achievement:'achievements',development:'development'}[kind];
+     const prev=ownRecords(key).find(x=>x.id===editId);if(!prev)throw Error('Registro não autorizado');
+     record=C.edit(prev,d,owner);
+   }else record=C.create(kind,d,owner);
+   await persist(kind,record);
+  }catch(err){alert(err.message||String(err));}
  });
 }
 window.Concilia05={render,init,privateState:()=>own()?C.normalize(store):C.blank()};
