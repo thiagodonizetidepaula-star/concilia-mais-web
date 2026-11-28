@@ -18,7 +18,7 @@ jobs:
           node-version: "22"
       - uses: supabase/setup-cli@v1
         with:
-          version: 2.338.2
+          version: 2.122.1
       - name: Instância temporária sem qualquer vínculo de produção
         run: |
           set -euo pipefail
