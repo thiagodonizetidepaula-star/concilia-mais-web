@@ -70,6 +70,7 @@ async function login(page,u){
   await page.locator('[data-m05x="range"]').selectOption('day');
   await page.locator('[data-m05x="day"]').fill(new Date().toISOString().slice(0,10));
   await page.locator('[data-m05x-form="activity"] input[name="title"]').fill('Medição fictícia auditada');
+  await page.locator('[data-m05x-form="activity"] input[name="activityType"]').fill('Conciliação');
   await page.locator('[data-m05x-form="activity"] input[name="effectiveSeconds"]').fill('3600');
   await page.locator('[data-m05x-form="activity"] input[name="waitSeconds"]').fill('1200');
   await page.locator('[data-m05x-form="activity"] input[name="movements"]').fill('14');
