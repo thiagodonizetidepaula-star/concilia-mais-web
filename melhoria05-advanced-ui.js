@@ -8,14 +8,17 @@ const pct=x=>x===null||x===undefined?'Sem dados':n(x)+'%';
 const options=(values,current)=>values.map(([v,label])=>'<option value="'+esc(v)+'" '+(current===v?'selected':'')+'>'+esc(label)+'</option>').join('');
 const date=x=>String(x||'').slice(0,10);
 const today=()=>new Date().toISOString().slice(0,10);
-let view={range:'month',day:today(),month:today().slice(0,7),year:Number(today().slice(0,4)),start:today().slice(0,7)+'-01',end:today(),period:'',companyId:'',status:'all',activityType:'all'},root=null;
+let view={range:'month',day:today(),month:today().slice(0,7),year:Number(today().slice(0,4)),start:today().slice(0,7)+'-01',end:today(),period:'',companyId:'',search:'',status:'all',activityType:'all'},root=null;
 const card=(title,body)=>'<article class="m05-card"><h3>'+esc(title)+'</h3>'+body+'</article>';
 const button=(label,attr='')=>'<button '+(attr.includes('type=')?'':'type="button" ')+attr+'>'+esc(label)+'</button>';
 const input=(name,label,type='text',extra='')=>'<label>'+esc(label)+'<input type="'+type+'" name="'+name+'" '+extra+'></label>';
 const inputValue=(name,label,type,value)=>input(name,label,type,'value="'+esc(value??'')+'"');
 const owner=()=>window.Concilia05?.owner?.()||'';
 const store=()=>window.Concilia05?.privateState?.()||C.blank();
-const companies=()=>B.authorized(window.Concilia05?.context?.()?.companies,owner());
+const companies=()=>B.authorized(window.Concilia05?.context?.()?.companies,owner()).filter(c=>{
+ const q=String(view.search||'').trim().toLocaleLowerCase('pt-BR');
+ return !q||[c.name,c.tradeName,c.fantasyName,c.dominio,c.cnpj].some(v=>String(v||'').toLocaleLowerCase('pt-BR').includes(q));
+});
 const context=()=>window.Concilia05?.context?.()||{};
 const records=k=>(Array.isArray(store()[k])?store()[k]:[]).filter(r=>r.ownerId===owner()&&(!r.companyId||companies().some(c=>c.id===r.companyId)));
 const filter=()=>({...view,ownerId:owner(),companyId:view.companyId});
@@ -33,6 +36,7 @@ function filters(){
  '<label>Data inicial<input data-m05x="start" type="date" value="'+esc(f.start)+'"></label>'+
  '<label>Data final<input data-m05x="end" type="date" value="'+esc(f.end)+'"></label>'+
  '<label>Competência contábil<input data-m05x="period" type="month" value="'+esc(f.period)+'"></label>'+
+ '<label>Pesquisar razão social, código Domínio ou CNPJ<input data-m05x="search" type="search" value="'+esc(f.search||'')+'"></label>'+ 
  '<label>Empresa<select data-m05x="companyId">'+options([['','Todas autorizadas'],...cs.map(c=>[c.id,c.name])],f.companyId)+'</select></label>'+
  '<label>Funcionário<input value="Somente minha conta autenticada" disabled aria-label="Funcionário atual"></label>'+
  '<label>Tipo de atividade<select data-m05x="activityType">'+options([['all','Todas'],['Conciliação','Conciliação'],['Conferência','Conferência'],['Classificação','Classificação'],['Revisão','Revisão'],['Cobrança documental','Cobrança documental'],['Administrativo','Administrativo'],['Correção','Correção']],f.activityType)+'</select></label>'+
@@ -191,7 +195,7 @@ function init(){
   window.Concilia05?.render();
  });
  root.addEventListener('click',async e=>{
-  if(e.target.closest('[data-m05x-reset]')){view={range:'month',day:today(),month:today().slice(0,7),year:Number(today().slice(0,4)),start:today().slice(0,7)+'-01',end:today(),period:'',companyId:'',status:'all',activityType:'all'};window.Concilia05?.render();return;}
+  if(e.target.closest('[data-m05x-reset]')){view={range:'month',day:today(),month:today().slice(0,7),year:Number(today().slice(0,4)),start:today().slice(0,7)+'-01',end:today(),period:'',companyId:'',search:'',status:'all',activityType:'all'};window.Concilia05?.render();return;}
   const r=e.target.closest('[data-m05x-review]');if(r)try{await review(r.dataset.m05xReview,r.dataset.reviewTo)}catch(err){alert(err.message)}return;
   const ex=e.target.closest('[data-m05x-export]');if(ex)try{await window.Concilia05Reports.export(ex.dataset.m05xExport,{filter:filter(),state:store(),companies:companies(),owner:owner(),analytics:A,B,tracking:window.ConciliaTrackingCore})}catch(err){alert(err.message)};
  });
