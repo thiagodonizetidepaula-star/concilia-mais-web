@@ -99,7 +99,7 @@ async function saveEdit(formEl){
  if(cnpj!==onlyDigits(previous.cnpj))c.identityVerified=false; // requer verificação explícita na próxima importação
  try{
   await store('CARTEIRA_CLIENTE_ATUALIZADO',c.id+' · dados cadastrais');
-  editing=null;viewing=c.id;renderSelection();render();say('Cadastro atualizado. Plano, histórico e regras preservados.');
+  editing=null;viewing=c.id;renderSelection();render();say(typeof cloudSyncEnabled!=='undefined'&&!cloudSyncEnabled?'Cadastro salvo localmente. A sincronização do Supabase está pendente; confira o aviso de conexão.':'Cadastro atualizado. Plano, histórico e regras preservados.');
  }catch(err){
   Object.assign(c,previous);render();throw err;
  }finally{busy=false;}
