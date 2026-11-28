@@ -94,3 +94,37 @@ https://github.com/thiagodonizetidepaula-star/concilia-mais-web/actions/runs/460
 5. As capturas são do componente real na fixture com clientes fictícios, não da aplicação autenticada em produção.
 
 **Conclusão:** homologação técnica automatizada de desenvolvimento **aprovada**, com bloqueio mantido de publicação até aprovação do usuário e execução da validação operacional restante. A segunda melhoria não foi iniciada.
+
+---
+
+## 12. Homologação operacional COM autenticação real — 28/11/2026
+
+**CI GitHub Actions:** https://github.com/thiagodonizetidepaula-star/concilia-mais-web/actions/runs/46090092826
+
+**O que foi de fato executado (laboratório isolado):**
+- Instância **real e temporária** de Supabase local via CLI/Docker, com GoTrue Auth, PostgREST, PostgreSQL e RLS. Somente testes fictícios; URL de produção não foi utilizada.
+- Dois usuários distintos, registrados e autenticados com login de e-mail/senha e tokens JWT reais, não objetos simulados.
+- Navegador Chromium abriu o **ConCiliar+ completo** da branch de revisão, reconfigurado apenas na cópia efêmera para a URL/anon key do Supabase de teste; login concluído pela tela original.
+- PDF **digital sintético** (em formato físico PDF) representando o layout do plano de contas do Domínio, com empresa e CNPJ fictícios, importado através do botão original de importação; cinco contas lidas corretamente.
+- Carteira mostrou uma única empresa. Editados razão social, nome fantasia e observação no formulário real. PostgREST confirmou o registro persistido no banco (empresa/CNPJ/plano de cinco contas).
+- Logout e novo login pela tela original; razão social editada recuperada do banco.
+- Reimportação do mesmo PDF: nenhuma duplicidade de empresa; duas versões de plano no histórico e nome editado preservado.
+- Usuário B tentou SELECT da linha da conta A; recebeu zero registros pelas políticas RLS.
+- Usuário B fez gravação via RPC autenticada na própria linha, sem modificar os dados de A; B acessou um workspace diferente.
+- Capturas reais com sessão de teste autenticada: desktop 1440px e mobile 390px.
+- Saída auditável: **8 checkpoints positivos**, etapa de CI concluída com status **success**, sem falhas nessa execução.
+
+**Artefatos:** https://github.com/thiagodonizetidepaula-star/concilia-mais-web/actions/runs/46090092826/artifacts/15240523592
+
+**Importante delimitar:**
+1. A autenticação foi real, porém em **Supabase local descartável**, não em uma conta corporativa de produção.
+2. O PDF era **sintético e representativo**, não um documento original exportado pelo Domínio de um cliente. Testar ao menos um plano original autorizado ainda é recomendável antes de produção.
+3. A homologação não envolveu dados reais da planilha de clientes e **não lançou alterações na nuvem/Render de produção**.
+4. Regras de compartilhamento multiusuário entre contas distintas ainda não foram implementadas. Isolamento privado por workspace é o comportamento aprovado nesta etapa.
+5. A suíte automatizada anterior de **16 testes** permaneceu verde: https://github.com/thiagodonizetidepaula-star/concilia-mais-web/actions/runs/46089721445
+
+**Conclusão atual:** Melhoria 01 passou na homologação técnica, autenticação real em laboratório isolado, upload de PDF digital representativo do Domínio, persistência, logout/login, duplicidade e RLS. Entrega apta para revisão/aprovação pelo solicitante, mantendo bloqueio para publicação/merge até autorização expressa.
+
+**Ponto de recuperação:** branch principal `main` permanece em `dfd68f90cbb3a3683add94623eb7254c2a46a3cd`. Fechar PR #76 preserva a produção sem a Melhoria 01.
+
+**Escopo seguinte:** Melhoria 02 ainda não iniciada; o Excel anexado continua reservado e não foi importado, conforme a ordem e aprovação condicionante.
