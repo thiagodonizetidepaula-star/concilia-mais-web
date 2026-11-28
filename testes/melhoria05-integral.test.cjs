@@ -58,3 +58,12 @@ test('futuro não gera empresa em atraso fictício na carteira anual',()=>{
  const rs=A.operational([c],user,B,{range:'year',year:2027,day:'2027-01-02'});
  assert.equal(rs.summary.remaining,0);
 });
+
+test('retencao conserva agregados históricos de aprendizagem sem duplicar movimentos ainda existentes',()=>{
+ const x={...c,learnedUsageMonthly:{'2026-09':{source:'REGRA_APRENDIDA',suggested:4,confirmed:3,corrected:1,rules:{'CODIGO-FAKE':{suggested:4,confirmed:3,corrected:1}}}},
+  movements:[{id:'m',date:'2026-11-05',status:'CONFIRMADO',counterpart:'111',learningUsage:{origin:'REGRA_APRENDIDA',suggestedAt:'2026-11-05T11:00:00Z',suggestedCode:'111',ruleKeys:['REGRA-2']}}]};
+ const a=A.learningFromCompanies([x],user,B,{range:'year',year:2026,day:'2026-11-05'});
+ assert.equal(a.suggested,5);assert.equal(a.confirmed,4);assert.equal(a.corrected,1);
+ assert.equal(a.archived.length,1);
+ assert.equal(a.byRule.length,2);
+});
