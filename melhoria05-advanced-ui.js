@@ -72,7 +72,7 @@ function activity(){
 }
 function quality(){
  const rs=selected('quality'),stats=A.quality(rs,filter());
- const rows=rs.filter(r=>r.reviewStatus||r.companyId);
+ const rows=rs; // Ocorrências gerais também podem iniciar o fluxo de revisão.
  return card('05.3 · Revisões, correções e aprovação',
  '<div class="m05-ext-stat"><b>'+pct(stats.firstReviewRate)+'</b><small>aprovação na 1ª revisão (somente revisados)</small><b>'+pct(stats.reworkRate)+'</b><small>retrabalho (somente revisados)</small><b>'+n(stats.approved)+'</b><small>aprovações registradas</small></div>'+
  bars(stats.byCause.slice(0,10).map(x=>({label:x.name,value:x.value})),'Causas identificadas')+
