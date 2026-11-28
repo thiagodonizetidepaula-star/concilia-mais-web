@@ -32,11 +32,39 @@ function durableWorkspace(workspace){
 }
 const draftFields=['imports','movements','ledger','transfers','financialControls','reconciliationReview','taxSplits'];
 let draftRevision=0;
+/* Melhoria 05 — agregados mínimos e idempotentes para conservar contadores de uso
+   das regras após a retenção operacional autorizada (> 3 meses).
+   Não armazena extratos nem valores bancários nos agregados gerenciais. */
+function captureLearningMonthly(){
+ for(const c of state.companies||[]){
+  const groups=new Map();
+  for(const m of c.movements||[]){
+   const u=m.learningUsage;
+   if(!u||u.origin!=='REGRA_APRENDIDA'||!/^20\d\d-(0[1-9]|1[0-2])$/.test(String(m.date||'').slice(0,7)))continue;
+   const month=String(m.date).slice(0,7);
+   const g=groups.get(month)||{suggested:0,confirmed:0,corrected:0,rules:{}};
+   const result=m.status==='CONFIRMADO'?(String(m.counterpart||'')===String(u.suggestedCode||'')?'confirmed':'corrected'):null;
+   g.suggested++;if(result)g[result]++;
+   for(const ruleKey of [...new Set(Array.isArray(u.ruleKeys)?u.ruleKeys:[])]){
+    const key=String(ruleKey||'').slice(0,160);if(!key)continue;
+    const row=g.rules[key]||{suggested:0,confirmed:0,corrected:0};
+    row.suggested++;if(result)row[result]++;g.rules[key]=row;
+   }
+   groups.set(month,g);
+  }
+  if(groups.size){
+   c.learnedUsageMonthly ||= {};
+   for(const [month,counts] of groups)c.learnedUsageMonthly[month]={...counts,source:'REGRA_APRENDIDA',recordedAt:new Date().toISOString()};
+  }
+ }
+}
+
 
 let operationalCloudRevision=null,operationalCloudReady=false,operationalCloudQueue=Promise.resolve();
 /* Executa retenção somente em competências explicitamente encerradas e homologadas.
    Não altera cadastros, regras aprendidas, nem o histórico gerencial. */
 function runRetentionCleanup(){
+ captureLearningMonthly();
  if(!window.ConciliaRetention||!state?.companies?.length)return null;
  const result=window.ConciliaRetention.cleanupWorkspace(state);
  const deleted=Object.values(result.deleted).reduce((a,b)=>a+b,0);
@@ -113,6 +141,7 @@ function loadDraft(workspace){
 }
 
 function saveDB({operational=true}={}){
+ captureLearningMonthly();
  const key=operational&&authReady?draftKey():'';
  const draft=key?operationalSnapshot():null;
  const snapshot=draft?structuredClone(draft):null;
