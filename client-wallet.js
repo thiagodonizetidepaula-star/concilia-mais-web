@@ -33,7 +33,7 @@ function card(c){
  const id=escapeHtml(c.id),name=escapeHtml(c.name||'Empresa sem identificação'),fantasy=escapeHtml(c.fantasyName||'');
  return '<article class="wallet-client-card"><div><span class="wallet-client-icon"><i data-lucide="building-2"></i></span><div class="wallet-client-title"><h3>'+name+'</h3>'+
  (fantasy?'<span>Fantasia: '+fantasy+'</span>':'')+
- '<small>CNPJ: '+escapeHtml(fmtCnpj(c.cnpj))+'</small><small>E-mail: '+escapeHtml((c.emails||[]).map(x=>typeof x==='string'?x:x.value).join('; ')||'Não informado')+'</small>'+(c.clientInactive?'<small>Empresa inativa (distrato)</small>':'')+'</div></div>'+
+ '<small>Código Domínio: '+escapeHtml(c.dominio||'Não informado')+'</small><small>CNPJ: '+escapeHtml(fmtCnpj(c.cnpj))+'</small><small>E-mail: '+escapeHtml((c.emails||[]).map(x=>typeof x==='string'?x:x.value).join('; ')||'Não informado')+'</small>'+(c.clientInactive?'<small>Empresa inativa (distrato)</small>':'')+'</div></div>'+
  '<p><span>'+(Array.isArray(c.plan)?c.plan.length:0)+' contas no plano</span><span>'+(c.partners||[]).length+' sócio(s)</span><span>'+(c.relatedCompanies||[]).length+' empresa(s) relacionada(s)</span></p>'+
  '<div class="wallet-actions"><button type="button" class="secondary" data-wallet="detail" data-id="'+id+'">Detalhes</button>'+
  '<button type="button" class="secondary" data-wallet="edit" data-id="'+id+'">Editar</button>'+
@@ -65,15 +65,21 @@ function form(c){
 function render(){
  const root=$('#walletPanel');if(!root)return;
  const uid=userId(),list=available(),term=String(filter||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
- const filtered=list.filter(c=>[c.name,c.fantasyName,c.cnpj].some(v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(term))||onlyDigits(c.cnpj).includes(onlyDigits(term)&&/\d/.test(term)?onlyDigits(term):'\uFFFF'));
+ const filtered=list.filter(c=>{
+  if(!term)return true;
+  const fields=[c.name,c.fantasyName,c.cnpj,c.dominio];
+  const number=onlyDigits(term);
+  return fields.some(v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(term))||
+    (number.length>0&&[c.cnpj,c.dominio].some(v=>onlyDigits(v).includes(number)));
+ });
  const currentEditing=editing?list.find(c=>c.id===editing):null;
  const currentDetails=viewing?list.find(c=>c.id===viewing):null;
  root.innerHTML='<div class="wallet-top"><div><span class="prod-kicker">GERENCIAMENTO INDIVIDUAL</span><h2>Seus clientes</h2>'+
  '<p>Empresas cadastradas pela importação do plano de contas do Domínio. Os dados e a aprendizagem permanecem no cadastro original.</p></div>'+
  '<div class="wallet-total"><strong>'+list.length+'</strong><small>clientes vinculados</small></div></div>'+
  (!uid?'<p class="prod-notice">Entre na sua conta para consultar a carteira.</p>':'')+
- '<div class="wallet-toolbar"><label>Localizar cliente<input type="search" id="walletSearch" placeholder="Pesquise por razão social ou CNPJ" value="'+escapeHtml(filter)+'" autocomplete="off"></label>'+
- '<span>Mostrando '+filtered.length+' de '+list.length+' empresas</span></div>'+
+ '<div class="wallet-toolbar"><label><span class="wallet-search-label"><i data-lucide="search" aria-hidden="true"></i> Buscar empresa</span><input type="search" id="walletSearch" placeholder="Código Domínio, CNPJ, razão social ou fantasia" value="'+escapeHtml(filter)+'" autocomplete="off" aria-describedby="walletSearchCount"></label>'+
+ '<div class="wallet-search-actions"><span id="walletSearchCount" role="status" aria-live="polite">'+filtered.length+' resultado(s) de '+list.length+' empresas</span><button type="button" data-wallet="clear-search" class="secondary" '+(!filter?'disabled':'')+'>Limpar busca</button></div></div>'+
  (currentEditing?form(currentEditing):'')+(currentDetails&&!currentEditing?details(currentDetails):'')+
  '<div class="wallet-grid">'+(filtered.length?filtered.map(card).join(''):'<p class="wallet-empty">Nenhum cliente encontrado na sua carteira.</p>')+'</div>'+
  '<p class="wallet-footnote">Cada conta acessa apenas o workspace autorizado no Supabase. Vincular uma mesma empresa a diferentes funcionários exige configuração de permissões no servidor; não é feito automaticamente nesta etapa.</p>';
@@ -116,6 +122,7 @@ function init(){
  root.addEventListener('click',event=>{
   const b=event.target.closest('button[data-wallet]');if(!b)return;
   event.preventDefault();const a=b.dataset.wallet,id=b.dataset.id;
+  if(a==='clear-search'){filter='';render();$('#walletSearch')?.focus();return;}
   if(a==='edit'){editing=id;viewing=null;render();return;}
   if(a==='detail'){viewing=id;editing=null;render();return;}
   if(a==='close'||a==='cancel'){editing=null;viewing=null;render();return;}
