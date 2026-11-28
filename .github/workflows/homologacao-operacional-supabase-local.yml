@@ -6,6 +6,7 @@ on:
       - feature/melhoria02-gestao-documentos-homologacao-20261128
       - feature/melhoria03-crm-manual-homologacao-20261128
       - feature/melhoria04-controle-conciliacoes-homologacao-20261128
+      - feature/refinamento-ciclo01-04-20261128
   workflow_dispatch:
 permissions:
   contents: read
