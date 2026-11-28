@@ -58,3 +58,28 @@
 .pendencias-ok,.pendencias-neutral{border-radius:12px;padding:18px 16px;margin:12px 0;font-size:13px;font-weight:650;line-height:1.55}
 .pendencias-ok{background:#ecf9f3;border:1px solid #a6dcc1;color:#176343}
 .pendencias-neutral{background:#f5f8fb;border:1px solid #d5e2ec;color:#496b85}
+
+
+.track4-secondary{border:1px solid #dce7ee;border-radius:11px;padding:10px 12px;background:#fff;margin:0 0 12px}
+.track4-secondary summary{cursor:pointer;color:#55748d;font-size:12px;font-weight:700}
+.track4-secondary .track4-summary{margin:12px 0 0}
+.track4-visuals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:15px 0}
+.track4-viz-card{background:#fff;border:1px solid #dce7ef;border-radius:14px;padding:15px;min-width:0}
+.track4-viz-card h3{color:#234f73;font-size:12px;margin:0 0 16px;line-height:1.5}
+.track4-viz-card>p{font-size:11px;color:#6c8294;line-height:1.55}
+.track4-donut{width:136px;height:136px;border-radius:50%;display:grid;place-items:center;margin:8px auto 18px;background:conic-gradient(#237eaf 0 var(--donut),#e8eff5 var(--donut) 100%)}
+.track4-donut>div{height:98px;width:98px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.track4-donut strong{font-size:23px;color:#17587d}.track4-donut small{font-size:10px;color:#7b8c9b}
+.track4-chart-bars{display:flex;align-items:stretch;gap:4px;height:146px;padding:10px 0}
+.track4-chart-bars>div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;min-width:0}
+.track4-chart-bars i{display:block;min-height:2px;width:80%;max-width:20px;background:#3289b6;border-radius:4px 4px 0 0}
+.track4-chart-bars small{font-size:9px;color:#728a9c}.track4-chart-bars b{font-size:10px;color:#4b7090}
+.track4-time-bars{display:grid;gap:10px;max-height:190px;overflow-y:auto}
+.track4-time-bars>div{display:grid;grid-template-columns:48px 1fr 70px;align-items:center;gap:6px}
+.track4-time-bars small{font-size:10px;color:#68829a}
+.track4-time-bars span{height:9px;background:#e7eff5;border-radius:9px;overflow:hidden;display:block}
+.track4-time-bars i{height:100%;background:#c9a560;border-radius:9px;display:block}
+.track4-time-bars b{font-size:10px;color:#56778b;text-align:right}
+.track4-chart-empty{padding:22px;border:1px dashed #c9dae7;border-radius:12px;background:#f8fbfd;color:#748c9e;font-size:12px;margin:12px 0}
+@media(max-width:1150px){.track4-visuals{grid-template-columns:repeat(2,minmax(0,1fr))}.track4-viz-card:last-child{grid-column:1/-1}}
+@media(max-width:690px){.track4-visuals{grid-template-columns:1fr}.track4-viz-card:last-child{grid-column:auto}}
