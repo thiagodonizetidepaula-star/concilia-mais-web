@@ -37,9 +37,11 @@ jobs:
             echo "Chrome não disponível para captura" | tee -a homologacao-resultado.txt
             exit 1
           fi
-          "$CHROME" --headless --no-sandbox --disable-gpu --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-carteira-desktop.png" "file://$PWD/testes/carteira-homologacao-visual.html"
-          "$CHROME" --headless --no-sandbox --disable-gpu --hide-scrollbars --window-size=390,850 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-carteira-mobile.png" "file://$PWD/testes/carteira-homologacao-visual.html"
-          "$CHROME" --headless --no-sandbox --disable-gpu --dump-dom "file://$PWD/testes/carteira-homologacao-visual.html" > homologacao-carteira-dom.html
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-carteira-desktop.png" "file://$PWD/testes/carteira-homologacao-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --hide-scrollbars --window-size=390,850 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-carteira-mobile.png" "file://$PWD/testes/carteira-homologacao-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --virtual-time-budget=2500 --dump-dom "file://$PWD/testes/carteira-homologacao-visual.html" > homologacao-carteira-dom.html
+          grep -o 'data-homologacao="[^"]*"' homologacao-carteira-dom.html || true
+          grep -o 'wallet-client-card' homologacao-carteira-dom.html | head -n 5 || true
           grep -q 'data-homologacao="true"' homologacao-carteira-dom.html
           grep -q 'EMPRESA MODELO ALFA LTDA' homologacao-carteira-dom.html
           echo "Chromium: renderização DOM confirmada em ambiente fictício." | tee -a homologacao-resultado.txt
@@ -52,4 +54,5 @@ jobs:
             homologacao-resultado.txt
             homologacao-carteira-desktop.png
             homologacao-carteira-mobile.png
+            homologacao-carteira-dom.html
           if-no-files-found: warn
