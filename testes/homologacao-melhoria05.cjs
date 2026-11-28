@@ -79,6 +79,16 @@ async function login(page,u){
   assert.equal(savedActivity[0].payload.activities.length,1);
   assert.equal(savedActivity[0].payload.activities[0].waitSeconds,1200);
   assert.equal(savedActivity[0].payload.activities[0].effectiveSeconds,3600);
+  await page.locator('[data-m05x-edit-activity]').first().click();
+  await page.locator('[data-m05x-form="activity"] input[name="effectiveSeconds"]').fill('5400');
+  await page.locator('[data-m05x-form="activity"] button[type="submit"]').click();
+  await page.waitForFunction(()=>window.Concilia05?.privateState?.()?.activities?.[0]?.effectiveSeconds===5400,{timeout:15000});
+  const adjusted=(await request(table+'?select=payload&user_id=eq.'+a.id,{user:a}))[0].payload.activities[0];
+  assert.equal(adjusted.effectiveSeconds,5400);
+  assert.equal(adjusted.audit.length,2);
+  assert.equal(adjusted.audit[1].changes.effectiveSeconds.before,3600);
+  assert.equal(adjusted.audit[1].changes.effectiveSeconds.after,5400);
+
   await page.locator('[data-m05-tab="quality"]').click();
   const qualityId=final[0].payload.quality[0].id;
   await page.locator('[data-m05x-review="'+qualityId+'"][data-review-to="Aguardando revisão"]').click();
