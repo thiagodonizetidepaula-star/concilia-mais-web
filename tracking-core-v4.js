@@ -4,7 +4,7 @@
  * movimentos, pendências, contas, código Domínio ou aprovações contábeis. */
 (function(root){'use strict';
  const STATES=['Não iniciada','Aguardando documentos','Disponível para conciliação','Em andamento','Pausada','Aguardando esclarecimentos','Com pendências','Classificação concluída','Conferência concluída','Exportada para o Domínio','Importação confirmada no Domínio','Aguardando revisão','Revisada','Aprovada','Concluída','Não se aplica'];
- const FIELDS=['status','start','end','deadline','effectiveSeconds','processed','classified','pendingFound','pendingResolved','pendingRemaining','exportStatus','dominioStatus','reviewStatus','delayReason','delayCategory','notes','reviewNotes'];
+ const FIELDS=['status','start','end','deadline','effectiveSeconds','waitingSeconds','exportDate','dominioImportDate','reviewSentAt','reviewedAt','approvalDate','correctionCompletedAt','reworkCount','processed','classified','pendingFound','pendingResolved','pendingRemaining','exportStatus','dominioStatus','reviewStatus','delayReason','delayCategory','notes','reviewNotes'];
  const DOC_NO=['Não se aplica','Recebido'],DOC_WAIT=['Pendente','Cobrado','Parcialmente recebido'];
  const delayReasons=['Documentação não recebida','Documentação parcialmente recebida','Aguardando resposta do cliente','Aguardando esclarecimentos internos','Aguardando revisão','Problemas técnicos','Volume elevado de lançamentos','Complexidade da conciliação','Outras situações'];
  const iso=v=>/^\d{4}-(0[1-9]|1[0-2])$/.test(String(v||''));
@@ -36,7 +36,7 @@
   if(!tracking.end&&unresolved>0&&tracking.start)status='Com pendências';
   const exp=nonEmpty(tracking.exportedAt)||safeArray(c.exportHistory).some(e=>e.period===period);
   const dominio=!!tracking.dominioConfirmed;
-  const result={status,start:tracking.start||null,end:tracking.end||null,deadline:tracking.deadline||null,effectiveSeconds:clockSeconds,
+  const result={status,start:tracking.start||null,end:tracking.end||null,deadline:tracking.deadline||null,effectiveSeconds:clockSeconds,waitingSeconds:tracking.waitingSeconds??null,exportDate:tracking.exportedAt||null,dominioImportDate:tracking.dominioImportedAt||null,reviewSentAt:tracking.reviewSentAt||null,reviewedAt:approvals.at(-1)?.at?.slice(0,10)||null,approvalDate:approvals.at(-1)?.at?.slice(0,10)||null,correctionCompletedAt:tracking.correctionCompletedAt||null,reworkCount:tracking.reworkCount??null,
    processed:moves.length,classified,pendingFound:unresolved+resolved,pendingResolved:resolved,pendingRemaining:unresolved,
    exportStatus:exp?'Exportada':'Sem confirmação',dominioStatus:dominio?'Confirmada manualmente':'Não confirmada',
    reviewStatus:reviewed?'Aprovada':'Não aprovada',delayReason:null,delayCategory:null,
@@ -55,11 +55,11 @@
  function validate(field,value,ctx={}){
   if(!FIELDS.includes(field))throw Error('Campo operacional desconhecido.');
   if(field==='status'&&!allowedStatus(value))throw Error('Situação operacional inválida.');
-  if(['start','end','deadline'].includes(field)){
+  if(['start','end','deadline','exportDate','dominioImportDate','reviewSentAt','reviewedAt','approvalDate','correctionCompletedAt'].includes(field)){
    if(value!==null&&value!==''&&!/^\d{4}-\d{2}-\d{2}$/.test(String(value)))throw Error('Data em formato inválido.');
    if(value){const d=new Date(value+'T12:00:00Z');if(Number.isNaN(d.valueOf())||d.toISOString().slice(0,10)!==value)throw Error('Data inexistente.');}
   }
-  if(['effectiveSeconds','processed','classified','pendingFound','pendingResolved','pendingRemaining'].includes(field)){
+  if(['effectiveSeconds','waitingSeconds','reworkCount','processed','classified','pendingFound','pendingResolved','pendingRemaining'].includes(field)){
    if(!Number.isSafeInteger(Number(value))||Number(value)<0||Number(value)>1e7)throw Error('Quantidade/tempo deve ser inteiro não negativo.');
    value=Number(value);
   }
