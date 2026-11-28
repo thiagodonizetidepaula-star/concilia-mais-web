@@ -20,7 +20,7 @@ function matches(c){
  if(query&&!([c.name,c.cnpj,c.dominio,...(c.emails||[]).map(nameEmail)].some(v=>norm(v).includes(query))||(digits&&M.digits(c.cnpj).includes(digits))))return false;
  if(selectedRegime&&String(c.regimeTributario||'')!==selectedRegime)return false;
  if(selectedPlan&&String(c.contractedPlan||'')!==selectedPlan)return false;
- if(selectedStatus){const s=c.documentHistory?.[period(year,month)]?.status||'Sem registro';if(s!==selectedStatus)return false;}
+ if(selectedStatus){const statuses=mode==='anual'?M.MONTHS.map((_,i)=>c.documentHistory?.[period(year,i+1)]?.status||'Sem registro'):[c.documentHistory?.[period(year,month)]?.status||'Sem registro'];if(!statuses.includes(selectedStatus))return false;}
  return true;
 }
 const current=()=>companies().filter(matches);
