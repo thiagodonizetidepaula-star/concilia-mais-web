@@ -16,6 +16,10 @@
  const owner=(c,uid)=>!!uid&&(!Array.isArray(c.walletAssignedUserIds)||c.walletAssignedUserIds.includes(uid));
  const currentCompany=c=>!c.clientInactive&&!c.distractDate;
  const monthKey=(y,m)=>String(y)+'-'+String(m).padStart(2,'0');
+ const todayBrazil=(date=new Date())=>{
+  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
+  return parts.year+'-'+parts.month+'-'+parts.day;
+ };
  const age=(a,b)=>a&&b?Math.max(0,Math.floor((Date.parse(b+'T00:00:00Z')-Date.parse(a+'T00:00:00Z'))/86400000)):null;
  const nowISO=()=>new Date().toISOString();
  function auto(c,period){
@@ -110,7 +114,7 @@
    dominioConfirmed:rows.filter(r=>r.record.dominioStatus==='Confirmada manualmente').length,
    awaitingReview:rows.filter(r=>r.record.reviewStatus==='Aguardando revisão').length,
    approved:rows.filter(r=>r.record.reviewStatus==='Aprovada').length,
-   overdue:rows.filter(r=>r.record.deadline&&r.record.deadline<new Date().toISOString().slice(0,10)&&!r.done).length,
+   overdue:rows.filter(r=>r.record.deadline&&r.record.deadline<todayBrazil()&&!r.done).length,
    withinDeadline:rows.filter(r=>r.done&&r.record.end&&r.record.deadline&&r.record.end<=r.record.deadline).length,
    groups,rows};
  }
@@ -169,5 +173,5 @@
   if(action!=='heartbeat')t.history=[...safeArray(t.history),{action,at,actorId,before:{seconds:before.seconds||0,manualSeconds:before.manualSeconds??null,runningSince:before.runningSince||null,finishedAt:before.finishedAt||null}}];
   return t;
  }
- root.ConciliaTrackingCore={STATES,FIELDS,delayReasons,iso,owner,currentCompany,auto,effective,edit,restore,summarize,evolution,timer,elapsed,stale,timerTransition,monthKey,age};
+ root.ConciliaTrackingCore={STATES,FIELDS,delayReasons,iso,owner,currentCompany,auto,effective,edit,restore,summarize,evolution,timer,elapsed,stale,timerTransition,monthKey,age,todayBrazil};
 })(typeof window!=='undefined'?window:globalThis);
