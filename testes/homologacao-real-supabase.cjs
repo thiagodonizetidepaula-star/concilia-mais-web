@@ -178,7 +178,11 @@ async function run(){
   await pageA.screenshot({path:path.join(dataDir,'carteira-real-auth-mobile.png'),fullPage:true});
   stats.push('Capturas do ConCiliar+ autenticado, com dados fictícios: OK');
   await pageA.locator('button[data-page="crm"]').click();
+  if(await pageA.locator('[data-crm-action="back"]').count())await pageA.locator('[data-crm-action="back"]').click();
+  await pageA.setViewportSize({width:1440,height:1000});
   await pageA.screenshot({path:path.join(dataDir,'crm-real-auth-desktop.png'),fullPage:true});
+  await pageA.locator('#crmPanel [data-crm-select]').first().click();
+  await pageA.screenshot({path:path.join(dataDir,'crm-real-auth-detail-desktop.png'),fullPage:true});
   await pageA.setViewportSize({width:390,height:850});
   await pageA.screenshot({path:path.join(dataDir,'crm-real-auth-mobile.png'),fullPage:true});
   await ctxA.close();await ctxB.close();
