@@ -60,7 +60,7 @@ function activity(){
  input('waitSeconds','Espera (segundos)','number','min="0" step="1"')+
  input('reworkSeconds','Retrabalho (segundos)','number','min="0" step="1"')+
  input('movements','Movimentações documentadas','number','min="0" step="1"')+
- input('originId','Identificador de origem para evitar duplicidade')+'</div>'+button('Registrar atividade auditada','type="submit" class="m05-primary"')+'</form>';
+ input('originId','Identificador de origem para evitar duplicidade')+input('adjustmentReason','Motivo do ajuste manual (obrigatório ao editar)')+'</div>'+button('Registrar atividade auditada','type="submit" class="m05-primary"')+'</form>';
  const monthly=A.groupByMonths(rs,view.year,'executionAt').map(x=>({label:x.period.slice(5),value:x.count}));
  return card('05.1 · Atividades, tempo e produtividade',
  '<div class="m05-ext-stat"><b>'+n(total.activities)+'</b><small>atividades concluídas únicas</small><b>'+n(total.effectiveSeconds===null?null:Math.round(total.effectiveSeconds/60))+'</b><small>minutos efetivos medidos</small><b>'+n(total.movementsPerHour)+'</b><small>movimentos por hora medida</small></div>'+
