@@ -187,6 +187,39 @@ async function run(){
   companies=await checkStored(creds[0],1);
   assert.equal(companies[0].plansHistory.length,2,'Histórico das duas importações preservado');
   stats.push('Reimportação Domínio por CNPJ: 1 empresa, 2 versões do plano e nome editado preservado: OK');
+  // Refinamento 03/04: lançamento fictício criado APENAS no banco temporário.
+  // Deve confirmar e aprender automaticamente, sem segunda confirmação.
+  await pageA.locator('button[data-page="movimentos"]').click();
+  const pasteFixture=await pageA.evaluate(()=>{
+   const c=state.companies.find(c=>c.name.includes('ATUALIZADA'));
+   const p=period;
+   if(!c.plan.some(a=>a.analytic&&String(a.code)==='10000'))throw Error('Plano fictício sem código de contrapartida 10000');
+   if(!c.plan.some(a=>a.analytic&&String(a.code)==='536'))throw Error('Plano fictício sem código bancário 536');
+   c.accounts.push({id:'bank-refinamento-e2e',chartCode:'536',bank:'ITAU',label:'CONTA TESTE'});
+   c.movements.push({id:'auto-refino-e2e-1',date:p+'-05',cents:-10000,history:'PIX TESTE REFINAMENTO E2E',accountId:'bank-refinamento-e2e',status:'PENDENTE'});
+   return {p,cnpj:c.cnpj};
+  });
+  const day=pasteFixture.p+'-05',pt=day.split('-').reverse().join('/');
+  await pageA.locator('#pasteClassificationsText').fill('Data\tDébito\tCrédito\tValor\tHistórico\tBanco\tID\n'+pt+'\t10000\t536\t-100,00\tPIX TESTE REFINAMENTO E2E\t536\tauto-refino-e2e-1');
+  await pageA.locator('#pastePreviewButton').click();
+  await pageA.waitForFunction(()=>{
+   const c=state.companies.find(c=>c.name.includes('ATUALIZADA'));
+   return c?.movements.some(m=>m.id==='auto-refino-e2e-1'&&m.status==='CONFIRMADO'&&m.counterpart==='10000');
+  },{timeout:20000});
+  assert.ok((await pageA.locator('#pasteClassificationsStatus').textContent()).includes('confirmada'));
+  stats.push('Refinamento Excel: colagem classificada e aprendida automaticamente sem confirmação redundante: OK');
+  await pageA.locator('button[data-page="carteira"]').click();
+  await pageA.locator('#walletSearch').fill('HOMOLOGACAO');
+  assert.equal(await pageA.locator('.wallet-client-card').count(),1);
+  await pageA.locator('#walletSearch').fill('zzzzz-nao-encontra');
+  assert.equal(await pageA.locator('.wallet-client-card').count(),0);
+  await pageA.locator('[data-wallet="clear-search"]').click();
+  assert.equal(await pageA.locator('.wallet-client-card').count(),1);
+  stats.push('Refinamento Carteira: pesquisa parcial e limpeza retornam resultados corretos: OK');
+  await pageA.locator('button[data-page="crm"]').click();
+  assert.ok(await pageA.locator('.crm-client-card').count()>0,'Novo CRM em cartões');
+  stats.push('Refinamento CRM: cartões expansíveis presentes no navegador autenticado: OK');
+
   // Verificar segurança no banco, não somente o filtro visual.
   let rows=await api('/rest/v1/user_workspaces?select=user_id&user_id=eq.'+creds[0].id,{accessToken:creds[1].token});
   assert.equal(rows.length,0,'Usuário B não pode consultar a linha de A');
