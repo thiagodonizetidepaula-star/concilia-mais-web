@@ -68,7 +68,7 @@ function render(){
  const filtered=list.filter(c=>[c.name,c.fantasyName,c.cnpj].some(v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(term))||onlyDigits(c.cnpj).includes(onlyDigits(term)&&/\d/.test(term)?onlyDigits(term):'\uFFFF'));
  const currentEditing=editing?list.find(c=>c.id===editing):null;
  const currentDetails=viewing?list.find(c=>c.id===viewing):null;
- root.innerHTML='<div class="wallet-top"><div><span class="prod-kicker">GERENCIAMENTO INDIVIDUAL</span><h2>Carteira de Clientes</h2>'+
+ root.innerHTML='<div class="wallet-top"><div><span class="prod-kicker">GERENCIAMENTO INDIVIDUAL</span><h2>Seus clientes</h2>'+
  '<p>Empresas cadastradas pela importação do plano de contas do Domínio. Os dados e a aprendizagem permanecem no cadastro original.</p></div>'+
  '<div class="wallet-total"><strong>'+list.length+'</strong><small>clientes vinculados</small></div></div>'+
  (!uid?'<p class="prod-notice">Entre na sua conta para consultar a carteira.</p>':'')+
