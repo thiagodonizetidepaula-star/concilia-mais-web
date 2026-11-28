@@ -21,7 +21,7 @@ function setup(){
  const handlers={};
  const root={addEventListener:(type,fn)=>{handlers[type]=fn;}};
  const ui={owner:()=>owner,mode:()=> 'reports',context:()=>({companies}),privateState:()=>({}),render:()=>{}};
- const window={Concilia05:ui,Concilia05Core:C,ConciliaBIMetrics:B,Concilia05Analytics:{},ConciliaTrackingCore:null};
+ const window={Concilia05:ui,Concilia05Core:C,ConciliaBIMetrics:B,Concilia05Analytics:{},ConciliaTrackingCore:{effective:()=>({data:{pendingRemaining:0,reworkCount:0}})}};
  const document={readyState:'loading',addEventListener:()=>{},querySelector:()=>root};
  const source=fs.readFileSync(path.join(__dirname,'../melhoria05-advanced-ui.js'),'utf8');
  vm.runInNewContext(source,{window,document,Date,Intl,console},{filename:'melhoria05-advanced-ui.js'});
