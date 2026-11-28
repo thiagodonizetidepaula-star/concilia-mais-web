@@ -61,16 +61,31 @@ function timerUi(c,period){
  return '<div class="track4-timer"><h4>Cronômetro da competência</h4><strong data-track4-clock>'+sec(seconds)+'</strong><small>'+(T.stale(t)?'Sessão interrompida; pause e retome para continuar':running?'Em execução':'Pausado/finalizado')+' · '+(t.manualSeconds!=null?'Tempo ajustado manualmente':'Tempo automático')+'</small>'+
  '<div class="track4-actions">'+[['start','Iniciar'],['pause','Pausar'],['resume','Continuar'],['finish','Finalizar'],['reset','Zerar'],['restart','Reiniciar'],['edit-time','Editar tempo'],['restore-auto','Restaurar tempo automático']].map(([a,b])=>'<button type="button" data-track4-timer="'+a+'" '+(a==='pause'&&!running||a==='start'&&!!t.startedAt||a==='resume'&&(!t.startedAt||running||end)||a==='finish'&&(!t.startedAt||end)||a==='restore-auto'&&t.manualSeconds==null?'disabled':'')+'>'+b+'</button>').join('')+'</div><p>Ao pausar ou finalizar, só é somado o período efetivamente trabalhado. Zerar/reiniciar mantém o histórico anterior. Apenas uma medição ativa por funcionário neste controle; alterações entre dispositivos exigem revisão da nuvem.</p></div>';
 }
+function timeline(c,month){
+ const r=c.reconciliationTracking?.[month]||{},events=[];
+ const add=(at,label,actor,source)=>{if(at&&!Number.isNaN(Date.parse(at)))events.push({at,label,actor:actor||null,source});};
+ if(r.start)add(r.start,'Conciliação iniciada (data informada)',null,'Controle existente');
+ if(r.end)add(r.end,'Conciliação concluída (data informada)',null,'Controle existente');
+ if(r.updatedAt)add(r.updatedAt,'Registro de acompanhamento atualizado',null,'Controle existente');
+ for(const h of r.managementHistory||[])add(h.at,h.type==='restore-auto'?'Campo restaurado: '+h.field:'Campo gerencial ajustado: '+h.field,h.actorId,'Melhoria 04');
+ for(const h of r.workTimer?.history||[])add(h.at,'Cronômetro: '+h.action,h.actorId,'Melhoria 04');
+ for(const h of c.reconciliationReview?.[month]?.decisions||[])add(h.at,'Análise de pendência: '+h.decision,h.operator,'Central de Pendências');
+ for(const h of c.reconciliationReview?.[month]?.approvals||[])add(h.at,'Checklist de fechamento aprovado',h.operator,'Revisão');
+ for(const h of c.crmHistory||[])if((h.periods||[]).includes(month))add(h.createdAt||h.occurredAt,'CRM: '+h.type,h.actorId,'CRM Contábil');
+ for(const h of state.audit||[])if(h.companyId===c.id&&h.period===month)add(h.at,'Sistema: '+h.action,h.actorId,'Auditoria');
+ const d=c.documentHistory?.[month];if(d?.updatedAt)add(d.updatedAt,'Situação documental atualizada: '+d.status,d.updatedBy,'Documentos');
+ return events.sort((a,b)=>b.at.localeCompare(a.at));
+}
 function detail(){
  const c=validCompanies().find(x=>x.id===selected);if(!c){selected='';return '';}
- const period=p(),r=T.effective(c,period),t=c.reconciliationTracking?.[period],os=t?.managementOverrides||{},hist=(t?.managementHistory||[]).slice().reverse();
+ const period=p(),r=T.effective(c,period),hist=timeline(c,period);
  return '<section class="track4-detail"><div class="track4-heading"><div><h3>'+esc(c.name)+'</h3><p>'+esc(c.cnpj||'')+' · Código Domínio '+esc(c.dominio||'—')+' · Competência '+period+'</p></div><button type="button" data-track4-back>Voltar à carteira</button></div>'+
  '<p><strong>Documentos:</strong> '+esc(r.data.docs)+' · <strong>Status da conciliação:</strong> '+esc(r.data.status)+' · <strong>Origem:</strong> '+esc(r.origin.status.kind)+'</p>'+
  '<div class="track4-fields">'+fields.map(([k,label,type])=>'<div><b>'+esc(label)+'</b><div>'+esc(r.data[k]??'—')+'</div><small>'+esc(r.origin[k].kind==='manual'?'Ajustado manualmente (automático: '+String(r.auto[k]??'—')+')':'Registro automático')+'</small></div>').join('')+'</div>'+
  '<div class="track4-actions"><button type="button" data-track4-edit>Editar acompanhamento</button><button type="button" data-track4-original>Ver origem dos dados</button><button type="button" data-track4-navigate="pendencias">Central de Pendências</button><button type="button" data-track4-navigate="crm">CRM Contábil</button></div>'+
  (editing?'<form id="track4EditForm"><h4>Preenchimento manual / correção de informação automática</h4><div class="track4-edit-fields">'+fields.map(([k,label,type])=>fieldEditor(k,label,type,r.data[k])).join('')+'</div><label>Motivo da alteração (recomendado)<textarea name="reason" rows="2" maxlength="400"></textarea></label><div class="track4-actions"><button type="submit">Salvar alterações</button><button type="button" data-track4-cancel>Cancelar</button><button type="button" data-track4-restore>Restaurar valor automático</button></div><p>Esses valores são somente gerenciais. Nenhum ajuste resolve pendências reais, reclassifica lançamentos ou altera os arquivos exportados.</p></form>':'')+
  timerUi(c,period)+
- '<details class="track4-history"><summary>Histórico de ajustes e do cronômetro</summary>'+hist.map(h=>'<p>'+esc(h.at)+' · '+esc(h.actorId||'')+' · '+esc(h.field||h.type)+' · '+esc(h.reason||'')+'</p>').join('')+(t?.workTimer?.history||[]).map(h=>'<p>'+esc(h.at)+' · '+esc(h.actorId||'')+' · Cronômetro: '+esc(h.action)+'</p>').join('')+'</details></section>';
+ '<details class="track4-history"><summary>Histórico cronológico: atividades, pendências, ajustes, revisão e tempo ('+hist.length+')</summary>'+(hist.length?hist.map(h=>'<p>'+esc(h.at)+' · '+esc(h.actor||'Autor não identificado')+' · '+esc(h.label)+' <small>['+esc(h.source)+']</small></p>').join(''):'Nenhuma atividade registrada para a competência.')+'</details></section>';
 }
 function render(){
  const root=$('#trackingV4Panel');if(!root)return;
