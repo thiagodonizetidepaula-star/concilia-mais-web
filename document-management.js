@@ -60,7 +60,7 @@ function previewForm(){
  const counts=preview?.counts;
  return '<section class="docs-preview"><h3>Prévia segura da planilha</h3>'+
  '<p>O Excel é processado apenas neste navegador. <strong>Importação definitiva bloqueada nesta versão até a sua aprovação.</strong> Nenhum cliente da planilha será gravado em produção.</p>'+
- '<div class="docs-preview-row"><label>Ano da planilha (confirmado)<input type="number" id="docsYearSource" min="1900" max="2099" value="2026"></label>'+
+ '<div class="docs-preview-row"><label>Ano da planilha (confirmado)<input type="number" id="docsYearSource" min="1900" max="2099" value="2026" readonly></label>'+
  '<label>Planilha Excel (.xlsx)<input type="file" id="docsExcel" accept=".xlsx"></label>'+
  '<button type="button" class="primary" data-doc-preview>Verificar e gerar prévia</button></div>'+
  (counts?'<div class="docs-review-summary"><h4>Resumo da prévia — '+preview.year+'</h4><p>'+counts.all+' empresas Beatriz: '+counts.active+' ativas e '+counts.inactive+' com distrato.</p>'+
@@ -98,6 +98,9 @@ async function saveEdit(form){
  }catch(err){if(old)c.documentHistory[p]=old;else delete c.documentHistory[p];render();throw err;}
 }
 async function previewFile(file,yr){
+ if(!window.ConciliaCloud?.authenticated?.())throw Error('Entre na sua conta para comparar com o workspace autenticado; a planilha não será gravada.');
+ if(typeof cloudSyncEnabled!=='undefined'&&!cloudSyncEnabled)throw Error('Sincronização Supabase indisponível: comparação com a carteira real foi bloqueada para evitar resultado desatualizado.');
+ if(String(yr)!=='2026')throw Error('Nesta homologação o ano autorizado para conferência é 2026.');
  if(!file||!/\.xlsx$/i.test(file.name))throw Error('Selecione uma planilha .xlsx.');
  if(file.size>20000000)throw Error('Planilha excede o limite de 20 MB.');
  if(!window.XLSX?.read)throw Error('Leitor Excel indisponível.');
