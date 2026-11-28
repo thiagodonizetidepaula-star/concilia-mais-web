@@ -1,0 +1,31 @@
+/* Estilos incrementais: confinados no painel 05, sem afetar outras abas. */
+#melhoria05Panel .m05-ext-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px;color:#20cee6;font-size:12px}
+#melhoria05Panel .m05-ext-head span{color:#a7bad5;font-size:10px}
+#melhoria05Panel .m05-ext-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;align-items:end}
+#melhoria05Panel .m05-ext-filters>label{min-width:0}
+#melhoria05Panel .m05-ext-filters input,#melhoria05Panel .m05-ext-filters select{width:100%;min-width:0}
+#melhoria05Panel .m05-ext-stat{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:11px 0 15px}
+#melhoria05Panel .m05-ext-stat b{font-size:24px;color:#20cee6;padding:14px 12px 0;background:#14213d;border:1px solid #273e61;border-bottom:0;border-radius:10px 10px 0 0;text-align:center}
+#melhoria05Panel .m05-ext-stat small{grid-row:2;font-size:10px;color:#a4b8d1;background:#14213d;padding:2px 10px 12px;text-align:center}
+#melhoria05Panel .m05-ext-stat b:nth-of-type(2){grid-column:2;grid-row:1}
+#melhoria05Panel .m05-ext-stat b:nth-of-type(3){grid-column:3;grid-row:1}
+#melhoria05Panel .m05-ext-stat small:nth-of-type(2){grid-column:2}
+#melhoria05Panel .m05-ext-stat small:nth-of-type(3){grid-column:3}
+#melhoria05Panel .m05-ext-note{color:#b2c3db;font-size:11px;line-height:1.7;margin:14px 0!important}
+#melhoria05Panel .m05-ext-warning{color:#ffa600;font-weight:700}
+#melhoria05Panel .m05-ext-bars{display:grid;gap:8px;margin:12px 0}
+#melhoria05Panel .m05-ext-bar{display:grid;grid-template-columns:minmax(70px,28%) 1fr 50px;align-items:center;gap:12px;font-size:10px;color:#a9bfdc}
+#melhoria05Panel .m05-ext-bar div{background:#243650;min-width:0;border-radius:6px;height:13px;overflow:hidden}
+#melhoria05Panel .m05-ext-bar i{display:block;height:100%;background:linear-gradient(90deg,#1e9ad2,#20cee6);border-radius:6px}
+#melhoria05Panel .m05-ext-bar strong{text-align:right;color:#e7f9ff}
+#melhoria05Panel .m05-ext-form{padding:14px;border-radius:10px;border:1px solid #2d4666;background:#111b35;margin:12px 0}
+#melhoria05Panel .m05-ext-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}
+#melhoria05Panel .m05-ext-grid label{min-width:0}
+#melhoria05Panel .m05-ext-grid input,#melhoria05Panel .m05-ext-grid select{width:100%;min-width:0}
+#melhoria05Panel .m05-ext-scroll{overflow:auto;max-height:380px;border:1px solid #28405f;border-radius:10px}
+#melhoria05Panel .m05-ext-scroll table{min-width:560px}
+#melhoria05Panel .m05-ext-scroll th{position:sticky;top:0;background:#1a304f}
+#melhoria05Panel .m05-ext-scroll tr:hover{background:#1b3050}
+#melhoria05Panel .m05-ext-scroll button{padding:6px 9px;margin:2px;font-size:10px}
+@media(max-width:960px){#melhoria05Panel .m05-ext-filters{grid-template-columns:repeat(3,minmax(0,1fr))}#melhoria05Panel .m05-ext-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){#melhoria05Panel .m05-ext-filters{grid-template-columns:repeat(2,minmax(0,1fr))}#melhoria05Panel .m05-ext-grid{grid-template-columns:1fr}#melhoria05Panel .m05-ext-stat{grid-template-columns:repeat(3,minmax(0,1fr))}#melhoria05Panel .m05-ext-stat b{font-size:17px}#melhoria05Panel .m05-ext-bar{grid-template-columns:90px 1fr 38px;gap:6px}}
