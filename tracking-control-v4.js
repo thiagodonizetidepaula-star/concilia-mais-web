@@ -138,6 +138,7 @@ function activeTimer(){
  return null;
 }
 async function doTimerFor(c,period,action,seconds=null){
+ if(['start','resume','restart'].includes(action)&&window.ConciliaManualProductivity?.hasRunning?.())throw Error('Existe uma medição ativa no Dashboard de Produtividade. Pause ou conclua antes de iniciar outro cronômetro.');
  if(!c)throw Error('Empresa não encontrada.');
  await confirmFresh();
  const old=JSON.parse(JSON.stringify(c.reconciliationTracking?.[period]||null));
@@ -214,6 +215,6 @@ function init(){
  setInterval(()=>{if(document.hidden||busy||!ready())return;const a=activeTimer();if(a&&!T.stale(a.timer))doTimerFor(a.company,a.period,'heartbeat').catch(err=>console.warn('Cronômetro: heartbeat não confirmado',err.message));},30000);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden||busy)return;const a=activeTimer();if(a)doTimerFor(a.company,a.period,'pause').catch(err=>console.warn('Cronômetro: pausa ao ocultar não confirmada',err.message));});
 }
-window.ConciliaTrackingV4={render,summary:()=>T.summarize(validCompanies(),p(),uid()),currentPeriod:p};
+window.ConciliaTrackingV4={render,summary:()=>T.summarize(validCompanies(),p(),uid()),currentPeriod:p,hasRunning:()=>!!activeTimer()};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
