@@ -97,7 +97,9 @@ function pastedProposals(company,period,rows){
   if(used.has(m.id)){issues.push('Linha '+row.line+': lançamento repetido nas células coladas.');continue;}
   used.add(m.id);
   if(!plan.has(bankCode)){issues.push('Linha '+row.line+': conta '+(account?.bank||'')+' sem código válido no plano.');continue;}
-  if(m.status==='PENDENTE_DUPLICIDADE'){issues.push('Linha '+row.line+': lançamento com duplicidade pendente.');continue;}
+  if(m.status==='PENDENTE_DUPLICIDADE'||m.status==='DIVERGENTE'||m.financialMatch==='AMBIGUA'||m.financialMatch==='SEM_CORRESPONDENCIA'){
+   issues.push('Linha '+row.line+': lançamento com duplicidade, divergência ou associação financeira em revisão.');continue;
+  }
   const pastedBank=String(m.cents>0?row.debit:row.credit),cp=String(m.cents>0?row.credit:row.debit);
   if(pastedBank!==bankCode){issues.push('Linha '+row.line+': código bancário no lado errado; esperado '+bankCode+'.');continue;}
   if(!cp)continue;
@@ -110,6 +112,44 @@ function pastedProposals(company,period,rows){
  }
  return {proposals,issues};
 }
+
+/* A confirmação automática usa EXATAMENTE o mesmo validador da prévia.
+ * Nunca aplica códigos a linhas ambíguas, empresas diferentes ou registros repetidos.
+ * Retorna função de reversão para falhas de persistência. */
+function applyValidatedPaste(company,period,raw,learnConfirmed){
+ if(!company||!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(period||'')))throw Error('Empresa ou competência inválida.');
+ if(typeof learnConfirmed!=='function')throw Error('Memória de aprendizado indisponível.');
+ const parsed=parsePastedExcel(raw),checked=pastedProposals(company,period,parsed.rows);
+ const beforeRules=JSON.parse(JSON.stringify(company.learnedCodes||[])),hadRules=Object.prototype.hasOwnProperty.call(company,'learnedCodes');
+ const before=new Map(),applied=[];
+ try{
+  for(const row of checked.proposals){
+   const m=(company.movements||[]).find(x=>x.id===row.movementId);
+   const acc=(company.accounts||[]).find(x=>x.id===m?.accountId);
+   if(!m||!m.date?.startsWith(period)||m.date!==row.date||m.cents!==row.amount||
+    historyKey(m.history)!==historyKey(row.history)||String(acc?.chartCode||'')!==String(row.bank)||
+    !(company.plan||[]).some(p=>p.analytic&&String(p.code)===String(row.code))||
+    ['CONFIRMADO','PENDENTE_DUPLICIDADE','DIVERGENTE'].includes(m.status)||
+    ['AMBIGUA','SEM_CORRESPONDENCIA'].includes(m.financialMatch))continue;
+   if(before.has(m.id))throw Error('Duplicidade entre classificações da mesma movimentação.');
+   before.set(m.id,{counterpart:m.counterpart,suggested:m.suggested,status:m.status,confidence:m.confidence});
+   m.counterpart=String(row.code);m.suggested=String(row.code);m.status='CONFIRMADO';
+   m.confidence='Excel colado — validado automaticamente contra o plano e o extrato';
+   learnConfirmed(company,m,row.code,'IMPORTACAO_VALIDADA');
+   applied.push(m.id);
+  }
+ }catch(error){
+  for(const m of company.movements||[]){if(!before.has(m.id))continue;const old=before.get(m.id);for(const key of Object.keys(old)){if(old[key]===undefined)delete m[key];else m[key]=old[key];}}
+  if(hadRules)company.learnedCodes=beforeRules;else delete company.learnedCodes;
+  throw error;
+ }
+ const undo=()=>{
+  for(const m of company.movements||[]){if(!before.has(m.id))continue;const old=before.get(m.id);for(const key of Object.keys(old)){if(old[key]===undefined)delete m[key];else m[key]=old[key];}}
+  if(hadRules)company.learnedCodes=beforeRules;else delete company.learnedCodes;
+ };
+ return {applied:applied.length,issues:[...parsed.issues,...checked.issues],undo,proposals:checked.proposals.length};
+}
+
 function proposals(company,period,rows,source='EXCEL'){
  const plan=new Set((company.plan||[]).filter(p=>p.analytic).map(p=>String(p.code)));
  const banks=new Map((company.accounts||[]).map(a=>[a.id,String(a.chartCode||'')]));
@@ -182,5 +222,5 @@ function historicalLedgerExamples(company,selectedPeriod,entries){
  }
  return {examples,issues};
 }
-return {parseExcel,parseLedgerExcel,parsePastedExcel,pastedProposals,proposals,ledgerProposals,historicalLedgerExamples,historyKey};
+return {parseExcel,parseLedgerExcel,parsePastedExcel,pastedProposals,applyValidatedPaste,proposals,ledgerProposals,historicalLedgerExamples,historyKey};
 });
