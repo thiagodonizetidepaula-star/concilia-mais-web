@@ -51,3 +51,10 @@
 .track4-table table{min-width:760px}
 @media(max-width:1060px){.track4-summary{grid-template-columns:repeat(3,minmax(0,1fr))}.track4-fields,.track4-edit-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.track4-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.track4-fields,.track4-edit-fields{grid-template-columns:1fr}.track4-actions{gap:6px}}
+
+.track4-advanced{margin:16px 0;border:1px solid #dbe6ef;border-radius:12px;background:#f7fafc;padding:12px;color:#416582}
+.track4-advanced>summary{font-size:12px;font-weight:750;cursor:pointer;list-style-position:inside}
+.track4-advanced .retention-confirmation{margin-top:12px}
+.pendencias-ok,.pendencias-neutral{border-radius:12px;padding:18px 16px;margin:12px 0;font-size:13px;font-weight:650;line-height:1.55}
+.pendencias-ok{background:#ecf9f3;border:1px solid #a6dcc1;color:#176343}
+.pendencias-neutral{background:#f5f8fb;border:1px solid #d5e2ec;color:#496b85}
