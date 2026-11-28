@@ -47,6 +47,19 @@ jobs:
         run: |
           set -o pipefail
           node --test testes/dashboard-bi-integrado.test.cjs testes/refinamentos-ciclo01-04.test.cjs testes/tracking-melhoria04.test.cjs testes/crm-melhoria03.test.cjs testes/document-management-melhoria02.test.cjs testes/carteira-clientes-etapa01.test.cjs testes/plano-dominio-t-vazio.test.cjs testes/auditoria-detalhada.test.cjs testes/multibancos-pdf.test.cjs testes/restaurar-tudo.test.cjs tests/tax-reconciliation.test.js 2>&1 | tee homologacao-resultado.txt
+      - name: Verificar backup completo ZIP do código candidato
+        run: |
+          python3 scripts/backup_release.py | tee backup-candidato.json
+          python3 - <<'PY'
+          import json,zipfile
+          with zipfile.ZipFile('CONCILIAR_PLUS_PROJETO_COMPLETO.zip') as z:
+            assert z.testzip() is None
+            meta=json.loads(z.read('RELEASE_METADATA.json'))
+            assert meta['files'] >= 35
+            assert 'dashboard-bi-metrics.js' in z.namelist()
+            assert 'docs/DICIONARIO_DE_INDICADORES.md' in z.namelist()
+            print('BACKUP ZIP TESTADO:',meta['commit'],meta['files'],'arquivos')
+          PY
       - name: Verificar visual em Chromium com dados fictícios
         run: |
           set -e
