@@ -119,8 +119,8 @@ function anonymized(state,summary,userId){
  return {generatedAt:new Date().toISOString(),scope:'Relatório pessoal sem identificadores de clientes',user:'Profissional',
   completed:Number(b.concluded)||0,qualityEvents:s.quality.filter(r=>r.ownerId===userId).length,
   goals:s.goals.filter(r=>r.ownerId===userId).length,
-  achievements:s.achievements.filter(r=>r.ownerId===userId).map(r=>({title:r.title,date:r.date,description:r.description})),
-  competencies:s.competencies.filter(r=>r.ownerId===userId).map(r=>({title:r.title,level:r.level,evidence:r.evidence}))};
+  achievements:s.achievements.filter(r=>r.ownerId===userId).map(r=>({date:r.date,kind:'Realização pessoal registrada'})),
+  competencies:s.competencies.filter(r=>r.ownerId===userId).map(r=>({level:r.level,kind:'Competência autoavaliada'}))};
 }
 return {TYPES,CATEGORIES,LEVELS,blank,normalize,create,edit,saveRecord,percent,validDay,resultGoals,summarizeQuality,activitySummary,complexity,insights,anonymized};
 });
