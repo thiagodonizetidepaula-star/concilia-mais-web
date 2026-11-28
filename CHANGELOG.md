@@ -51,3 +51,13 @@ Este histórico diferencia **desenvolvido** de **publicado**. Nenhuma Melhoria 0
 - Limitações remanescentes: avisos `WARN` do Security Advisor sobre três `SECURITY DEFINER` usadas pelas políticas RLS (anon sem EXECUTE; autenticados sujeitos a `auth.uid()`) e proteção de senha vazada não habilitada na configuração atual. Não adquirir plano pago nem alterar permissões essenciais sem migração testada. O teste interativo com credenciais profissionais no URL público **não foi executado**; verificação operacional foi no laboratório autenticado e verificação de publicação pelo Render.
 - Recuperação da versão anterior: no Render existente, redeploy do commit anterior `1923bee56e04517071a53306c3a2a54a2cdd8341` caso haja regressão grave; não substituir dados vivos do Supabase automaticamente. Comparar revisões e hashes antes de qualquer restauração.
 - Sem Vercel, nenhuma infraestrutura nova, nenhuma contratação, nenhuma migração destrutiva, nenhuma Melhoria 05.
+
+
+## [BI integrado permanente — refinamento do primeiro ciclo] 2026-11-28
+- Estabelecida regra permanente: cada nova funcionalidade autorizada exige revisão de impactos no BI; dashboards devem evoluir em quatro dimensões, com indicadores reais, históricos e RLS; sem Melhoria 05.
+- Adicionado `dashboard-bi-metrics.js` (núcleo agregador sem efeitos), `dashboard-bi.js` (quatro visões no painel existente) e `dashboard-bi.css` (visual escuro profissional) com filtros por ano, competência, empresa e pesquisa.
+- Reaproveitadas empresas autorizadas, documentos, CRM, reconciliações, histórico disponível, status do Domínio/contagem de movimentos, produtividade registrada e memória de classificação. Dados ausentes não são inventados.
+- Incluído `docs/DICIONARIO_DE_INDICADORES.md` com fórmulas, origens, filtros, limites e procedimento para novos indicadores.
+- Testes adicionados em `testes/dashboard-bi-integrado.test.cjs` e `testes/dashboard-bi-visual.html`, com CI Chromium desktop/mobile, Supabase local e regressões das Melhorias 01–04.
+- Nenhuma nova página principal, serviço externo, custo, migração destrutiva ou funcionalidade da Melhoria 05.
+- Publicação e backup ZIP somente após aprovação do CI no commit candidato.

@@ -74,3 +74,34 @@ PR 79 foi integrado à main em 2026-11-28 UTC; testes automatizados e E2E isolad
 - Limitações remanescentes: avisos `WARN` do Security Advisor sobre três `SECURITY DEFINER` usadas pelas políticas RLS (anon sem EXECUTE; autenticados sujeitos a `auth.uid()`) e proteção de senha vazada não habilitada na configuração atual. Não adquirir plano pago nem alterar permissões essenciais sem migração testada. O teste interativo com credenciais profissionais no URL público **não foi executado**; verificação operacional foi no laboratório autenticado e verificação de publicação pelo Render.
 - Recuperação da versão anterior: no Render existente, redeploy do commit anterior `1923bee56e04517071a53306c3a2a54a2cdd8341` caso haja regressão grave; não substituir dados vivos do Supabase automaticamente. Comparar revisões e hashes antes de qualquer restauração.
 - Sem Vercel, nenhuma infraestrutura nova, nenhuma contratação, nenhuma migração destrutiva, nenhuma Melhoria 05.
+
+
+## Governança permanente dos dashboards e arquitetura BI integrada (2026-11-28)
+**Regra de desenvolvimento vinculante, inclusive em futuras conversas ChatGPT Work/Codex:** nenhuma funcionalidade autorizada está completamente desenvolvida sem análise de impacto no BI, identificação de fontes, indicadores pertinentes, cálculo, filtros, permissões, testes e atualização dos painéis existentes. Indicadores só aparecem se fontes reais os sustentarem. A ausência de novas métricas pertinentes deve ser explicitamente justificada e registrada. Esta regra não antecipa a Melhoria 05 nem autoriza serviços ou custos.
+Quatro perspectivas permanentes: (1) produtividade e desenvolvimento profissional; (2) desempenho operacional individual por empresa; (3) gestão consolidada da carteira; (4) tecnologia, automação e aprendizagem. São informações de naturezas diferentes: não confundir velocidade/eficiência, qualidade, complexidade ou finanças.
+
+### Arquivos reais — mapa de responsabilidades
+- `dashboard-bi-metrics.js`: núcleo puro de cálculos e agregações somente leitura, reutilizando `ConciliaTrackingCore.effective`, `state.companies`, `documentHistory`, `crmHistory`, `reconciliationTracking`, `movements` e `learnedCodes`.
+- `dashboard-bi.js`: apresentação responsiva dentro da **Visão Geral** existente, quatro perspectivas internas, filtros de ano, competência, empresa e pesquisa, séries mensais, estados sem medição, gráficos e cartões.
+- `dashboard-bi.css`: tokens visuais e componentes de BI escuro em escopo `#conciliaBI`, sem mudar estilos globais das abas antigas.
+- `index.html` e `app.js`: carregamento e renderização dentro do fluxo existente sem duplicar telas nem dados.
+- `tracking-control-v4.js`, `tracking-core-v4.js`, `productivity-manual-v2.js`, `crm.js`, `document-management.js`: fontes e fluxos preservados; suas permissões e regras permanecem vigentes.
+- `testes/dashboard-bi-integrado.test.cjs`: cálculos, acesso por usuário, zero denominador, séries, tempo ausente, inativos, separação Excel/automação.
+- `testes/dashboard-bi-visual.html`: screenshot e DOM no Chromium de dados **exclusivamente fictícios**, sem conexões corporativas.
+- `testes/homologacao-real-supabase.cjs`: integração autenticada em Supabase temporário, incluindo vistas do BI e isolamento entre usuários.
+- `docs/DICIONARIO_DE_INDICADORES.md`: identificadores, fórmulas, fontes, unidades, filtros, disponibilidade e limitações, além do procedimento de extensão.
+
+### Fluxo obrigatório para cada atualização futura
+1. Identificar dados novos e seus significados, disponibilidade temporal e natureza (contábil, operacional, profissional, tecnológica).
+2. Verificar identidade, autorização do usuário, carteira e isolamento do Supabase; não aumentar privilégios para viabilizar indicadores.
+3. Definir/ajustar indicadores no dicionário; evitar double-count de empresa, movimento, sessão ou histórico.
+4. Implementar no núcleo puro de métricas e na perspectiva correspondente, sem duplicar a fonte.
+5. Atualizar filtros, gráficos, drilldowns somente quando justificáveis. Dados inexistentes são indisponíveis, não zeros inventados.
+6. Executar unitários, integração, cálculos, regressão, histórico, RLS, estados vazios, responsividade e visual (desktop/mobile).
+7. Atualizar `MANUAL_TECNICO.md`, `CONTINUIDADE_DO_PROJETO.md`, `DICIONARIO_DE_INDICADORES.md`, `CHANGELOG.md` e `README.md` como apropriado.
+8. Criar backup seguro, trabalhar em branch, registrar commit/PR e homologar; publicar via **Render original** apenas se o CI e o controle de integridade estiverem aprovados.
+9. Confirmar versão live e dados pós-deploy; gerar **CONCILIAR_PLUS_PROJETO_COMPLETO.zip** com código completo publicado, docs e evidências, excluindo credenciais. Backup de dados corporativos permanece protegido/separado no Supabase, não exportado no ZIP.
+10. Registrar limitações e caminhos de recuperação. Não criar Melhoria 05 automaticamente.
+
+### Padrão BI aprovado
+Fundo `#080F20`, cartões `#111B35`, secundário `#14213D`, ciano `#20CEE6`, verde `#35D99C`, âmbar `#FFA600`, vermelho de alerta `#EF4444`, borda `#253354` e texto `#98AACB`. A imagem é **referência visual**, sem copiar a marca Romeiro ou números do exemplo. A identidade do ConCiliar+ continua própria. Sem React/TSX novo: projeto real é JavaScript navegador e CSS, com scripts existentes, sem pipeline de compilação.
