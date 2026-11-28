@@ -29,6 +29,15 @@ function latestCharge(c){return eventHistory(c).find(x=>x.type==='charge')?.occu
 function row(c,periods){const id=esc(c.id),emails=(c.emails||[]).map(e=>typeof e==='string'?e:e.value).filter(Boolean),charges=(c.crmHistory||[]).filter(e=>e.type==='charge'),p=periods.map(x=>x.period).join(', '),status=periods.map(x=>C.statusFor(c,x.period)),unique=[...new Set(status)];
  return '<tr><td><strong>'+esc(c.dominio||'—')+'</strong></td><td><strong>'+esc(c.name||'')+'</strong><small>'+esc(fmtCnpj(c.cnpj))+'</small></td><td class="crm-mail">'+esc(emails.join('; ')||'Não informado')+'</td><td>'+esc(p)+'</td><td>'+periods.map(x=>'<span class="crm-pill">'+esc(x.status)+'</span>').join(' ')+'</td><td>'+esc(fmtDate(latestCharge(c)))+'</td><td>'+charges.length+'</td><td>'+unique.map(x=>'<span class="crm-pill">'+esc(x)+'</span>').join(' ')+'</td><td><button type="button" data-crm-select="'+id+'">Abrir CRM</button></td></tr>';
 }
+function compactRow(c,periods){
+ const id=esc(c.id),emails=(c.emails||[]).map(e=>typeof e==='string'?e:e.value).filter(Boolean);
+ const charges=(c.crmHistory||[]).filter(e=>e.type==='charge'),status=[...new Set(periods.map(x=>C.statusFor(c,x.period)))];
+ const newest=latestCharge(c);
+ return '<article class="crm-client-card"><div class="crm-client-primary"><div><small>Domínio '+esc(c.dominio||'—')+' · CNPJ '+esc(fmtCnpj(c.cnpj))+'</small><h3>'+esc(c.name||'Empresa sem nome')+'</h3><p><strong>'+periods.length+'</strong> competência(s) · <strong>'+charges.length+'</strong> cobrança(s) · Última: '+esc(fmtDate(newest))+'</p></div><button type="button" data-crm-select="'+id+'">Abrir CRM</button></div>'+
+ '<div class="crm-client-tags">'+periods.slice(0,3).map(x=>'<span class="crm-pill">'+esc(x.period)+': '+esc(x.status)+'</span>').join('')+
+ status.slice(0,2).map(x=>'<span class="crm-pill">'+esc(x)+'</span>').join('')+'</div>'+
+ '<details><summary>Ver e-mails, competências e histórico</summary><p><b>E-mails:</b> '+esc(emails.join('; ')||'Não informado')+'</p><p><b>Competências:</b> '+esc(periods.map(x=>x.period).join(', ')||'Nenhuma')+'</p><p><b>Situação CRM:</b> '+esc(status.join('; ')||'Sem registro')+'</p><button type="button" class="secondary" data-crm-select="'+id+'">Consultar histórico e registrar contatos</button></details></article>';
+}
 function configHtml(){
  const x=config(),next=C.scheduleNext(C.todayBrazil(now()),x);
  const d=configDraft||x;
@@ -52,7 +61,7 @@ function listHtml(){
  '<label>Competência<select data-crm-filter="period">'+option('all','Todas',filterPeriod)+periods.map(p=>option(p,p,filterPeriod)).join('')+'</select></label>'+
  '<label>Situação CRM<select data-crm-filter="status">'+option('','Todas',filterStatus)+C.CRM_STATUSES.map(x=>option(x,x,filterStatus)).join('')+'</select></label></section>'+
  '<p class="crm-caption">'+rows.length+' empresas na lista automática; '+dat.companiesUnknown+' empresas com competências sem preenchimento, separadas para conferência. Competências futuras, recebidas, inativas e não aplicáveis não entram em cobrança.</p>'+
- '<div class="crm-scroll"><table><thead><tr><th>Cód. Domínio</th><th>Razão social / CNPJ</th><th>E-mails</th><th>Competências</th><th>Status documental</th><th>Última cobrança</th><th>Qtd. cobradas</th><th>Situação CRM</th><th>Ação</th></tr></thead><tbody>'+rows.map(x=>row(x.company,x.periods)).join('')+'</tbody></table></div>'+
+ '<div class="crm-client-list">'+(rows.length?rows.map(x=>compactRow(x.company,x.periods)).join(''):'<div class="crm-empty">Nenhuma empresa corresponde aos filtros selecionados.</div>')+'</div>'+
  '<details class="crm-unknown"><summary>Registros sem preenchimento: '+dat.companiesUnknown+' empresas (conferência, não cobrança automática)</summary><div>'+dat.unfilled.map(x=>'<p>'+esc(x.company.name)+' · '+x.periods.map(y=>y.period).join(', ')+'</p>').join('')+'</div></details>';
 }
 function selectedHtml(){

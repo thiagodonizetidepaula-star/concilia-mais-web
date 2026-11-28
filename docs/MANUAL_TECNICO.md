@@ -49,3 +49,14 @@ PR 79 foi integrado à main em 2026-11-28 UTC; testes automatizados e E2E isolad
 - Avaliação de segurança: zero avisos de saúde no Supabase; avisos `WARN` remanescentes para três funções SECURITY DEFINER legítimas das políticas RLS (anon sem EXECUTE; auth.uid() nas funções) e proteção de senhas vazadas não habilitada, recurso Supabase Pro+ não contratado. Não afirmar risco zero nem que essas recomendações foram corrigidas.
 - Status de validação: deploy live e logs do Render conferidos; testes de funcionamento completo executados em laboratório isolado. Não foi possível inspecionar diretamente a sessão autenticada no endereço de produção nesta execução.
 - Melhoria 05 fora do escopo e não implementada.
+
+
+## Refinamento 01–04 (candidato, PR #80; ainda não publicado)
+- Carteira: busca por Domínio/CNPJ/razão/fantasia e limpar pesquisa, sem afetar cadastros.
+- CRM: cartões responsivos com detalhes expansíveis, todos os contatos manuais preservados.
+- Colagem Excel: `classification-learning.js` valida banco, competência, data, histórico, valor, orientação débito/crédito, plano analítico, duplicidade e conflitos; `applyValidatedPaste` confirma apenas matches inequívocos, aprende por empresa e oferece rollback. `app.js` aguarda a persistência de rascunhos operacionais e da memória no Supabase, sem acionar retenção.
+- Central: mensagem verde só quando o assistente de conciliação marca `ready` e não há questões abertas.
+- Controle: gráficos rosca/barras/tempo com métricas existentes; campos e edição agrupados, retenção avançada recolhível e cronômetro preservado.
+- Produtividade: salvamento automático existente, falhas e alterações locais não protegidas visíveis; inicia manualmente, impede contagem simultânea com Controle 04.
+- Testes: `testes/refinamentos-ciclo01-04.test.cjs`, Chromium e `testes/homologacao-real-supabase.cjs` com autenticação e dados fictícios. Não declarar homologação sem CI verde do último commit.
+- Banco: sem nova tabela/DDL. Backup privado `764a05ff-96cd-4634-8b2b-148d8605de97` (rev. 696), restauração transacional sem tocar produção e três payloads iguais, hash SHA-256 válido.

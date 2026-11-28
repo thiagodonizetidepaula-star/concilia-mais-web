@@ -6,7 +6,11 @@ on:
       - feature/melhoria02-gestao-documentos-homologacao-20261128
       - feature/melhoria03-crm-manual-homologacao-20261128
       - feature/melhoria04-controle-conciliacoes-homologacao-20261128
+      - feature/refinamento-ciclo01-04-20261128
   workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -22,6 +26,7 @@ jobs:
           node-version: "22"
       - name: Conferir sintaxe JavaScript
         run: |
+          node --check classification-learning.js
           node --check app.js
           node --check document-import.js
           node --check document-management.js
@@ -38,7 +43,7 @@ jobs:
       - name: Testes de homologação da Carteira e regressão existente
         run: |
           set -o pipefail
-          node --test testes/tracking-melhoria04.test.cjs testes/crm-melhoria03.test.cjs testes/document-management-melhoria02.test.cjs testes/carteira-clientes-etapa01.test.cjs testes/plano-dominio-t-vazio.test.cjs testes/auditoria-detalhada.test.cjs testes/multibancos-pdf.test.cjs testes/restaurar-tudo.test.cjs tests/tax-reconciliation.test.js 2>&1 | tee homologacao-resultado.txt
+          node --test testes/refinamentos-ciclo01-04.test.cjs testes/tracking-melhoria04.test.cjs testes/crm-melhoria03.test.cjs testes/document-management-melhoria02.test.cjs testes/carteira-clientes-etapa01.test.cjs testes/plano-dominio-t-vazio.test.cjs testes/auditoria-detalhada.test.cjs testes/multibancos-pdf.test.cjs testes/restaurar-tudo.test.cjs tests/tax-reconciliation.test.js 2>&1 | tee homologacao-resultado.txt
       - name: Verificar visual em Chromium com dados fictícios
         run: |
           set -e

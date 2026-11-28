@@ -42,3 +42,13 @@
 #productivityPanel [data-prod-cloud][data-state="saved"]{color:#176645;background:#e8f8f0;border-color:#bde7cf}
 #productivityPanel [data-prod-cloud][data-state="waiting"]{color:#6d7f91;background:#f3f6fa;border-color:#e3ebf2}
 #productivityPanel .prod-cloud-row button{font-size:11px!important;padding:7px 10px!important;min-height:32px}
+
+
+/* Refinamento de produtividade: usuário vê informações operacionais, não infraestrutura. */
+#productivityPanel .prod-sync-warning{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:12px 0;padding:12px 14px;background:#fff7eb;border:1px solid #eabf8a;border-radius:12px;color:#834919;font-size:12px;font-weight:700}
+#productivityPanel .prod-sync-warning button{min-height:30px!important;font-size:11px!important}
+#productivityPanel .prod-actions button{padding:9px 12px!important;min-height:35px;border-radius:9px}
+#productivityPanel .prod-card{min-height:114px;padding:18px}
+#productivityPanel .prod-card strong{font-size:25px}
+#productivityPanel .prod-evolution{margin-top:15px}
+#productivityPanel .prod-history-scroll{scrollbar-width:thin}

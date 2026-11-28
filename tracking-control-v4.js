@@ -23,14 +23,26 @@ function rows(){const q=search.trim().toLowerCase(),qs=search.replace(/\D/g,'');
 .filter(({rec})=>!status||rec.status===status).filter(({rec})=>!docs||rec.docs===docs).filter(({rec})=>!review||rec.reviewStatus===review).filter(({rec})=>!delay||rec.delayReason===delay).filter(({rec})=>!deadlineFilter||(deadlineFilter==='overdue'?!!rec.deadline&&rec.deadline<T.todayBrazil()&&!['Concluída','Aprovada'].includes(rec.status):deadlineFilter==='on-time'?!!rec.deadline&&!!rec.end&&rec.end<=rec.deadline:deadlineFilter==='unset'?!rec.deadline:true));
 }
 function renderSummary(){
- const s=T.summarize(validCompanies(),p(),uid()),items=[
- ['Carteira ativa',s.active],['Aplicáveis',s.applicable],['Concluídas',s.done],['Em andamento',s.inProgress],
- ['Não iniciadas',s.notStarted],['Aguardando documentos',s.awaitingDocs],['Aguardando esclarecimentos',s.awaitingClarification],
- ['Pendências internas',s.internalPending],['Exportadas',s.exported],['Domínio confirmado',s.dominioConfirmed],
- ['Aguardando revisão',s.awaitingReview],['Aprovadas',s.approved],['Restantes',s.remaining],
- ['Dentro do prazo',s.withinDeadline],['Em atraso',s.overdue]];
- return '<div class="track4-summary">'+items.map(([k,v])=>'<button type="button" data-track4-counter="'+esc(k)+'" title="Filtrar situação quando disponível"><strong>'+v+'</strong><small>'+esc(k)+'</small></button>').join('')+'</div>'+
- '<div class="track4-progress"><span>Progresso da carteira: <b>'+s.percent+'%</b> ('+s.done+' de '+s.applicable+' aplicáveis)</span><div role="progressbar" aria-valuenow="'+s.percent+'" aria-valuemin="0" aria-valuemax="100"><span style="width:'+s.percent+'%"></span></div></div>';
+ const v=T.summarize(validCompanies(),p(),uid());
+ const primary=[['Carteira ativa',v.active],['Aplicáveis',v.applicable],['Concluídas',v.done],['Em andamento',v.inProgress],['Aguardando documentos',v.awaitingDocs],['Pendências internas',v.internalPending],['Restantes',v.remaining],['Aprovadas',v.approved]];
+ const secondary=[['Não iniciadas',v.notStarted],['Aguardando esclarecimentos',v.awaitingClarification],['Exportadas',v.exported],['Domínio confirmado',v.dominioConfirmed],['Aguardando revisão',v.awaitingReview],['Dentro do prazo',v.withinDeadline],['Em atraso',v.overdue]];
+ const buttons=items=>items.map(([k,n])=>'<button type="button" data-track4-counter="'+esc(k)+'" title="Consultar as empresas correspondentes quando disponível"><strong>'+n+'</strong><small>'+esc(k)+'</small></button>').join('');
+ return '<div class="track4-summary">'+buttons(primary)+'</div>'+
+ '<details class="track4-secondary"><summary>Outros indicadores da competência</summary><div class="track4-summary">'+buttons(secondary)+'</div></details>'+
+ '<div class="track4-progress"><span>Progresso da carteira: <b>'+v.percent+'%</b> ('+v.done+' de '+v.applicable+' aplicáveis)</span><div role="progressbar" aria-valuenow="'+v.percent+'" aria-valuemin="0" aria-valuemax="100"><span style="width:'+v.percent+'%"></span></div></div>';
+}
+function renderCharts(){
+ const v=T.summarize(validCompanies(),p(),uid()),months=T.evolution(validCompanies(),year,uid());
+ if(!v.applicable&&!months.some(x=>x.applicable))return '<div class="track4-chart-empty">Sem dados suficientes para apresentar gráficos nesta competência. Os indicadores serão atualizados à medida que as atividades forem registradas.</div>';
+ const donut=v.applicable?Math.max(0,Math.min(100,v.percent)):0;
+ const activeMonths=months.filter(x=>x.applicable||x.completed||x.workedSeconds);
+ const mx=Math.max(1,...activeMonths.map(x=>x.completed));
+ const mt=Math.max(1,...activeMonths.map(x=>x.workedSeconds));
+ return '<section class="track4-visuals" aria-label="Gráficos reais da carteira">'+
+ '<article class="track4-viz-card"><h3>Situação da carteira</h3><div class="track4-donut" style="--donut:'+donut+'%"><div><strong>'+donut+'%</strong><small>concluídas</small></div></div><p>'+v.done+' concluída(s) · '+v.remaining+' restante(s) entre '+v.applicable+' aplicáveis</p></article>'+
+ '<article class="track4-viz-card"><h3>Conciliações concluídas por competência</h3>'+(activeMonths.length?'<div class="track4-chart-bars">'+activeMonths.map(x=>'<div title="'+esc(x.period)+': '+x.completed+' concluídas"><small>'+esc(x.period.slice(5))+'</small><i style="height:'+Math.max(2,Math.round(x.completed/mx*100))+'%"></i><b>'+x.completed+'</b></div>').join('')+'</div>':'<p>Sem conciliações concluídas registradas.</p>')+'</article>'+
+ '<article class="track4-viz-card"><h3>Tempo efetivo registrado por competência</h3>'+(activeMonths.some(x=>x.workedSeconds)?'<div class="track4-time-bars">'+activeMonths.map(x=>'<div><small>'+esc(x.period)+'</small><span><i style="width:'+Math.round(x.workedSeconds/mt*100)+'%"></i></span><b>'+sec(x.workedSeconds)+'</b></div>').join('')+'</div>':'<p>O tempo trabalhado ainda não foi registrado nas competências consultadas.</p>')+'</article>'+
+ '</section>';
 }
 function renderEvolution(){
  const months=T.evolution(validCompanies(),year,uid());
@@ -79,11 +91,19 @@ function timeline(c,month){
 function detail(){
  const c=validCompanies().find(x=>x.id===selected);if(!c){selected='';return '';}
  const period=p(),r=T.effective(c,period),hist=timeline(c,period);
+ const sections=[
+  ['Situação operacional',['status','processed','classified','pendingFound','pendingResolved','pendingRemaining','exportStatus','dominioStatus','reviewStatus'],true],
+  ['Datas e controle de tempo',['start','end','deadline','effectiveSeconds','waitingSeconds','reworkCount'],false],
+  ['Exportação e revisão',['exportDate','dominioImportDate','reviewSentAt','reviewedAt','approvalDate','correctionCompletedAt'],false],
+  ['Atrasos e observações',['delayReason','delayCategory','notes','reviewNotes'],false]
+ ];
+ const readGroups=sections.map(([label,keys,open])=>'<details class="track4-group" '+(open?'open':'')+'><summary>'+esc(label)+'</summary><div class="track4-fields">'+fields.filter(([k])=>keys.includes(k)).map(([k,text])=>'<div><b>'+esc(text)+'</b><div>'+esc(r.data[k]??'—')+'</div><small>'+esc(r.origin[k].kind==='manual'?'Ajustado manualmente (automático: '+String(r.auto[k]??'—')+')':'Registro automático')+'</small></div>').join('')+'</div></details>').join('');
+ const editGroups=sections.map(([label,keys,open])=>'<details class="track4-group" '+(open?'open':'')+'><summary>'+esc(label)+'</summary><div class="track4-edit-fields">'+fields.filter(([k])=>keys.includes(k)).map(([k,text,type])=>'<div>'+fieldEditor(k,text,type,r.data[k])+(r.origin[k].kind==='manual'?'<button type="button" data-track4-restore-field="'+esc(k)+'">Restaurar automático</button>':'')+'</div>').join('')+'</div></details>').join('');
  return '<section class="track4-detail"><div class="track4-heading"><div><h3>'+esc(c.name)+'</h3><p>'+esc(c.cnpj||'')+' · Código Domínio '+esc(c.dominio||'—')+' · Competência '+period+'</p></div><button type="button" data-track4-back>Voltar à carteira</button></div>'+
  '<p><strong>Documentos:</strong> '+esc(r.data.docs)+' · <strong>Status da conciliação:</strong> '+esc(r.data.status)+' · <strong>Origem:</strong> '+esc(r.origin.status.kind)+'</p>'+
- '<div class="track4-fields">'+fields.map(([k,label,type])=>'<div><b>'+esc(label)+'</b><div>'+esc(r.data[k]??'—')+'</div><small>'+esc(r.origin[k].kind==='manual'?'Ajustado manualmente (automático: '+String(r.auto[k]??'—')+')':'Registro automático')+'</small></div>').join('')+'</div>'+
+ readGroups+
  '<div class="track4-actions"><button type="button" data-track4-edit>Editar acompanhamento</button><button type="button" data-track4-original>Ver origem dos dados</button><button type="button" data-track4-navigate="pendencias">Central de Pendências</button><button type="button" data-track4-navigate="crm">CRM Contábil</button></div>'+
- (editing?'<form id="track4EditForm"><h4>Preenchimento manual / correção de informação automática</h4><div class="track4-edit-fields">'+fields.map(([k,label,type])=>'<div>'+fieldEditor(k,label,type,r.data[k])+(r.origin[k].kind==='manual'?'<button type="button" data-track4-restore-field="'+esc(k)+'" title="Restaurar valor automático de '+esc(label)+'">Restaurar automático</button>':'')+'</div>').join('')+'</div><label>Motivo da alteração (recomendado)<textarea name="reason" rows="2" maxlength="400"></textarea></label><div class="track4-actions"><button type="submit">Salvar alterações</button><button type="button" data-track4-cancel>Cancelar</button></div><p>Esses valores são somente gerenciais. Nenhum ajuste resolve pendências reais, reclassifica lançamentos ou altera os arquivos exportados.</p></form>':'')+
+ (editing?'<form id="track4EditForm"><h4>Preenchimento manual / correção de informação automática</h4>' +editGroups+'<label>Motivo da alteração (recomendado)<textarea name="reason" rows="2" maxlength="400"></textarea></label><div class="track4-actions"><button type="submit">Salvar alterações</button><button type="button" data-track4-cancel>Cancelar</button></div><p>Esses valores são somente gerenciais. Nenhum ajuste resolve pendências reais, reclassifica lançamentos ou altera os arquivos exportados.</p></form>':'')+
  timerUi(c,period)+
  '<details class="track4-history"><summary>Histórico cronológico: atividades, pendências, ajustes, revisão e tempo ('+hist.length+')</summary>'+(hist.length?hist.map(h=>'<p>'+esc(h.at)+' · '+esc(h.actor||'Autor não identificado')+' · '+esc(h.label)+' <small>['+esc(h.source)+']</small></p>').join(''):'Nenhuma atividade registrada para a competência.')+'</details></section>';
 }
@@ -91,7 +111,7 @@ function render(){
  const root=$('#trackingV4Panel');if(!root)return;
  if(!uid()||!window.ConciliaCloud?.authenticated?.()){root.textContent='Entre na conta para consultar as conciliações da sua carteira.';return;}
  if(selected&&!validCompanies().some(c=>c.id===selected))selected='';
- root.innerHTML='<div class="track4-heading"><div><span>GESTÃO DAS CONCILIAÇÕES</span><h2>Acompanhamento mensal da carteira</h2><p>Indicadores automáticos e ajustes manuais separados das classificações contábeis.</p></div></div>'+renderSummary()+(selected?detail():renderList()+renderEvolution());
+ root.innerHTML='<div class="track4-heading"><div><span>GESTÃO DAS CONCILIAÇÕES</span><h2>Acompanhamento mensal da carteira</h2><p>Indicadores automáticos e ajustes manuais separados das classificações contábeis.</p></div></div>'+renderSummary()+(selected?detail():renderCharts()+renderList()+renderEvolution());
 }
 function rollback(c,period,old){if(old)c.reconciliationTracking[period]=old;else delete c.reconciliationTracking[period];}
 async function persist(c,period,old,type){
@@ -118,6 +138,7 @@ function activeTimer(){
  return null;
 }
 async function doTimerFor(c,period,action,seconds=null){
+ if(['start','resume','restart'].includes(action)&&window.ConciliaManualProductivity?.hasRunning?.())throw Error('Existe uma medição ativa no Dashboard de Produtividade. Pause ou conclua antes de iniciar outro cronômetro.');
  if(!c)throw Error('Empresa não encontrada.');
  await confirmFresh();
  const old=JSON.parse(JSON.stringify(c.reconciliationTracking?.[period]||null));
@@ -194,6 +215,6 @@ function init(){
  setInterval(()=>{if(document.hidden||busy||!ready())return;const a=activeTimer();if(a&&!T.stale(a.timer))doTimerFor(a.company,a.period,'heartbeat').catch(err=>console.warn('Cronômetro: heartbeat não confirmado',err.message));},30000);
  document.addEventListener('visibilitychange',()=>{if(!document.hidden||busy)return;const a=activeTimer();if(a)doTimerFor(a.company,a.period,'pause').catch(err=>console.warn('Cronômetro: pausa ao ocultar não confirmada',err.message));});
 }
-window.ConciliaTrackingV4={render,summary:()=>T.summarize(validCompanies(),p(),uid()),currentPeriod:p};
+window.ConciliaTrackingV4={render,summary:()=>T.summarize(validCompanies(),p(),uid()),currentPeriod:p,hasRunning:()=>!!activeTimer()};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();

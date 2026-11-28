@@ -34,3 +34,14 @@
 .wallet-footnote{font-size:11px;color:#8295a7;margin:18px 0;line-height:1.55}
 @media(max-width:980px){.wallet-grid{grid-template-columns:1fr}}
 @media(max-width:620px){.wallet-top{align-items:flex-start}.wallet-total{padding:12px}.wallet-toolbar{flex-direction:column;align-items:stretch}.wallet-toolbar label{max-width:none}.wallet-detail dl{grid-template-columns:1fr}.wallet-top h2{font-size:23px}}
+
+/* Refinamento autorizado — busca acessível e cartões de carteira */
+.wallet-search-label{display:inline-flex;align-items:center;gap:7px;color:#214c70;font-weight:750}
+.wallet-search-label svg{height:16px;width:16px}
+.wallet-search-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.wallet-search-actions button{border:1px solid #d5e3ee;background:#fff;color:#245475;border-radius:9px;padding:9px 12px;font:inherit;font-weight:700;cursor:pointer}
+.wallet-search-actions button:disabled{opacity:.45;cursor:default}
+.wallet-client-card{transition:border-color .16s ease,box-shadow .16s ease}
+.wallet-client-card:hover{border-color:#a9cadd;box-shadow:0 10px 30px rgba(15,44,75,.10)}
+.wallet-client-card:focus-within{outline:2px solid #e8ba65;outline-offset:2px}
+@media(max-width:620px){.wallet-search-actions{justify-content:space-between}}

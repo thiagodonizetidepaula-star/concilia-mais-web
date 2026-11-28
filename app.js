@@ -1400,69 +1400,67 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
  let pasteClassificationDraft=null;
  const resetPastePreview=()=>{
   pasteClassificationDraft=null;
-  $('#pasteConfirmButton').hidden=true;
-  $('#pasteConfirmButton').disabled=true;
+  $('#pasteConfirmButton').hidden=true;$('#pasteConfirmButton').disabled=true;
   $('#pasteClassificationsPreview').innerHTML='';
  };
  $('#pasteClearButton').onclick=()=>{
   $('#pasteClassificationsText').value='';
   resetPastePreview();
-  $('#pasteClassificationsStatus').textContent='Área limpa. Cole novas linhas do Excel para conferir.';
+  $('#pasteClassificationsStatus').textContent='Área limpa. Cole novas linhas do Excel para classificar.';
  };
  $('#pasteClassificationsText').addEventListener('input',()=>{
-  if(pasteClassificationDraft){
-   resetPastePreview();
-   $('#pasteClassificationsStatus').textContent='O texto foi alterado. Clique em Conferir códigos colados para gerar uma nova prévia.';
-  }
+  if(pasteClassificationDraft)resetPastePreview();
  });
  $('#pasteClassificationsForm').onsubmit=e=>{e.preventDefault();action(async()=>{
   resetPastePreview();
-  const c=getCompany(),Learning=window.ConciliaLearning;
-  if(!Learning)throw Error('Módulo de aprendizado não carregado. Atualize a página.');
+  const c=getCompany(),Learning=window.ConciliaLearning,cloud=window.ConciliaCloud;
+  if(!Learning?.applyValidatedPaste)throw Error('Módulo de aprendizado atualizado indisponível.');
+  if(!cloudSyncEnabled||!cloud?.authenticated?.())throw Error('Entre na sua conta e conecte-se à nuvem antes de confirmar classificações automaticamente.');
+  const text=$('#pasteClassificationsText').value,originalCompanyId=c.id,originalPeriod=period;
   autoLinkBankCodes(c);
-  const content=$('#pasteClassificationsText').value;
-  const parsed=Learning.parsePastedExcel(content);
-  const result=Learning.pastedProposals(c,period,parsed.rows);
-  const issues=[...parsed.issues,...result.issues];
-  const valid=result.proposals;
+  const parsed=Learning.parsePastedExcel(text),checked=Learning.pastedProposals(c,period,parsed.rows),issues=[...parsed.issues,...checked.issues];
   const headers=['Data','Banco','Débito','Crédito','Valor','Histórico','Contrapartida'];
-  const rows=valid.slice(0,100).map(item=>[
+  const rows=checked.proposals.slice(0,100).map(item=>[
    safe(datePT(item.date)),safe(item.bankName),safe(item.amount>0?item.bank:item.code),
    safe(item.amount<0?item.bank:item.code),currency(item.amount),safe(item.history),safe(item.code)
   ]);
   $('#pasteClassificationsPreview').innerHTML=
-   (valid.length?'<h3>Prévia: '+valid.length+' classificação(ões) pronta(s) para confirmação</h3>'+table(headers,rows)+(valid.length>100?'<p>Exibindo os primeiros 100 lançamentos válidos.</p>':''):'<p>Nenhuma classificação segura identificada para confirmar.</p>')+
-   (issues.length?'<details open><summary>'+issues.length+' linha(s) para revisão — não serão aplicadas</summary><div class="import-status">'+safe(issues.slice(0,60).join('\n'))+(issues.length>60?' (e mais '+(issues.length-60)+' linha(s))':'')+'</div></details>':'');
-  $('#pasteClassificationsStatus').textContent='Empresa: '+c.name+' • Competência: '+period+'. '+valid.length+' classificação(ões) válidas; '+issues.length+' linha(s) em revisão. Nada foi gravado ainda.';
-  if(!valid.length)return;
-  pasteClassificationDraft={companyId:c.id,period,text:content,records:valid.map(x=>({...x}))};
-  $('#pasteConfirmButton').hidden=false;
-  $('#pasteConfirmButton').disabled=false;
- })};
- $('#pasteConfirmButton').onclick=()=>action(async()=>{
-  const draft=pasteClassificationDraft,c=getCompany(),Learning=window.ConciliaLearning;
-  if(!draft||draft.companyId!==c.id||draft.period!==period||draft.text!==$('#pasteClassificationsText').value)
-   throw Error('Empresa, competência ou texto mudou. Gere a prévia novamente.');
-  const checked=Learning.pastedProposals(c,period,Learning.parsePastedExcel(draft.text).rows).proposals;
-  if(JSON.stringify(checked)!==JSON.stringify(draft.records))throw Error('Os lançamentos mudaram desde a prévia. Confira novamente.');
-  if(!confirm('Confirmar '+checked.length+' classificação(ões) para '+c.name+' e gravar o aprendizado somente nesta empresa?'))return;
-  let applied=0,learned=0;
-  for(const item of checked){
-   const m=c.movements.find(x=>x.id===item.movementId),acc=c.accounts.find(a=>a.id===m?.accountId);
-   if(!m||m.status==='CONFIRMADO'||m.status==='PENDENTE_DUPLICIDADE'||String(acc?.chartCode)!==String(item.bank)||
-      !c.plan.some(p=>p.analytic&&String(p.code)===String(item.code)))continue;
-   m.counterpart=String(item.code);
-   m.suggested=String(item.code);
-   m.status='CONFIRMADO';
-   m.confidence='Classificação colada do Excel, validada e confirmada';
-   if(learnConfirmed(c,m,item.code,'IMPORTACAO_VALIDADA'))learned++;
-   applied++;
+   (checked.proposals.length?'<h3>Conferência automática: '+checked.proposals.length+' lançamento(s) com correspondência inequívoca</h3>'+table(headers,rows):'<p>Nenhum lançamento seguro identificado para confirmação automática.</p>')+
+   (issues.length?'<details open><summary>'+issues.length+' linha(s) exigem revisão — não foram aplicadas</summary><div class="import-status">'+safe(issues.slice(0,60).join('\n'))+'</div></details>':'');
+  if(!checked.proposals.length){
+   $('#pasteClassificationsStatus').textContent='Nenhuma classificação alterada. Confira as ocorrências para revisão.';
+   return;
   }
-  resetPastePreview();
-  await store('CLASSIFICACOES_COLADAS',applied+' códigos confirmados; '+learned+' históricos aprendidos para '+c.name+' na competência '+period);
-  $('#pasteClassificationsStatus').textContent=applied+' lançamento(s) atualizado(s) e '+learned+' histórico(s) aprendido(s) para '+c.name+'. No próximo mês, o ConCiliar+ poderá sugerir esses códigos para conferência.';
-  say('Classificações coladas e aprendizado registrados.');
- });
+  const revision=cloud.revision();
+  await cloud.fetchWorkspace();
+  if(cloud.revision()!==revision)throw Error('Os dados foram modificados em outra sessão. Recarregue antes de colar classificações.');
+  if(c.id!==originalCompanyId||period!==originalPeriod||text!==$('#pasteClassificationsText').value)
+   throw Error('Empresa, competência ou conteúdo mudaram. Nada foi aplicado.');
+  if(JSON.stringify(Learning.pastedProposals(c,period,Learning.parsePastedExcel(text).rows).proposals)!==JSON.stringify(checked.proposals))
+   throw Error('O conteúdo do extrato mudou durante a conferência. Nenhuma classificação foi alterada.');
+  const result=Learning.applyValidatedPaste(c,period,text,learnConfirmed);
+  if(!result.applied)throw Error('As classificações foram bloqueadas por uma nova inconsistência. Revise os dados.');
+  const oldAuditLength=state.audit.length;
+  log('CLASSIFICACOES_EXCEL_AUTO_VALIDADAS',result.applied+' classificação(ões) validadas com histórico e memória individual.');
+  try{
+   // Sem executar limpeza de três meses nesta operação. Grava rascunho operacional e workspace.
+   const beforeOperationalRevision=operationalCloudRevision;
+   await saveDB();
+   await operationalCloudQueue;
+   if(!operationalCloudReady||operationalCloudRevision===beforeOperationalRevision)throw Error('Rascunho operacional não foi confirmado no backup em nuvem.');
+   await cloud.serializedSave(durableWorkspace(state));
+   if(!cloudSyncEnabled||cloud.revision()===revision)throw Error('Não houve confirmação de persistência da memória na nuvem.');
+  }catch(err){
+   result.undo();state.audit.length=oldAuditLength;
+   try{await saveDB();}catch(e){console.error('Falha na reversão local',e);}
+   throw Error('Classificações não confirmadas por falha de salvamento: '+(err.message||String(err)));
+  }
+  render();
+  $('#pasteClassificationsStatus').textContent=result.applied+' classificação(ões) confirmada(s) e aprendizado registrado. '+issues.length+' linha(s) permaneceram em revisão.';
+  say('Excel validado. Classificações seguras confirmadas automaticamente.');
+ })};
+ $('#pasteConfirmButton').hidden=true;
+ $('#pasteConfirmButton').disabled=true;
  let taxDraft=null;
  const taxShow=(message,level='')=>{const el=$('#taxReceiptStatus');el.textContent=message;el.className='import-status '+level;};
  const taxReset=()=>{taxDraft=null;$('#taxConfirmButton').hidden=true;$('#taxConfirmButton').disabled=true;$('#taxReceiptPreview').innerHTML='';};
