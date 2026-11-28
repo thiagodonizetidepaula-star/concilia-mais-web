@@ -111,3 +111,53 @@ test('não criar aba duplicada, não apagar pendências, preservar 01–03',()=>
  assert.ok(tracking.includes('ConciliaSaveManagementV4')&&!tracking.includes("await store("));
  assert.ok(app.includes("function storeManagementV4(")&&!app.includes("storeManagementV4=store"));
 });
+
+test('evolução por competência retorna 12 meses sem contar empresas inativas',()=>{
+ const a=comp(),b=comp('B',true);a.reconciliationTracking['2026-11']={start:'2026-11-03',end:'2026-11-07'};
+ const e=T.evolution([a,b],2026,'u1');
+ assert.equal(e.length,12);assert.equal(e[10].period,'2026-11');
+ assert.equal(e[10].completed,1);assert.equal(e[10].percent,100);
+ assert.equal(e[11].applicable,0);
+});
+test('Brasília é usada na apuração do prazo e na competência',()=>{
+ assert.equal(T.todayBrazil(new Date('2026-11-28T01:00:00Z')),'2026-11-27');
+ assert.equal(T.todayBrazil(new Date('2026-11-28T04:00:00Z')),'2026-11-28');
+});
+test('tempo abandonado é limitado pelo último heartbeat de sessão',()=>{
+ const c=comp(),start=new Date('2026-11-12T12:00:00Z');
+ c.reconciliationTracking['2026-11']={workTimer:T.timerTransition(c,'2026-11','start','u1',start)};
+ const hb=T.timerTransition(c,'2026-11','heartbeat','u1',new Date('2026-11-12T12:00:30Z'));
+ assert.equal(Math.round(hb.seconds),30);assert.equal(hb.history.length,1);
+ assert.equal(Math.round(T.elapsed(hb,Date.parse('2026-11-12T12:30:00Z'))),120);
+ assert.equal(T.stale(hb,Date.parse('2026-11-12T12:03:00Z')),true);
+});
+test('exportação, confirmação Domínio, revisão e espera são campos independentes auditáveis',()=>{
+ const c=comp();
+ for(const [field,v] of [['exportDate','2026-11-20'],['dominioImportDate','2026-11-21'],['reviewSentAt','2026-11-22'],['reviewedAt','2026-11-23'],['waitingSeconds',1800],['reworkCount',2]])T.edit(c,'2026-11',field,v,'u1','conferência gerencial');
+ const x=T.effective(c,'2026-11');
+ assert.equal(x.data.dominioImportDate,'2026-11-21');
+ assert.equal(x.data.waitingSeconds,1800);
+ assert.equal(x.origin.exportDate.kind,'manual');
+ assert.equal(c.reconciliationTracking['2026-11'].dominioConfirmed,undefined);
+ assert.equal(c.reconciliationReview['2026-11'],undefined);
+});
+test('formulário original não apaga ajustes e cronômetro da Melhoria 04',()=>{
+ const old=fs.readFileSync(path.join(root,'reconciliation-tracking.js'),'utf8');
+ assert.match(old,/reconciliationTracking\[month\] = \{\.\.\.\(previous\|\|\{\}\),start/);
+ assert.match(old,/ConciliaSaveManagementV4/);
+});
+test('persistência gerencial evita limpeza de retenção de dados operacionais',()=>{
+ const app=fs.readFileSync(path.join(root,'app.js'),'utf8');
+ const match=app.match(/async function storeManagementV4[\s\S]*?(?=\nwindow\.ConciliaSaveManagementV4)/);
+ assert.ok(match);assert.ok(!match[0].includes('runRetentionCleanup'));
+ assert.match(match[0],/saveDB\(\{operational:false\}\)/);
+ assert.match(match[0],/serializedSave/);
+});
+test('histórico cronológico inclui CRM, revisão, documentos e pendências sem recriar módulos',()=>{
+ const ui=fs.readFileSync(path.join(root,'tracking-control-v4.js'),'utf8');
+ assert.match(ui,/function timeline\(c,month\)/);
+ assert.match(ui,/reconciliationReview/);
+ assert.match(ui,/crmHistory/);
+ assert.match(ui,/documentHistory/);
+ assert.match(ui,/data-track4-filter="deadline"/);
+});
