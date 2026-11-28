@@ -58,7 +58,9 @@ function listHtml(){
 function selectedHtml(){
  const c=getCompany(selected);if(!c)return '';
  const dat=C.eligiblePeriods(c,C.todayBrazil(now()),config()),hist=eventHistory(c),uid=cloudUser();
- const listed=dat.due;
+ // Cobrar apenas competências exigíveis; retornos e observações também podem
+ // referir-se a competências já recebidas, sem recolocá-las na lista de cobrança.
+ const listed=tab==='charge'?dat.due:Object.entries(c.documentHistory||{}).filter(([p])=>/^20\d{2}-(0[1-9]|1[0-2])$/.test(p)&&p<=C.todayBrazil(now()).slice(0,7)).map(([period,d])=>({period,status:d?.status||'Sem registro'})).sort((x,y)=>x.period.localeCompare(y.period));
  const dates=listed.map(x=>x.period);
  if(!selectedPeriods.length)selectedPeriods=dates;
  const emails=(c.emails||[]).map(e=>typeof e==='string'?e:e.value).join('; ');
@@ -158,6 +160,6 @@ function init(){
  el.addEventListener('submit',e=>{if(e.target.id!=='crmRecordForm')return;e.preventDefault();onRecord(e.target);});
  $('#crmOverviewAlerts')?.addEventListener('click',e=>{if(e.target.id==='crmOverviewOpen')showPage('crm');});
 }
-window.ConciliaCRM={render,overview,summary,config};
+window.ConciliaCRM={render,overview,summary,config,openCompany:(id,mode='history')=>{if(!getCompany(id))throw Error('Empresa fora da carteira autorizada.');selected=id;selectedPeriods=[];tab=['charge','reply','note','history'].includes(mode)?mode:'history';showPage('crm');render();}};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
