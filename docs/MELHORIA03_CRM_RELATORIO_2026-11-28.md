@@ -59,8 +59,8 @@ A verificação SQL de 28/11/2026 confirmou:
 A ausência de `crmHistory` no workspace real é esperada: **nenhuma cobrança foi registrada ou presumida antes de o usuário usar a nova interface**.
 
 ## 6. Evidências e resultados
-- **Suíte de código / regressão / Chromium**: 55/55 testes aprovados, 0 falhas, com snapshots desktop/mobile das melhorias 01, 02 e 03, executados em ambiente isolado. https://github.com/thiagodonizetidepaula-star/concilia-mais-web/actions/runs/46096174225
-- **Supabase local/Auth/RLS real**: cenário E2E da Melhoria 01/02 estendido para salvar configuração de datas do CRM, registrar cobrança manual, verificar separação do status documental, persistir após logout/login e testar outro usuário. Evidência da execução operacional mais recente **deve ser verificada antes de declarar aprovação**.
+- **Suíte final de código / regressão / Chromium**: **59/59 testes aprovados, zero falhas**, com capturas desktop/mobile das melhorias 01, 02 e 03, executados em ambiente isolado. https://github.com/thiagodonizetidepaula-star/concilia-mais-web/actions/runs/46096459067
+- **Supabase local/Auth/RLS real**: cenário E2E da Melhoria 01/02 estendido para salvar configuração de datas do CRM, registrar cobrança manual, verificar separação do status documental, persistir após logout/login, testar outra conta, Cancelar e Restaurar datas padrão. **Aprovado**, 14 checkpoints positivos e nenhum erro na execução final: https://github.com/thiagodonizetidepaula-star/concilia-mais-web/actions/runs/46096459065
 - Evidências visuais geradas apenas com empresas **fictícias**; nenhum cliente real no repositório público ou em capturas.
 - Correções encontradas: estilo da fixture de testes ocultava a interface sem a classe `authenticated` (corrigido); navegação direta da empresa; notas não reiniciam status de cobrança; rótulos traduzidos; estados de autenticação com seleção obsoleta; teste E2E passa à listagem antes de conferir configuração após login; histórico da mudança manual de recebimento sem data inventada.
 
@@ -77,3 +77,19 @@ A ausência de `crmHistory` no workspace real é esperada: **nenhuma cobrança f
 ## 8. Recuperação
 - Código: fechar/rejeitar PR da Melhoria 03, excluir a branch de desenvolvimento; `main` e os PRs #76/#77 permanecem intactos.
 - Dados: nenhuma mudança funcional no workspace corporativo; backup privado `9a1581b7-1356-4f3c-b6f9-c448adaaeb50` retém a revisão 696. Qualquer recuperação real exige confirmação administrativa e conferência de revisão para não sobrescrever lançamentos posteriores.
+
+---
+
+## 9. Homologação final executada — comprovantes e conclusão de desenvolvimento
+
+**Regressão / Chromium:** https://github.com/thiagodonizetidepaula-star/concilia-mais-web/actions/runs/46096459067 — `success`, **59/59 testes**, 0 falhas, 0 ignorados; inclui validação dos módulos contábeis anteriores, validação visual da Carteira (01), Documentos (02) e CRM (03).
+
+**Supabase real local / browser Playwright:** https://github.com/thiagodonizetidepaula-star/concilia-mais-web/actions/runs/46096459065 — `success`, **14 checkpoints**: dois logins reais com identidades distintas, importar PDF Domínio sintético, editar carteira, registrar e-mail/documentos, salvar datas CRM personalizadas, registrar cobrança manual sem modificar recebimento documental, logout/login preservando CRM, reimportação sem duplicidade, cancelar edição de datas, restaurar datas padrão, isolamento entre usuários por RLS, capturas autenticadas (desktop da listagem CRM, detalhe e mobile).
+
+**Evidências visuais** disponíveis nos artefatos do próprio workflow, produzidas apenas com empresas fictícias:
+- https://github.com/thiagodonizetidepaula-star/concilia-mais-web/actions/runs/46096459067
+- https://github.com/thiagodonizetidepaula-star/concilia-mais-web/actions/runs/46096459065
+
+**Verificação final do banco corporativo:** revisão **696**. Os 62 cadastros reais permanecem idênticos ao snapshot privado anterior à Melhoria 03. A carteira Beatriz mantém 60 empresas, 55 ativas, 5 com distrato, 76 e-mails e 12 competências de documentos e fechamento. Os planos de contas das quatro empresas previamente cadastradas somam 2.415 registros, intactos. Nenhum evento manual de CRM foi gravado na produção.
+
+**Decisão técnica:** a Melhoria 03 está **homologada em desenvolvimento** nas condições verificadas, mas **não publicada nem liberada para produção**; publicação exige aprovação expressa do responsável. O ambiente independente para navegação manual permanece pendente por limite de serviços Render (25), que não autoriza criar serviço ou gerar custo sem aprovação. O código permanece no PR #78, com base na branch da Melhoria 02, sem merge.
