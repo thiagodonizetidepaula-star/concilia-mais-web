@@ -159,3 +159,35 @@ body.authenticated .sidebar .brand-workspace-side:before{
     max-width:218px;
   }
 }
+
+/* Romeiro: reproduzir a arte ORIGINAL em azul e dourado, sem filtro monocromatico.
+   A superficie azul-clara interna preserva o contraste das letras azuis. */
+body.authenticated .sidebar .brand-workspace-side{
+  gap:10px;
+  background:radial-gradient(ellipse at 50% 0%,rgba(65,137,226,.28),transparent 72%),linear-gradient(155deg,#0b315f,#061e40 60%,#03152d);
+  padding:16px 10px 14px;
+}
+body.authenticated .sidebar .brand-workspace-side img{
+  display:block;
+  box-sizing:border-box;
+  width:100%;
+  max-width:234px;
+  height:auto;
+  max-height:none;
+  aspect-ratio:500/117;
+  object-fit:contain;
+  object-position:center;
+  margin:2px auto;
+  padding:13px 7px;
+  border:1px solid rgba(255,221,143,.55);
+  border-radius:10px;
+  background:linear-gradient(155deg,#ffffff,#eaf2ff);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 6px 18px rgba(0,10,32,.25);
+  filter:none!important;
+}
+body.authenticated .sidebar .brand-workspace-side small{font-size:10px;color:#e3eeff}
+@media(max-width:720px){
+  body.authenticated .sidebar .brand-workspace-side img{
+    width:100%;max-width:234px;max-height:none;height:auto;padding:12px 7px;
+  }
+}
