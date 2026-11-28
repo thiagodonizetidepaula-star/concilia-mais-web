@@ -127,6 +127,28 @@ async function run(){
   assert.equal(companies[0].crmHistory[0].medium,'Outlook manual');
   assert.equal(companies[0].documentHistory[activePeriod].status,'Cobrado');
   stats.push('CRM: cobrança real inserida manualmente, autor e competência persistidos sem mudar status documental: OK');
+  await pageA.locator('button[data-page="controle"]').click();
+  await pageA.locator('#trackingV4Panel [data-track4-open]').first().click();
+  await pageA.locator('#trackingV4Panel [data-track4-edit]').click();
+  await pageA.locator('[data-track4-value="status"]').selectOption('Aguardando revisão');
+  await pageA.locator('#track4EditForm textarea[name="reason"]').fill('Homologação gerencial isolada de status, sem modificar conciliação.');
+  await pageA.locator('#track4EditForm button[type="submit"]').click();
+  await pageA.waitForTimeout(900);
+  companies=await checkStored(creds[0],1);
+  const trackPeriod=await pageA.evaluate(()=>window.ConciliaTrackingV4.currentPeriod());
+  assert.equal(companies[0].reconciliationTracking[trackPeriod].managementOverrides.status.value,'Aguardando revisão');
+  assert.equal(companies[0].reconciliationTracking[trackPeriod].managementHistory.length,1);
+  assert.equal(companies[0].documentHistory[activePeriod].status,'Cobrado');
+  stats.push('Controle 04: status operacional manual, origem e auditoria persistidos sem alterar documento: OK');
+  await pageA.locator('[data-track4-timer="start"]').click();
+  await pageA.waitForTimeout(450);
+  await pageA.locator('[data-track4-timer="pause"]').click();
+  await pageA.waitForTimeout(900);
+  companies=await checkStored(creds[0],1);
+  assert.equal(companies[0].reconciliationTracking[trackPeriod].workTimer.history.length,2);
+  assert.equal(companies[0].reconciliationTracking[trackPeriod].workTimer.runningSince,null);
+  stats.push('Controle 04: iniciar/pausar tempo no Supabase, sem acionar retenção de extratos: OK');
+
 
   await pageA.locator('#cloudLogout').click();
   await pageA.waitForFunction(()=>!document.body.classList.contains('authenticated'),{timeout:15000});
@@ -151,6 +173,13 @@ async function run(){
   companies=await checkStored(creds[0],1);
   assert.equal(companies[0].crmHistory.length,1);
   stats.push('CRM: configuração e histórico recuperados após logout/login: OK');
+  await pageA.locator('button[data-page="controle"]').click();
+  await pageA.locator('#trackingV4Panel [data-track4-open]').first().click();
+  assert.match(await pageA.locator('.track4-detail').textContent(),/Aguardando revisão/);
+  companies=await checkStored(creds[0],1);
+  assert.equal(companies[0].reconciliationTracking[trackPeriod].workTimer.history.length,2);
+  stats.push('Controle 04: auditoria e cronômetro recuperados após logout/login: OK');
+
 
   await importPlan(pageA,path.join(dataDir,'plano-dominio-homologacao.pdf'));
   await walletCount(pageA,1);
@@ -191,6 +220,10 @@ async function run(){
   const settingsA=await api('/rest/v1/user_workspaces?select=payload,revision&user_id=eq.'+creds[0].id,{accessToken:creds[0].token});
   assert.equal(settingsA[0].payload.crmSettings.dates.charge1,13,'Configuração A isolada da B');
   stats.push('CRM: Cancelar e Restaurar padrões com persistência no Supabase real local: OK');
+  await pageB.locator('button[data-page="controle"]').click();
+  assert.doesNotMatch(await pageB.locator('#trackingV4Panel').textContent(),/Homologação gerencial isolada/);
+  assert.equal(await pageB.locator('#trackingV4Panel [data-track4-open]').count(),0,'Outra conta não tem empresas da A');
+  stats.push('Controle 04 RLS: B não visualiza carteira gerencial ou cronômetro A: OK');
   stats.push('CRM RLS real: usuário B não acessa configurações/histórico da conta A: OK');
   stats.push('RLS real: usuário B não lê o workspace A, B mantém workspace próprio: OK');
   await pageA.screenshot({path:path.join(dataDir,'carteira-real-auth-desktop.png'),fullPage:true});
@@ -205,6 +238,14 @@ async function run(){
   await pageA.screenshot({path:path.join(dataDir,'crm-real-auth-detail-desktop.png'),fullPage:true});
   await pageA.setViewportSize({width:390,height:850});
   await pageA.screenshot({path:path.join(dataDir,'crm-real-auth-mobile.png'),fullPage:true});
+  await pageA.locator('button[data-page="controle"]').click();
+  if(await pageA.locator('[data-track4-back]').count())await pageA.locator('[data-track4-back]').click();
+  await pageA.setViewportSize({width:1440,height:1000});
+  await pageA.screenshot({path:path.join(dataDir,'controle-v4-real-auth-desktop.png'),fullPage:true});
+  await pageA.locator('#trackingV4Panel [data-track4-open]').first().click();
+  await pageA.screenshot({path:path.join(dataDir,'controle-v4-real-auth-detail.png'),fullPage:true});
+  await pageA.setViewportSize({width:390,height:850});
+  await pageA.screenshot({path:path.join(dataDir,'controle-v4-real-auth-mobile.png'),fullPage:true});
   await ctxA.close();await ctxB.close();
  }finally{await browser.close();}
 }
