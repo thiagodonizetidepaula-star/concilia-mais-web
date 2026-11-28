@@ -67,3 +67,30 @@ Como `main` e Supabase de produção não foram alterados, basta fechar o PR e r
 
 ## 10. Próxima ação
 Revisar o PR e autorizar explicitamente (a) homologação num ambiente isolado com usuários e documentos de teste e (b) eventual publicação/merge na `main`. Nenhuma outra funcionalidade futura foi iniciada.
+
+---
+
+## 11. Complemento de homologação técnica — suíte real executada no GitHub Actions
+
+**Execução concluída com sucesso:**
+https://github.com/thiagodonizetidepaula-star/concilia-mais-web/actions/runs/46089636949
+
+- Commit testado: `f6368aab10bca6922320dbf683a825a472f28a4a`.
+- **16 testes passaram; 0 falhas; 0 ignorados.**
+- `node --check` concluiu sem erros em `app.js`, `client-wallet.js` e principais módulos atuais.
+- Testes Node com dados fictícios: listagem, contador real, isolamento simulado entre contas, logout, validação de CNPJ, duplicidade, edição, rollback, acesso às telas existentes, reimportação sem duplicação, preservação da aprendizagem e das conciliações gerenciais.
+- Regressão Node: leitor do plano Domínio (PDF sintético), auditoria contábil, multi-bancos PDF, restauração e apuração tributária.
+- **Chromium headless** carregou `testes/carteira-homologacao-visual.html`, executou o `client-wallet.js` real, confirmou o DOM gerado e produziu capturas de tela de 1440 px e 390 px de largura.
+- Artefatos (capturas PNG, DOM e saída de teste):
+  https://github.com/thiagodonizetidepaula-star/concilia-mais-web/actions/runs/46089636949/artifacts/15240413134
+- Correções efetuadas durante a homologação: acionamento do render na fixture de teste, ajuste de título duplicado no layout móvel e mensagem informando quando a sincronização Supabase está pendente.
+- **Nenhum merge realizado. Nenhuma publicação em produção. Nenhuma gravação de dados reais.**
+
+### Limites que impedem declarar homologação operacional plena
+1. Não foi utilizado login real de dois funcionários para comprovar a política RLS ponta a ponta. A política no banco foi inspecionada e o isolamento de UI foi testado com identidades simuladas.
+2. O importador real do Domínio não foi executado no navegador autenticado com um documento real, apenas com testes sintéticos do leitor e testes da lógica do trecho de vinculação.
+3. A persistência após logout/login em Supabase com usuários de teste não foi validada de ponta a ponta.
+4. A partilha de uma mesma empresa entre dois usuários não foi implementada, pois `user_workspaces` ainda não utiliza o modelo relacional `company_members` no fluxo operacional.
+5. As capturas são do componente real na fixture com clientes fictícios, não da aplicação autenticada em produção.
+
+**Conclusão:** homologação técnica automatizada de desenvolvimento **aprovada**, com bloqueio mantido de publicação até aprovação do usuário e execução da validação operacional restante. A segunda melhoria não foi iniciada.
