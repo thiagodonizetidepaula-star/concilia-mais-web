@@ -73,7 +73,7 @@ function render(){
  const list=current(),all=companies(),active=all.filter(c=>!c.clientInactive);
  const selected=all.find(c=>c.id===editingId);
  const counts={};if(mode==='mensal')for(const c of list){const s=c.documentHistory?.[period(year,month)]?.status||'Sem registro';counts[s]=(counts[s]||0)+1;}
- el.innerHTML='<div class="docs-header"><div><span class="prod-kicker">GESTÃO DE DOCUMENTOS</span><h2>Controle de Documentos</h2><p>Recebimento e cobranças manuais por competência, sem cadastrar bancos ou extratos individuais.</p></div><div class="docs-kpis"><div><strong>'+active.length+'</strong><small>ativos</small></div><div><strong>'+(all.length-active.length)+'</strong><small>inativos</small></div></div></div>'+
+ el.innerHTML='<div class="docs-header"><div><span class="prod-kicker">GESTÃO DE DOCUMENTOS</span><h2>Acompanhamento documental</h2><p>Recebimento e cobranças manuais por competência, sem cadastrar bancos ou extratos individuais.</p></div><div class="docs-kpis"><div><strong>'+active.length+'</strong><small>ativos</small></div><div><strong>'+(all.length-active.length)+'</strong><small>inativos</small></div></div></div>'+
  '<div class="docs-tabs"><button type="button" data-doc-mode="mensal" '+(mode==='mensal'?'class="active"':'')+'>Visão mensal</button>'+
  '<button type="button" data-doc-mode="anual" '+(mode==='anual'?'class="active"':'')+'>Visão anual</button>'+
  '<button type="button" data-doc-mode="preview" '+(mode==='preview'?'class="active"':'')+'>Prévia de importação Excel</button></div>'+
