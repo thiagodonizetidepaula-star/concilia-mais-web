@@ -67,8 +67,8 @@ function activity(){
  bars(monthly,'Atividades por mês')+
  '<p class="m05-ext-note">Registros manuais de medição são distintos das sessões dos cronômetros existentes. Não some duas fontes sem vínculo verificável. Ajustes são auditados e não alteram extratos.</p>'+
  form+
- (rs.length?'<div class="m05-ext-scroll"><table><thead><tr><th>Atividade</th><th>Data executada</th><th>Competência</th><th>Tempo efetivo</th><th>Espera</th><th>Origem</th></tr></thead><tbody>'+
- rs.slice(-60).reverse().map(r=>'<tr><td>'+esc(r.title)+'</td><td>'+esc(r.executionAt)+'</td><td>'+esc(r.period)+'</td><td>'+n(r.effectiveSeconds)+'s</td><td>'+n(r.waitSeconds)+'s</td><td>'+esc(r.source)+'</td></tr>').join('')+'</tbody></table></div>':''));
+ (rs.length?'<div class="m05-ext-scroll"><table><thead><tr><th>Atividade</th><th>Data executada</th><th>Competência</th><th>Tempo efetivo</th><th>Espera</th><th>Origem</th><th>Correção auditável</th></tr></thead><tbody>'+
+ rs.slice(-60).reverse().map(r=>'<tr><td>'+esc(r.title)+'</td><td>'+esc(r.executionAt)+'</td><td>'+esc(r.period)+'</td><td>'+n(r.effectiveSeconds)+'s</td><td>'+n(r.waitSeconds)+'s</td><td>'+esc(r.source)+'</td><td>'+button('Ajustar','data-m05x-edit-activity="'+esc(r.id)+'"')+'</td></tr>').join('')+'</tbody></table></div>':''));
 }
 function quality(){
  const rs=selected('quality'),stats=A.quality(rs,filter());
@@ -183,7 +183,12 @@ async function formSubmit(form){
   for(const k of ['effectiveSeconds','pauseSeconds','waitSeconds','reworkSeconds','movements'])data[k]=data[k]===''?null:Number(data[k]);
   data.title=data.title||data.activityType;
  }else if(kind==='ruleEvent')data.confirmed=data.confirmed==='true';
- const record=create(kind,data);
+ let record;
+ if(kind==='activity'&&form.dataset.editId){
+  const old=records('activities').find(r=>r.id===form.dataset.editId);
+  if(!old)throw Error('Medição não encontrada ou sem autorização');
+  record=C.edit(old,data,owner());
+ }else record=create(kind,data);
  await save(kind,record);
 }
 async function review(id,target){
@@ -200,6 +205,20 @@ function init(){
  });
  root.addEventListener('click',async e=>{
   if(e.target.closest('[data-m05x-reset]')){view={range:'month',day:today(),month:today().slice(0,7),year:Number(today().slice(0,4)),start:today().slice(0,7)+'-01',end:today(),period:'',companyId:'',search:'',status:'all',activityType:'all'};window.Concilia05?.render();return;}
+  const activityEdit=e.target.closest('[data-m05x-edit-activity]');
+  if(activityEdit){
+   const record=records('activities').find(r=>r.id===activityEdit.dataset.m05xEditActivity);
+   if(!record){alert('Medição não encontrada ou sem autorização');return;}
+   const form=root.querySelector('[data-m05x-form="activity"]');if(!form){alert('Abra Produtividade para ajustar a medição');return;}
+   form.dataset.editId=record.id;
+   for(const [key,value] of Object.entries(record)){
+    if(key==='companyId'||key==='originId')continue;
+    const field=form.elements.namedItem(key);
+    if(field&&value!==null&&value!==undefined)field.value=String(value);
+   }
+   const submit=form.querySelector('button[type="submit"]');if(submit)submit.textContent='Salvar ajuste auditado';
+   form.scrollIntoView({behavior:'smooth',block:'center'});return;
+  }
   const r=e.target.closest('[data-m05x-review]');if(r)try{await review(r.dataset.m05xReview,r.dataset.reviewTo)}catch(err){alert(err.message)}return;
   const ex=e.target.closest('[data-m05x-export]');if(ex)try{await window.Concilia05Reports.export(ex.dataset.m05xExport,{filter:filter(),state:store(),companies:companies(),owner:owner(),analytics:A,B,tracking:window.ConciliaTrackingCore})}catch(err){alert(err.message)};
  });
