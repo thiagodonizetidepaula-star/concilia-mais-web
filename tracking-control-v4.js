@@ -32,6 +32,13 @@ function renderSummary(){
  return '<div class="track4-summary">'+items.map(([k,v])=>'<button type="button" data-track4-counter="'+esc(k)+'" title="Filtrar situação quando disponível"><strong>'+v+'</strong><small>'+esc(k)+'</small></button>').join('')+'</div>'+
  '<div class="track4-progress"><span>Progresso da carteira: <b>'+s.percent+'%</b> ('+s.done+' de '+s.applicable+' aplicáveis)</span><div role="progressbar" aria-valuenow="'+s.percent+'" aria-valuemin="0" aria-valuemax="100"><span style="width:'+s.percent+'%"></span></div></div>';
 }
+function renderEvolution(){
+ const months=T.evolution(validCompanies(),year,uid());
+ return '<details class="track4-evolution"><summary>Evolução mensal da carteira em '+year+' — competências de janeiro a dezembro</summary>'+
+ '<div class="track4-table"><table><thead><tr><th>Competência</th><th>Concluídas</th><th>Restantes</th><th>Conclusão</th><th>Lançamentos</th><th>Pendências resolvidas</th><th>Trabalho efetivo</th><th>Concluídas no mês da competência</th></tr></thead><tbody>'+
+ months.map(v=>'<tr><td>'+esc(v.period)+'</td><td>'+v.completed+'</td><td>'+v.remaining+'</td><td>'+v.percent+'%</td><td>'+v.processed+'</td><td>'+v.resolved+'</td><td>'+sec(v.workedSeconds)+'</td><td>'+v.calendarFinishes+'</td></tr>').join('')+
+ '</tbody></table></div><p>Valores automáticos são derivados dos registros ainda disponíveis ou dos ajustes gerenciais identificados; zero não comprova ausência de lançamentos em arquivos retidos fora da sessão. A data do trabalho efetivo é registrada separadamente da competência.</p></details>';
+}
 function renderList(){const list=rows(),period=p();return '<div class="track4-filters">'+
  '<label>Empresa / CNPJ / Domínio<input type="search" data-track4-filter="search" value="'+esc(search)+'"></label>'+
  '<label>Ano<input type="number" min="2000" max="2099" data-track4-filter="year" value="'+year+'"></label>'+
@@ -69,7 +76,7 @@ function render(){
  const root=$('#trackingV4Panel');if(!root)return;
  if(!uid()||!window.ConciliaCloud?.authenticated?.()){root.textContent='Entre na conta para consultar as conciliações da sua carteira.';return;}
  if(selected&&!validCompanies().some(c=>c.id===selected))selected='';
- root.innerHTML='<div class="track4-heading"><div><span>GESTÃO DAS CONCILIAÇÕES</span><h2>Acompanhamento mensal da carteira</h2><p>Indicadores automáticos e ajustes manuais separados das classificações contábeis.</p></div></div>'+renderSummary()+(selected?detail():renderList());
+ root.innerHTML='<div class="track4-heading"><div><span>GESTÃO DAS CONCILIAÇÕES</span><h2>Acompanhamento mensal da carteira</h2><p>Indicadores automáticos e ajustes manuais separados das classificações contábeis.</p></div></div>'+renderSummary()+(selected?detail():renderList()+renderEvolution());
 }
 function rollback(c,period,old){if(old)c.reconciliationTracking[period]=old;else delete c.reconciliationTracking[period];}
 async function persist(c,period,old,type){
