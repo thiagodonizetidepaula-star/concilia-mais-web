@@ -101,10 +101,12 @@ async function persist(kind,detail,undo){
 }
 async function saveSettings(values,restore=false){
  const before=state.crmSettings===undefined?null:C.safeCopy(state.crmSettings);
- const newValues=C.schedule(values);
- state.crmSettings={...(state.crmSettings||{}),dates:newValues,changedAt:new Date().toISOString(),changedBy:cloudUser()};
- try{await persist(restore?'CRM_DATAS_RESTAURADAS':'CRM_DATAS_CONFIGURADAS',JSON.stringify(newValues),()=>{if(before===null)delete state.crmSettings;else state.crmSettings=before;});configEditing=false;configDraft=null;render();}
- catch(e){alert(e.message);}
+ try{
+  const newValues=C.schedule(values);
+  state.crmSettings={...(state.crmSettings||{}),dates:newValues,changedAt:new Date().toISOString(),changedBy:cloudUser()};
+  await persist(restore?'CRM_DATAS_RESTAURADAS':'CRM_DATAS_CONFIGURADAS',JSON.stringify(newValues),()=>{if(before===null)delete state.crmSettings;else state.crmSettings=before;});
+  configEditing=false;configDraft=null;render();
+ }catch(e){alert(e.message);}
 }
 function setFormConfig(e){
  const el=e.target.closest('[data-crm-setting]');if(!el)return;
