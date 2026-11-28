@@ -152,12 +152,18 @@ function render(next){
  const root=$('#melhoria05Panel');if(!root||!C||!B)return;
  const id=window.ConciliaCloud?.accountId?.()||'';
  if(!id){owner='';ready=false;store=C.blank();root.replaceChildren();return;}
+ const sameAccount=owner===id;
+ const existingForm=sameAccount?root.querySelector('#m05NewForm'):null;
+ if(existingForm)existingForm.remove();
  if(owner!==id){owner=id;store=C.blank();revision=null;ready=false;loading=false;requested=false;error='';}
  if(!requested){requested=true;void load(id);}
  const selected=views[mode]||overview;
  root.innerHTML='<div class="m05-shell">'+header()+'<div class="m05-nav" role="tablist" aria-label="Etapas da Melhoria 05">'+tabs.map(([id,label])=>'<button type="button" role="tab" data-m05-tab="'+id+'" aria-selected="'+(mode===id)+'">'+esc(label)+'</button>').join('')+'</div>'+filters()+
  (ready?'<div class="m05-body" role="tabpanel">'+selected()+'</div>':empty(error||'Sincronizando os registros pessoais...'))+
  '<div id="m05FormHost"></div><footer>Melhoria 05 em ambiente de homologação. Sem alterações em saldos, classificações, empresa ou dados de outros usuários.</footer></div>';
+ // Eventos de outros módulos podem pedir renderização enquanto o usuário digita.
+ // Reanexar o MESMO formulário conserva os campos, sem salvar rascunhos não confirmados.
+ if(existingForm&&ready)root.querySelector('#m05FormHost')?.appendChild(existingForm);
 }
 async function load(id){
  if(loading||!id)return;loading=true;
@@ -181,6 +187,7 @@ async function persist(kind,record){
   else res=await table.update({payload:snapshot,revision:revision+1,updated_at:new Date().toISOString()}).eq('user_id',id).eq('revision',revision).select('revision').maybeSingle();
   if(res.error)throw res.error;if(!res.data||owner!==id)throw Error('Conflito de versão ou troca de sessão; nenhum dado sobrescrito');
   revision=res.data.revision;store=snapshot;error='';
+  document.querySelector('#m05FormHost')?.replaceChildren();
  }catch(e){error='Não salvo: '+String(e.message||e).slice(0,170)+' — atualize a página antes de tentar novamente';ready=false;requested=true;}
  finally{saving=false;render();}
 }
