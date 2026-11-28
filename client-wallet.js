@@ -113,7 +113,7 @@ function init(){
   if(a==='detail'){viewing=id;editing=null;render();return;}
   if(a==='close'||a==='cancel'){editing=null;viewing=null;render();return;}
   if(a==='plan'||a==='partners'||a==='related'){
-   try{selectCompany(id,a==='partners'?'#partnerForm':a==='related'?'#relatedCompanyForm':'#importPlan');}
+   try{selectCompany(id,a==='partners'?'#partnerForm':a==='related'?'#relatedCompanyForm':'#planTable');}
    catch(err){say(err.message,true);}
   }
  });
