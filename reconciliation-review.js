@@ -104,7 +104,11 @@
   $('#pendingSummary').textContent = company
    ? company.name + ' · ' + month + ' · ' + issues.length + ' pendência(s) ativa(s)'
    : 'Selecione uma empresa e uma competência.';
-  $('#pendingList').innerHTML = table(['Ocorrência', 'Arquivo de origem', 'Evidência', 'Revisão', 'Ações'],
+  $('#pendingList').innerHTML = company&&!issues.length
+   ? (window.ConciliaAssistente?.analisar?.(Core,company,month)?.ready
+      ? '<div class="pendencias-ok" role="status">✓ Nenhuma pendência identificada. Todas as classificações e validações necessárias foram concluídas.</div>'
+      : '<div class="pendencias-neutral" role="status">Nenhuma ocorrência de revisão listada. A conciliação ainda pode exigir lançamentos ou conferência antes da aprovação.</div>')
+   : table(['Ocorrência', 'Arquivo de origem', 'Evidência', 'Revisão', 'Ações'],
    issues.map((issue, index) => [
     safe(issue.type), safe(issue.source || '—'), safe(issue.detail),
     safe(byIssue.get(issue.id)?.reason || 'A revisar'),
