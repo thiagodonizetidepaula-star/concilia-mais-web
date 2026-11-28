@@ -96,20 +96,35 @@ async function confirmFresh(){
  if(window.ConciliaCloud.revision()!==revision)throw Error('Outra sessão alterou o workspace. Recarregue a página para evitar sobrescrever dados.');
  if(!remote)throw Error('Workspace não encontrado no Supabase.');
 }
-async function doTimer(action){
- const c=validCompanies().find(x=>x.id===selected),period=p();if(!c)throw Error('Empresa não encontrada.');
- if(['reset','restart','edit-time'].includes(action)&&!confirm('Confirmar '+action+'? O tempo e seu histórico anterior serão preservados.'))return;
- const seconds=action==='edit-time'?Number(prompt('Tempo válido total em segundos (ex.: 3000 para 50 minutos):')):null;
- if(action==='edit-time'&&!Number.isSafeInteger(seconds))return;
+function activeTimer(){
+ for(const c of validCompanies())for(const [month,record] of Object.entries(c.reconciliationTracking||{})){
+  if(record.workTimer?.runningSince&&record.workTimer.actorId===uid())return {company:c,period:month,timer:record.workTimer};
+ }
+ return null;
+}
+async function doTimerFor(c,period,action,seconds=null){
+ if(!c)throw Error('Empresa não encontrada.');
  await confirmFresh();
  const old=JSON.parse(JSON.stringify(c.reconciliationTracking?.[period]||null));
- // Um único cronômetro ativo por usuário em todos os cadastros da carteira.
  if(['start','resume','restart'].includes(action)){
-  for(const other of validCompanies())for(const [m,t] of Object.entries(other.reconciliationTracking||{}))if(other.id!==c.id||m!==period)if(t.workTimer?.runningSince&&t.workTimer.actorId===uid())throw Error('Já existe outro cronômetro ativo em '+other.name+' · '+m+'. Pause-o antes de iniciar este.');
+  const other=activeTimer();
+  if(other&&(other.company.id!==c.id||other.period!==period))throw Error('Cronômetro ativo em '+other.company.name+' · '+other.period+'. Pause antes de iniciar outro.');
  }
  const timer=T.timerTransition(c,period,action,uid(),new Date(),seconds);
  c.reconciliationTracking ||= {};c.reconciliationTracking[period] ||= {};c.reconciliationTracking[period].workTimer=timer;
- try{await persist(c,period,old,'CRONOMETRO_CONCILIACAO_'+action.toUpperCase());render();}catch(e){alert(e.message);}
+ try{
+  await persist(c,period,old,'CRONOMETRO_CONCILIACAO_'+action.toUpperCase());
+  if(action!=='heartbeat')render();
+ }catch(e){if(action!=='heartbeat')alert(e.message);else console.warn('Heartbeat: ',e.message);throw e;}
+}
+async function doTimer(action){
+ const c=validCompanies().find(x=>x.id===selected);
+ if(['reset','restart','edit-time'].includes(action)&&!confirm('Confirmar '+action+'? O tempo e seu histórico anterior serão preservados.'))return;
+ const requested=action==='edit-time'?prompt('Tempo válido total em segundos (ex.: 3000 para 50 minutos):'):null;
+ if(action==='edit-time'&&requested===null)return;
+ const seconds=action==='edit-time'?Number(requested):null;
+ if(action==='edit-time'&&!Number.isSafeInteger(seconds))throw Error('Informe tempo inteiro em segundos.');
+ return doTimerFor(c,p(),action,seconds);
 }
 async function saveEdit(form){
  const c=validCompanies().find(x=>x.id===selected),period=p();if(!c)throw Error('Empresa não encontrada.');
@@ -154,8 +169,8 @@ function init(){
  // Heartbeat protege contra contagem de horas após fechar ou perder a conexão.
  // É salvo somente enquanto a página está ativa; a revisão de nuvem bloqueia
  // escrita concorrente entre abas/dispositivos.
- setInterval(()=>{if(document.hidden||busy||!ready())return;const c=validCompanies().find(x=>x.id===selected);if(!c)return;const t=T.timer(c,p());if(t.runningSince&&!T.stale(t))doTimer('heartbeat').catch(err=>console.warn('Cronômetro: heartbeat não confirmado',err.message));},30000);
- document.addEventListener('visibilitychange',()=>{if(!document.hidden)return;const c=validCompanies().find(x=>x.id===selected);if(c&&T.timer(c,p()).runningSince&&!busy)doTimer('pause').catch(err=>console.warn('Cronômetro: pausa ao ocultar não confirmada',err.message));});
+ setInterval(()=>{if(document.hidden||busy||!ready())return;const a=activeTimer();if(a&&!T.stale(a.timer))doTimerFor(a.company,a.period,'heartbeat').catch(err=>console.warn('Cronômetro: heartbeat não confirmado',err.message));},30000);
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden||busy)return;const a=activeTimer();if(a)doTimerFor(a.company,a.period,'pause').catch(err=>console.warn('Cronômetro: pausa ao ocultar não confirmada',err.message));});
 }
 window.ConciliaTrackingV4={render,summary:()=>T.summarize(validCompanies(),p(),uid()),currentPeriod:p};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
