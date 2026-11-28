@@ -46,14 +46,14 @@ const ownRecords=(key)=>{
 };
 const formFields={
  quality:[['title','Descrição da ocorrência','text'],['category','Categoria','category'],['severity','Gravidade','severity'],['description','Detalhes e evidências','textarea'],['cause','Causa confirmada, se conhecida','text'],['correctiveAction','Ação corretiva','text']],
- goal:[['title','Nome da meta','text'],['metric','Indicador relacionado','metric'],['baseline','Valor inicial','number'],['target','Objetivo','number'],['manualActual','Resultado manual (quando necessário)','number'],['direction','Sentido da meta','direction'],['deadline','Prazo','date'],['description','Observações','textarea']],
+ goal:[['title','Nome da meta','text'],['metric','Indicador relacionado','metric'],['baseline','Valor inicial','number'],['target','Objetivo','number'],['manualActual','Resultado manual (quando necessário)','number'],['direction','Sentido da meta','direction'],['frequency','Periodicidade','frequency'],['start','Início do período','date'],['deadline','Prazo final','date'],['description','Observações','textarea']],
  competency:[['title','Competência avaliada','text'],['level','Nível (autoavaliação)','level'],['evidence','Evidência verificada','textarea']],
  diary:[['title','Aprendizado ou atividade','text'],['date','Data','date'],['description','Registro profissional','textarea']],
  achievement:[['title','Realização','text'],['date','Data','date'],['description','Evidência','textarea']],
  development:[['title','Objetivo de desenvolvimento','text'],['action','Plano de ação','textarea'],['expected','Resultado esperado','text'],['deadline','Prazo','date']]
 };
 function options(name){
- const d={category:C.CATEGORIES,severity:['Baixa','Média','Alta'],direction:['increase','decrease'],level:C.LEVELS,
+ const d={category:C.CATEGORIES,severity:['Baixa','Média','Alta'],direction:['increase','decrease'],frequency:['day','week','month','quarter','semester','year','custom'],level:C.LEVELS,
  metric:['concluded','movements','classified','documentReceived','charges','automated','excel','pending','learnedRules']};
  return d[name]||[];
 }
