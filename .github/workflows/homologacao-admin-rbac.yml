@@ -1,0 +1,26 @@
+name: Homologação segura — Administração ConCiliar+PLUS
+on:
+  push:
+    branches:
+      - feature/admin-equipe-rbac-20261128
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  seguranca-admin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Sintaxe dos módulos do navegador
+        run: node --check administracao.js
+      - name: Testes de segurança administrativa
+        run: node --test testes/admin-rbac.test.cjs
+      - name: Garantir que produção não recebeu bootstrap privilegiado
+        run: |
+          if grep -Ei '^\s*insert\s+into\s+public\.concilia_admins' supabase/migrations/20261128093000_concilia_admin_roles_proposta.sql; then
+            echo "Falha: bootstrap administrativo deve ser concedido após identidade confirmada"
+            exit 1
+          fi
