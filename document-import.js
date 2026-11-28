@@ -69,7 +69,18 @@ function merge(workspace,preview,sourceId='test',actor='test'){
  const counts={created:0,reused:0,newEmails:0,docRecords:0,closingRecords:0,conflicts:[]};
  for(const row of preview.selected){
   if(!cnpjValid(row.cnpj)){counts.conflicts.push('CNPJ não válido na linha '+row.sourceRow);continue;}
-  let c=result.companies.find(x=>digits(x.cnpj)===row.cnpj);
+  const exact=result.companies.filter(x=>digits(x.cnpj)===row.cnpj);
+  if(exact.length>1){counts.conflicts.push('Linha '+row.sourceRow+': duplicidade do CNPJ no cadastro existente. Exige revisão manual.');continue;}
+  let c=exact[0]||null;
+  if(!c){
+   const suspects=result.companies.filter(x=>
+    (row.code!==null&&row.code!==''&&x.dominio!==null&&x.dominio!==undefined&&String(x.dominio).trim()===String(row.code).trim())||
+    (norm(x.name)===norm(row.name)&&norm(row.name)!==''));
+   if(suspects.length){
+    counts.conflicts.push('Linha '+row.sourceRow+': possível cadastro preexistente com nome/código Domínio coincidente e CNPJ diferente ou ausente. Não criar nem mesclar sem validação.');
+    continue;
+   }
+  }
   if(c&&Array.isArray(c.walletAssignedUserIds)&&actor&&!c.walletAssignedUserIds.includes(actor)){
    counts.conflicts.push('Linha '+row.sourceRow+': empresa atribuída a outro usuário; alteração bloqueada.');continue;
   }
