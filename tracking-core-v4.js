@@ -129,11 +129,20 @@
   return months;
  }
  function timer(c,p){return obj(c.reconciliationTracking?.[p]?.workTimer);}
- function elapsed(t,now=Date.now()){return Math.max(0,Number(t.seconds)||0)+(t.runningSince?Math.max(0,now-Date.parse(t.runningSince))/1000:0);}
+ function elapsed(t,now=Date.now()){
+  const base=Math.max(0,Number(t.seconds)||0);
+  if(!t.runningSince)return base;
+  // Um cronômetro abandonado após fechar o navegador não pode contar dias sem
+  // atividade. Com heartbeat ativo, cap no máximo 90 s após o último sinal.
+  const since=Date.parse(t.runningSince),beat=Date.parse(t.lastHeartbeatAt||t.runningSince);
+  const until=Math.min(now,Number.isFinite(beat)?beat+90000:since+90000);
+  return base+Math.max(0,until-since)/1000;
+ }
+ function stale(t,now=Date.now()){return !!t.runningSince&&now-Date.parse(t.lastHeartbeatAt||t.runningSince)>90000;}
  function timerTransition(c,p,action,actorId,now=new Date(),manualSeconds=null){
   if(!owner(c,actorId))throw Error('Acesso negado.');
   if(!iso(p))throw Error('Competência inválida');
-  if(!['start','pause','resume','finish','reset','restart','edit-time','restore-auto'].includes(action))throw Error('Ação de cronômetro inválida.');
+  if(!['start','pause','resume','finish','reset','restart','edit-time','restore-auto','heartbeat'].includes(action))throw Error('Ação de cronômetro inválida.');
   const t={...timer(c,p)},before=JSON.parse(JSON.stringify(t)),at=now.toISOString(),instant=now.getTime();
   if(t.actorId&&t.actorId!==actorId)throw Error('Cronômetro vinculado a outro funcionário.');
   if(action==='start'||action==='resume'||action==='restart'){
@@ -142,7 +151,11 @@
    if(t.finishedAt&&action!=='restart')throw Error('Cronômetro finalizado. Reinicie com confirmação.');
    if(action==='restart'){t.seconds=0;t.finishedAt=null;t.startedAt=at;}
    if(!t.startedAt)t.startedAt=at;
-   t.runningSince=at;
+   t.runningSince=at;t.lastHeartbeatAt=at;
+  }
+  if(action==='heartbeat'){
+    if(!t.runningSince||t.finishedAt)throw Error('Cronômetro não está em execução.');
+    t.seconds=elapsed(t,instant);t.runningSince=at;t.lastHeartbeatAt=at;
   }
   if(action==='pause'||action==='finish'){
    if(!t.startedAt||t.finishedAt)throw Error('Cronômetro não iniciado ou finalizado.');
@@ -153,8 +166,8 @@
   if(action==='edit-time'){if(!Number.isSafeInteger(manualSeconds)||manualSeconds<0||manualSeconds>36000000)throw Error('Tempo manual inválido.');t.manualSeconds=manualSeconds;}
   if(action==='restore-auto')delete t.manualSeconds;
   t.actorId=actorId;t.updatedAt=at;
-  t.history=[...safeArray(t.history),{action,at,actorId,before:{seconds:before.seconds||0,manualSeconds:before.manualSeconds??null,runningSince:before.runningSince||null,finishedAt:before.finishedAt||null}}];
+  if(action!=='heartbeat')t.history=[...safeArray(t.history),{action,at,actorId,before:{seconds:before.seconds||0,manualSeconds:before.manualSeconds??null,runningSince:before.runningSince||null,finishedAt:before.finishedAt||null}}];
   return t;
  }
- root.ConciliaTrackingCore={STATES,FIELDS,delayReasons,iso,owner,currentCompany,auto,effective,edit,restore,summarize,evolution,timer,elapsed,timerTransition,monthKey,age};
+ root.ConciliaTrackingCore={STATES,FIELDS,delayReasons,iso,owner,currentCompany,auto,effective,edit,restore,summarize,evolution,timer,elapsed,stale,timerTransition,monthKey,age};
 })(typeof window!=='undefined'?window:globalThis);
