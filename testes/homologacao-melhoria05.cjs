@@ -39,7 +39,7 @@ async function login(page,u){
  const visibleB=await request(table+'?select=user_id&user_id=eq.'+a.id,{user:b});assert.equal(visibleB.length,0,'RLS SELECT');
  const blocked=await request(table+'?user_id=eq.'+a.id,{method:'PATCH',user:b,body:{payload:{version:1,quality:[{id:'INJECAO'}]},revision:5},prefer:'return=representation'});
  assert.equal(blocked.length,0,'RLS UPDATE bloqueia adulteração entre usuários');
- const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+ const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME_BIN||'/usr/bin/google-chrome',args:['--no-sandbox']});
  try{
   const page=await browser.newPage({viewport:{width:1380,height:950}});
   page.on('pageerror',err=>console.warn('PAGE:',err.message));
