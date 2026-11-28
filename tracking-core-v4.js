@@ -114,6 +114,20 @@
    withinDeadline:rows.filter(r=>r.done&&r.record.end&&r.record.deadline&&r.record.end<=r.record.deadline).length,
    groups,rows};
  }
+ function evolution(companies,year,uid){
+  if(!/^20\\d{2}$/.test(String(year)))throw Error('Ano inválido.');
+  const months=[];
+  for(let m=1;m<=12;m++){
+   const p=monthKey(year,m),s=summarize(companies,p,uid);
+   const processed=s.rows.reduce((a,x)=>a+Number(x.record.processed||0),0);
+   const resolved=s.rows.reduce((a,x)=>a+Number(x.record.pendingResolved||0),0);
+   const workedSeconds=s.rows.reduce((a,x)=>a+Number(x.record.effectiveSeconds||0),0);
+   const completedInMonth=s.rows.filter(x=>x.done).length;
+   const calendarFinishes=s.rows.filter(x=>x.record.end&&String(x.record.end).slice(0,7)===p).length;
+   months.push({period:p,completed:completedInMonth,remaining:s.remaining,applicable:s.applicable,percent:s.percent,processed,resolved,workedSeconds,calendarFinishes,averageSeconds:completedInMonth?Math.round(workedSeconds/completedInMonth):null,overdue:s.overdue,withinDeadline:s.withinDeadline});
+  }
+  return months;
+ }
  function timer(c,p){return obj(c.reconciliationTracking?.[p]?.workTimer);}
  function elapsed(t,now=Date.now()){return Math.max(0,Number(t.seconds)||0)+(t.runningSince?Math.max(0,now-Date.parse(t.runningSince))/1000:0);}
  function timerTransition(c,p,action,actorId,now=new Date(),manualSeconds=null){
@@ -142,5 +156,5 @@
   t.history=[...safeArray(t.history),{action,at,actorId,before:{seconds:before.seconds||0,manualSeconds:before.manualSeconds??null,runningSince:before.runningSince||null,finishedAt:before.finishedAt||null}}];
   return t;
  }
- root.ConciliaTrackingCore={STATES,FIELDS,delayReasons,iso,owner,currentCompany,auto,effective,edit,restore,summarize,timer,elapsed,timerTransition,monthKey,age};
+ root.ConciliaTrackingCore={STATES,FIELDS,delayReasons,iso,owner,currentCompany,auto,effective,edit,restore,summarize,evolution,timer,elapsed,timerTransition,monthKey,age};
 })(typeof window!=='undefined'?window:globalThis);
