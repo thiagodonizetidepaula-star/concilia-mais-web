@@ -24,12 +24,12 @@ Repositório: https://github.com/thiagodonizetidepaula-star/concilia-mais-web
 
 
 ## Dashboards BI integrados do ConCiliar+PLUS
-A Visão Geral contém quatro perspectivas **dentro da página existente**, com módulos `dashboard-bi-metrics.js`, `dashboard-bi.js`, `dashboard-bi.css` e filtros de ano, competência, empresa e pesquisa. O layout azul-marinho/ciano utiliza dados reais do workspace acessível e não altera saldos/classificações. Os testes são executados no GitHub Actions com Chromium e Supabase local temporário; não é necessário instalar dependências pagas. Consulte `docs/DICIONARIO_DE_INDICADORES.md` e `docs/MANUAL_TECNICO.md`.
+O Dashboard de Produtividade contém quatro perspectivas **integradas à página existente**, com módulos `dashboard-bi-metrics.js`, `dashboard-bi.js`, `dashboard-bi.css` e filtros de ano, competência, empresa e pesquisa. O layout azul-marinho/ciano utiliza dados reais do workspace acessível e não altera saldos/classificações. Os testes são executados no GitHub Actions com Chromium e Supabase local temporário; não é necessário instalar dependências pagas. Consulte `docs/DICIONARIO_DE_INDICADORES.md` e `docs/MANUAL_TECNICO.md`.
 O indicador profissional não deve ser confundido com qualidade ou desempenho financeiro; ausência de medição não gera zero fictício. Nenhum token, senha ou backup corporativo é incluído no ZIP público do projeto.
 
 
-## Melhoria 05 — segundo ciclo em desenvolvimento isolado (28/11/2026)
-**A Melhoria 05 ainda NÃO está na produção. Nenhuma autorização de merge ou Render foi concedida para o segundo ciclo.** Ela é mantida na branch `feature/melhoria-05-inteligencia-operacional`, com fluxo de testes GitHub Actions e ambiente efêmero Supabase local.
+## Melhoria 05 — entrega parcial publicada, desenvolvimento integral em andamento (28/11/2026)
+**O PR #82 foi mesclado e os componentes homologados tiveram deploy registrado como live no Render em 28/11/2026. Isso NÃO encerra o escopo integral da Melhoria 05.** Ela é mantida na branch `feature/melhoria-05-inteligencia-operacional`, com fluxo de testes GitHub Actions e ambiente efêmero Supabase local.
 
 Arquivos reais: `melhoria05-core.js` (regras puras; sem alteração de dados contábeis), `melhoria05-ui.js` (nove perspectivas internas, persistência privada CAS, relatórios), `melhoria05.css` (BI azul-marinho responsivo), `index.html` e `app.js` (encaixe na Visão Geral sem página principal duplicada), `supabase/migrations/20261128050000_melhoria05_user_states.sql` (SOMENTE proposta, não executada na produção), `testes/melhoria05-nucleo.test.cjs`, `testes/melhoria05-visual.html` e `testes/homologacao-melhoria05.cjs` (cálculos, fixture e E2E Auth/RLS no laboratório).
 
@@ -48,3 +48,7 @@ O código candidato reside em `feature/melhoria-05-inteligencia-operacional` (PR
 Consulte `docs/MANUAL_MELHORIA05.md` para uso, `docs/MATRIZ_REQUISITOS_MELHORIA05.md` para rastreabilidade completa e `docs/DICIONARIO_DE_INDICADORES.md` para fórmulas. A migração RLS está apenas proposta e deve ser testada isoladamente. Os dados privados não são exportados no ZIP do código.
 
 A rotina CI executa testes unitários, regressão, Chromium responsivo, Supabase local com dois usuários e validação do pacote candidato. **Não publicar ou mesclar na main sem autorização específica para o segundo ciclo.** 
+
+
+## Continuidade de homologação — filtros opcionais da Melhoria 05
+Na branch `feature/melhoria05-conclusao-filtros-e-documentacao-20261128` foram preparados os filtros condicionais de regime tributário, complexidade mensurada e tipo de serviço, sem inventar valores ausentes. Teste de isolamento por usuário, correspondência de metadados, ausência de dados e complexidade objetiva em `testes/melhoria05-filtros-opcionais.test.cjs`. **Somente integrar após aprovação do CI e verificação dos resultados; não usar esta extensão como comprovação de conclusão integral.**
