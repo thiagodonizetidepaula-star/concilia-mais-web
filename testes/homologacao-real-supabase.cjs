@@ -223,7 +223,7 @@ async function run(){
   await pageB.locator('button[data-page="controle"]').click();
   assert.doesNotMatch(await pageB.locator('#trackingV4Panel').textContent(),/Homologação gerencial isolada/);
   assert.equal(await pageB.locator('#trackingV4Panel [data-track4-open]').count(),1,'Outra conta só enxerga sua própria empresa fictícia');
-  const bDetails=await pageB.locator('#trackingV4Panel .track4-table').textContent();
+  const bDetails=await pageB.locator('#trackingV4Panel .track4-table').first().textContent();
   assert.doesNotMatch(bDetails,/EMPRESA HOMOLOGACAO ATUALIZADA/,'Nenhuma empresa pertencente à conta A deve aparecer em B');
   stats.push('Controle 04 RLS: B não visualiza carteira gerencial ou cronômetro A: OK');
   stats.push('CRM RLS real: usuário B não acessa configurações/histórico da conta A: OK');
