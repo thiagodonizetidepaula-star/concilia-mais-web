@@ -37,6 +37,7 @@ jobs:
           node --check retention-policy.js
       - name: Testes de homologação da Carteira e regressão existente
         run: |
+          set -o pipefail
           node --test testes/tracking-melhoria04.test.cjs testes/crm-melhoria03.test.cjs testes/document-management-melhoria02.test.cjs testes/carteira-clientes-etapa01.test.cjs testes/plano-dominio-t-vazio.test.cjs testes/auditoria-detalhada.test.cjs testes/multibancos-pdf.test.cjs testes/restaurar-tudo.test.cjs tests/tax-reconciliation.test.js 2>&1 | tee homologacao-resultado.txt
       - name: Verificar visual em Chromium com dados fictícios
         run: |
