@@ -69,8 +69,11 @@ function edit(previous,patch,actorId,now=new Date()){
  if(changes.category&&Object.prototype.hasOwnProperty.call(previous,'severity')&&!CATEGORIES.includes(changes.category))throw Error('Categoria de qualidade inválida');
  if(changes.progress!==undefined&&changes.progress!==null&&changes.progress>100)throw Error('Progresso não pode exceder 100%');
  if(changes.severity&&!['Baixa','Média','Alta'].includes(changes.severity))throw Error('Gravidade inválida');
+ const reason=text(patch.adjustmentReason||patch.reason||'');
+ const changedTime=Object.keys(changes).some(k=>['effectiveSeconds','pauseSeconds','waitSeconds','reworkSeconds','movements'].includes(k)&&changes[k]!==previous[k]);
+ if(changedTime&&!reason)throw Error('Informe o motivo do ajuste manual de tempo ou volume');
  const at=now.toISOString();
- return {...previous,...changes,updatedAt:at,audit:[...arr(previous.audit),{at,actorId,action:'edit',changes:Object.fromEntries(Object.keys(changes).map(k=>[k,{before:previous[k]??null,after:changes[k]}]))}]};
+ return {...previous,...changes,updatedAt:at,audit:[...arr(previous.audit),{at,actorId,action:'edit',reason,changes:Object.fromEntries(Object.keys(changes).map(k=>[k,{before:previous[k]??null,after:changes[k]}]))}]};
 }
 function saveRecord(state,kind,record,actorId){
  if(!TYPES.includes(kind))throw Error('Coleção inválida');
