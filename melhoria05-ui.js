@@ -19,13 +19,31 @@ const companyAllowed=id=>!id||companyList().some(c=>c.id===id);
 const months=()=>B.months(year);
 const mon=()=>months().at(new Date().getFullYear()===year?new Date().getMonth():11);
 const tracked=()=>window.ConciliaTrackingCore;
-const bi=()=>B.summarize(companies(),owner,mon(),{tracking:tracked()}).summary;
+const bi=()=>{const A=window.Concilia05Analytics,filter=window.Concilia05Advanced?.filter?.();return A&&filter?A.operational(companies(),owner,B,filter,tracked()).summary:B.summarize(companies(),owner,mon(),{tracking:tracked()}).summary;};
 const title=s=>'<h3>'+esc(s)+'</h3>';
 const kpi=(name,value,detail='')=>'<article class="m05-kpi"><small>'+esc(name)+'</small><strong>'+esc(value)+'</strong><span>'+esc(detail)+'</span></article>';
 const empty=msg=>'<div class="m05-empty">'+esc(msg)+'</div>';
 const section=(heading,content)=>'<article class="m05-card">'+title(heading)+content+'</article>';
 const button=(label,attr='')=>'<button type="button" '+attr+'>'+esc(label)+'</button>';
-const ownRecords=(key)=>C.normalize(store)[key].filter(r=>r.ownerId===owner&&companyAllowed(r.companyId));
+const ownRecords=(key)=>{
+ const rs=(C.normalize(store)[key]||[]).filter(r=>r.ownerId===owner&&companyAllowed(r.companyId));
+ const A=window.Concilia05Analytics,f=window.Concilia05Advanced?.filter?.();
+ if(!A||!f||key==='calendar')return rs;
+ return rs.filter(r=>{
+  if(f.companyId&&r.companyId!==f.companyId)return false;
+  if(f.period&&r.period!==f.period)return false;
+  if(f.status&&f.status!=='all'&&r.status!==f.status)return false;
+  if(f.activityType&&f.activityType!=='all'&&r.activityType!==f.activityType)return false;
+  // A meta é avaliada em sua competência própria; para exibição de período usar
+  // suas datas de vigência, em vez de a data da seleção atual.
+  if(key==='goals'){
+   const b=A.bounds(f),start=r.start||r.period&&r.period+'-01'||r.createdAt?.slice(0,10)||'';
+   const end=r.deadline||r.period&&r.period+'-31'||start;
+   return start<=b.to&&end>=b.from;
+  }
+  return A.included(r,f);
+ });
+};
 const formFields={
  quality:[['title','Descrição da ocorrência','text'],['category','Categoria','category'],['severity','Gravidade','severity'],['description','Detalhes e evidências','textarea'],['cause','Causa confirmada, se conhecida','text'],['correctiveAction','Ação corretiva','text']],
  goal:[['title','Nome da meta','text'],['metric','Indicador relacionado','metric'],['baseline','Valor inicial','number'],['target','Objetivo','number'],['manualActual','Resultado manual (quando necessário)','number'],['direction','Sentido da meta','direction'],['deadline','Prazo','date'],['description','Observações','textarea']],
