@@ -140,7 +140,7 @@ function init(){
    if(act.dataset.crmAction==='back'){selected=null;selectedPeriods=[];render();return;}
    const c=getCompany(selected);if(!c)return;
    if(act.dataset.crmAction==='copy'){const emails=(c.emails||[]).map(x=>typeof x==='string'?x:x.value).filter(Boolean).join('; ');if(!emails){alert('Nenhum e-mail cadastrado.');return;}navigator.clipboard?.writeText(emails).then(()=>alert('E-mails copiados.')).catch(()=>alert('Não foi possível copiar.'));return;}
-   if(act.dataset.crmAction==='company'){companyId=c.id;renderSelection();showPage('carteira');return;}
+   if(act.dataset.crmAction==='company'){window.ConciliaWallet.open(c.id);return;}
   }
   const configButton=e.target.closest('[data-crm-config]');if(configButton){
    const action=configButton.dataset.crmConfig;
