@@ -9,6 +9,7 @@ on:
       - feature/refinamento-ciclo01-04-20261128
       - feature/dashboards-bi-integrados-ciclo01-20261128
       - feature/melhoria-05-inteligencia-operacional
+      - feature/identidade-conciliar-plus-beatriz-20261128
   workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -28,6 +29,7 @@ jobs:
           node-version: "22"
       - name: Conferir sintaxe JavaScript
         run: |
+          node --test testes/identidade-conciliar-plus.test.cjs
           node --check melhoria05-analytics.js
           node --check melhoria05-advanced-ui.js
           node --check melhoria05-reports.js
