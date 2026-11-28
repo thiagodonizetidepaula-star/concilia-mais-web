@@ -31,6 +31,7 @@ const ownRecords=(key)=>{
  if(!A||!f||key==='calendar')return rs;
  return rs.filter(r=>{
   if(f.companyId&&r.companyId!==f.companyId)return false;
+  if(f.search&&r.companyId&&!companyList().some(c=>c.id===r.companyId&&[c.name,c.tradeName,c.fantasyName,c.dominio,c.cnpj].some(v=>String(v||'').toLocaleLowerCase('pt-BR').includes(String(f.search).toLocaleLowerCase('pt-BR')))))return false;
   if(f.period&&r.period!==f.period)return false;
   if(f.status&&f.status!=='all'&&r.status!==f.status)return false;
   if(f.activityType&&f.activityType!=='all'&&r.activityType!==f.activityType)return false;
