@@ -54,13 +54,13 @@ function data(){
 }
 function portfolio(d){
  const a=d.agg;
- return '<div class="bi-kpis">'+stat('Clientes da carteira',fmt(a.total),'Somente empresas autorizadas')+stat('Clientes ativos',fmt(a.active),'Situação cadastral atual')+
+ return '<div class="bi-kpis">'+stat('Clientes da carteira',fmt(a.total),'Somente empresas autorizadas','blue','carteira')+stat('Clientes ativos',fmt(a.active),'Situação cadastral atual','blue','carteira')+
  stat('Inativos / distratados',fmt(a.inactive),'Fora da obrigação corrente','amber')+
- stat('Conciliações concluídas',fmt(a.concluded),fmt(a.applicable)+' aplicáveis')+
- stat('Documentos recebidos',fmt(a.documentReceived),fmt(a.documentEligible)+' obrigações com status')+
+ stat('Conciliações concluídas',fmt(a.concluded),fmt(a.applicable)+' aplicáveis','blue','controle')+
+ stat('Documentos recebidos',fmt(a.documentReceived),fmt(a.documentEligible)+' obrigações com status','blue','documentos')+
  stat('Entregas documentais',pct(a.documentRate),'Recebidos / exigíveis','cyan')+
- stat('Empresas cobradas',fmt(a.charged),'Contatos manuais registrados')+
- stat('Restantes',fmt(a.remaining),'Competência selecionada','amber')+'</div>'+
+ stat('Empresas cobradas',fmt(a.charged),'Contatos manuais registrados','blue','crm')+
+ stat('Restantes',fmt(a.remaining),'Competência selecionada','amber','controle')+'</div>'+
  '<div class="bi-graphs">'+
  card('Conciliações por competência',bars(d.series.map(x=>({label:x.period.slice(5),value:x.concluded}))),'Conclusões na competência, não data do clique')+
  card('Percentual de conclusão',ring(a.completion,'da carteira aplicável'),'Empresas concluídas ÷ empresas aplicáveis')+
@@ -72,8 +72,8 @@ function company(d){
  const rank=d.records.slice().sort((x,y)=>y.movements-x.movements).slice(0,8);
  return '<div class="bi-kpis">'+stat('Empresas selecionadas',fmt(a.total),'Filtradas com permissão')+
  stat('Movimentações do mês',fmt(a.movements),'Dados operacionais disponíveis')+
- stat('Classificações confirmadas',fmt(a.classified),'Não equivale a conciliação')+
- stat('Pendências registradas',fmt(a.pending),'Indicador operacional','amber')+
+ stat('Classificações confirmadas',fmt(a.classified),'Não equivale a conciliação','blue','movimentos')+
+ stat('Pendências registradas',fmt(a.pending),'Indicador operacional','amber','pendencias')+
  stat('Tempo efetivo',duration(a.seconds),'Trabalhos concluídos com medição')+
  stat('Média por conciliação',duration(a.averageSeconds),fmt(a.timed)+' sessões com tempo válido')+'</div>'+
  '<div class="bi-graphs">'+card('Movimentações por empresa',rank.length?bars(rank.map(r=>({label:(r.dominio||r.name).slice(0,20),value:r.movements}))):empty('Nenhuma empresa para comparar.'))+
@@ -101,7 +101,7 @@ function technology(d){
  stat('Assistidas por Excel',fmt(a.excel),'Separadas da automação')+
  stat('Taxa de automação',pct(a.automaticRate),'Automáticas / confirmadas')+
  stat('Taxa assistida pelo Excel',pct(a.excelRate),'Excel / confirmadas')+
- stat('Regras aprendidas ativas',fmt(a.learnedRules),'Memória por empresa, não usos','cyan')+'</div>'+
+ stat('Regras aprendidas ativas',fmt(a.learnedRules),'Memória por empresa, não usos','cyan','regras')+'</div>'+
  '<div class="bi-graphs">'+card('Origem das classificações',bars([{label:'Automática identificável',value:a.automated},{label:'Assistida por Excel',value:a.excel},{label:'Outras ou sem origem',value:a.manual}]),'Ausência de origem não é contabilizada como automação')+
  card('Evolução da automação',spark(d.series.map(x=>({label:x.period.slice(5),value:x.automaticRate})),'Taxa de automação'),'Percentual somente quando houver classificações no período')+
  card('Classificações assistidas pelo Excel',spark(d.series.map(x=>({label:x.period.slice(5),value:x.excel})),'Classificações via Excel'))+
@@ -118,7 +118,8 @@ function render(next){
  filters()+'<div class="bi-body" role="tabpanel">'+views[tab](d)+'</div><footer class="bi-foot">As estimativas não substituem medições. Dados não registrados aparecem como “Sem dados”. Indicadores sensíveis respeitam a carteira autorizada e o contexto da conta.</footer></div>';
 }
 function init(){const root=$('#conciliaBI');if(!root||initialized)return;initialized=true;
- root.addEventListener('click',e=>{const t=e.target.closest('[data-bi-tab]');if(t){tab=t.dataset.biTab;render();return;}if(e.target.closest('[data-bi-reset]')){year=new Date().getFullYear();month=new Date().getMonth()+1;companyId='';query='';render();}});
+ root.addEventListener('click',e=>{const go=e.target.closest('[data-bi-go]');if(go){if(typeof showPage==='function')showPage(go.dataset.biGo);return;}const t=e.target.closest('[data-bi-tab]');if(t){tab=t.dataset.biTab;render();return;}if(e.target.closest('[data-bi-reset]')){year=new Date().getFullYear();month=new Date().getMonth()+1;companyId='';query='';render();}});
+ root.addEventListener('keydown',e=>{const go=e.target.closest('[data-bi-go]');if(go&&(e.key==='Enter'||e.key===' ')){e.preventDefault();if(typeof showPage==='function')showPage(go.dataset.biGo);}});
  root.addEventListener('change',e=>{const field=e.target.dataset.biFilter;if(field==='year')year=Number(e.target.value);if(field==='month')month=Number(e.target.value);if(field==='company')companyId=e.target.value;if(field)render();});
  root.addEventListener('input',e=>{if(e.target.dataset.biFilter!=='search')return;query=e.target.value;const pos=e.target.selectionStart;render();const input=root.querySelector('[data-bi-filter="search"]');input?.focus();input?.setSelectionRange(pos,pos);});
 }
