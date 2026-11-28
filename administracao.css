@@ -1,0 +1,19 @@
+/* ConCiliar+PLUS — área administrativa (preserva o tema atual). */
+#adminNav[hidden]{display:none!important}
+.admin-panel{max-width:1200px}
+.admin-panel .admin-head{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+.admin-panel .admin-head>svg{width:34px;height:34px;color:#c99125;flex:none}
+.admin-panel .admin-head h2{margin:0 0 5px;color:#0e2a51}
+.admin-panel .admin-head p{margin:0;color:#536b88}
+.admin-panel .form{display:grid;grid-template-columns:1.5fr 1.5fr 1fr auto;gap:12px;align-items:end;margin:18px 0 22px}
+.admin-panel .form h3{grid-column:1/-1}
+.admin-panel .form button{min-height:43px}
+.admin-panel .tablewrap{overflow-x:auto}
+.admin-panel table{width:100%;min-width:710px}
+.admin-panel td,.admin-panel th{padding:12px 10px}
+.admin-panel td code{font-size:10px;overflow-wrap:anywhere}
+.admin-panel td select{min-width:120px}
+.admin-panel #adminMessage{margin-top:15px;color:#255a82}
+.admin-panel #adminMessage.error{color:#a4363c}
+@media(max-width:900px){.admin-panel .form{grid-template-columns:1fr 1fr}}
+@media(max-width:650px){.admin-panel .form{grid-template-columns:1fr}.admin-panel .admin-head{align-items:flex-start}}
