@@ -119,7 +119,7 @@ Fonte: `BIA - Checklist - Contábil (1).xlsx`, SHA-256 `8b44cda8ab51da40` (prefi
 - 60 CNPJs normalizados distintos, correspondentes às mesmas 60 empresas da aba Fechamento; nenhuma razão social divergente entre abas.
 - 60 códigos Domínio sem duplicidade dentro da carteira.
 - 76 endereços de e-mail válidos e dois trechos inválidos para revisão (em um cadastro), cinco empresas sem e-mail.
-- 720 células mensais: 315 Cobrado, 187 Pendente, 118 Recebido, 87 vazias, cinco EX CLIENTE, nove outros registros especiais.
+- 720 células mensais: 315 Cobrado (sendo 18 células com espaço final no valor original), 187 Pendente, 118 Recebido, 87 vazias, cinco EX CLIENTE e oito outros registros especiais.
 - Aba de fechamento: 720 posições de competência, das quais 16 preenchidas. NENHUM módulo de fechamento foi acrescentado.
 - Os status especiais e as células vazias são mantidos com o texto original; não são convertidos artificialmente em Recebido ou Pendente.
 
