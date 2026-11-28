@@ -139,6 +139,7 @@ async function run(){
   assert.equal(companies[0].emails.length,2);
   stats.push('Logout + login real A: cadastro, dois e-mails e histórico documental recuperados: OK');
   await pageA.locator('button[data-page="crm"]').click();
+  if(await pageA.locator('[data-crm-action="back"]').count())await pageA.locator('[data-crm-action="back"]').click();
   assert.equal(await pageA.locator('#crmPanel [data-crm-setting="charge1"]').inputValue(),'13');
   await pageA.locator('#crmPanel [data-crm-select]').first().click();
   await pageA.locator('#crmPanel [data-crm-tab="history"]').click();
