@@ -90,12 +90,21 @@ async function saveEdit(form){
  if(![...M.STANDARD,...Object.values(c.documentHistory||{}).map(x=>x.status)].includes(status))throw Error('Status não reconhecido.');
  c.documentHistory ||= {};
  const p=period(year,m),old=c.documentHistory[p]===undefined?null:JSON.parse(JSON.stringify(c.documentHistory[p]));
+ const crmBefore=Array.isArray(c.crmHistory)?c.crmHistory.slice():null;
  c.documentHistory[p]={...old,status,notes,source:'manual',updatedAt:new Date().toISOString(),updatedBy:window.ConciliaCloud?.accountId?.()||null};
+ // A data efetiva de recebimento continua desconhecida. Registrar apenas a
+ // mudança manual do status e o instante da alteração, sem inventar data de envio.
+ if(status==='Recebido'&&old?.status!=='Recebido'&&window.ConciliaCRM){
+   c.crmHistory ||= [];
+   c.crmHistory.push({id:'doc-'+c.id+'-'+p+'-'+Date.now(),type:'receipt',periods:[p],occurredAt:null,
+     medium:'Controle de Documentos',status:'Documentação recebida',notes:notes||'Status documental alterado manualmente para Recebido.',
+     createdAt:c.documentHistory[p].updatedAt,actorId:c.documentHistory[p].updatedBy,source:'document-control'});
+ }
  try{
   await store('DOCUMENTOS_CONTROLE_MANUAL',c.id+' · '+p);
   editingId='';render();
   if(typeof cloudSyncEnabled!=='undefined'&&!cloudSyncEnabled)alert('Alteração ficou apenas na cópia local. A sincronização Supabase está pendente.');
- }catch(err){if(old)c.documentHistory[p]=old;else delete c.documentHistory[p];render();throw err;}
+ }catch(err){if(old)c.documentHistory[p]=old;else delete c.documentHistory[p];if(crmBefore===null)delete c.crmHistory;else c.crmHistory=crmBefore;render();throw err;}
 }
 async function previewFile(file,yr){
  if(!window.ConciliaCloud?.authenticated?.())throw Error('Entre na sua conta para comparar com o workspace autenticado; a planilha não será gravada.');

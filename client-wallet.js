@@ -39,7 +39,7 @@ function card(c){
  '<button type="button" class="secondary" data-wallet="edit" data-id="'+id+'">Editar</button>'+
  '<button type="button" class="secondary" data-wallet="plan" data-id="'+id+'">Plano de contas</button>'+
  '<button type="button" class="secondary" data-wallet="partners" data-id="'+id+'">Sócios</button>'+
- '<button type="button" class="secondary" data-wallet="related" data-id="'+id+'">Relacionadas</button>'+ '<button type="button" class="secondary" data-wallet="documents" data-id="'+id+'">Documentos</button></div></article>';
+ '<button type="button" class="secondary" data-wallet="related" data-id="'+id+'">Relacionadas</button>'+ '<button type="button" class="secondary" data-wallet="documents" data-id="'+id+'">Documentos</button>'+ '<button type="button" class="secondary" data-wallet="crm-history" data-id="'+id+'">Histórico CRM</button></div></article>';
 }
 function details(c){
  if(!c)return '';
@@ -121,6 +121,7 @@ function init(){
   if(a==='close'||a==='cancel'){editing=null;viewing=null;render();return;}
   if(a==='copy-email'){const c=available().find(x=>x.id===id);if(!c)return;const value=(c.emails||[]).map(x=>typeof x==='string'?x:x.value).join('; ');if(!value){say('Empresa sem e-mails cadastrados.',true);return;}navigator.clipboard?.writeText(value).then(()=>say('Endereços copiados.')).catch(()=>say('Não foi possível copiar automaticamente. Selecione o texto nos detalhes.',true));return;}
   if(a==='documents'){showPage('documentos');return;}
+  if(a==='crm-history'){try{window.ConciliaCRM?.openCompany(id,'history');}catch(err){say(err.message,true);}return;}
   if(a==='plan'||a==='partners'||a==='related'){
    try{selectCompany(id,a==='partners'?'#partnerForm':a==='related'?'#relatedCompanyForm':'#planTable');}
    catch(err){say(err.message,true);}
@@ -128,6 +129,6 @@ function init(){
  });
  root.addEventListener('submit',event=>{if(event.target.id==='walletEditor'){event.preventDefault();saveEdit(event.target).catch(err=>say(err.message||String(err),true));}});
 }
-window.ConciliaWallet={render,cnpjValid,visible:available};
+window.ConciliaWallet={render,cnpjValid,visible:available,open:(id)=>{if(!available().some(c=>c.id===id))throw Error('Empresa fora da carteira autorizada.');editing=null;viewing=id;showPage('carteira');render();}};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
