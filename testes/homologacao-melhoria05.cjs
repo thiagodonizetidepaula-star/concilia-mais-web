@@ -122,6 +122,20 @@ async function login(page,u){
   assert.doesNotMatch(await pageB.locator('#melhoria05Panel').textContent(),/Ocorrência fictícia E2E/);
   await pageB.screenshot({path:path.join(process.env.RUNNER_TEMP||'/tmp','melhoria05-auth-mobile.png')});
   assert.equal((await request(table+'?select=user_id',{user:b})).length,0);
+  // Simular dois salvamentos concorrentes do MESMO proprietário com revisão otimista.
+  // Só um pode vencer; o segundo deve falhar por CAS sem sobrescrever histórico.
+  const beforeRace=(await request(table+'?select=payload,revision&user_id=eq.'+a.id,{user:a}))[0];
+  const where=table+'?user_id=eq.'+a.id+'&revision=eq.'+beforeRace.revision;
+  const race=await Promise.all([
+   request(where,{method:'PATCH',user:a,body:{payload:beforeRace.payload,revision:beforeRace.revision+1},prefer:'return=representation'}),
+   request(where,{method:'PATCH',user:a,body:{payload:beforeRace.payload,revision:beforeRace.revision+1},prefer:'return=representation'})
+  ]);
+  assert.deepEqual(race.map(x=>x.length).sort(),[0,1],'CAS rejeita sobrescrita simultânea');
+  const afterRace=(await request(table+'?select=payload,revision&user_id=eq.'+a.id,{user:a}))[0];
+  assert.equal(afterRace.revision,beforeRace.revision+1);
+  assert.equal(afterRace.payload.quality[0].reviewStatus,'Aprovada','Revisão permaneceu após corrida');
+  assert.equal(afterRace.payload.activities.length,1,'Atividade não duplicada após concorrência');
+  console.log('CAS 05: duas gravações concorrentes, somente uma confirmada e históricos preservados: OK');
   console.log('HOMOLOGAÇÃO MELHORIA 05 LAB: Auth A/B, RLS SELECT/UPDATE, 9 visões, criação, CAS, auditoria, recuperação e responsividade: APROVADO');
  }finally{await browser.close();}
 })().catch(e=>{console.error('HOMOLOGAÇÃO MELHORIA 05 FALHOU:',e.stack||e);process.exitCode=1});
