@@ -23,7 +23,7 @@
   const tracking=obj(c.reconciliationTracking?.[period]),doc=obj(c.documentHistory?.[period]),reviews=obj(c.reconciliationReview?.[period]);
   const moves=periodMoves(c,period);
   const imported=safeArray(c.imports).filter(f=>f.period===period||safeArray(f.periods).includes(period));
-  const wt=obj(tracking.workTimer),clockSeconds=wt.startedAt?(wt.manualSeconds??Math.floor(Math.max(0,Number(wt.seconds)||0)+(wt.runningSince?Math.max(0,Date.now()-Date.parse(wt.runningSince))/1000:0))):null;
+  const wt=obj(tracking.workTimer),clockSeconds=wt.startedAt?(wt.manualSeconds??Math.floor(elapsed(wt))):null;
   const confirmed=moves.filter(m=>m.status==='CONFIRMADO').length;
   const classified=moves.filter(m=>m.debitCode&&m.creditCode||m.status==='CONFIRMADO').length;
   const unresolved=moves.filter(m=>['PENDENTE','PENDENTE_DUPLICIDADE','DIVERGENTE'].includes(m.status)).length;
