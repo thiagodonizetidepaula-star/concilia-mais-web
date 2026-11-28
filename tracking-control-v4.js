@@ -10,7 +10,7 @@ const sec=s=>{const n=Math.floor(Math.max(0,Number(s)||0));return [Math.floor(n/
 const option=(v,label,current)=>'<option value="'+esc(v)+'"'+(String(v)===String(current)?' selected':'')+'>'+esc(label)+'</option>';
 const fields=[
  ['status','Situação operacional','status'],['start','Data de início','date'],['end','Data de conclusão','date'],['deadline','Prazo de entrega','date'],
- ['effectiveSeconds','Tempo efetivo (segundos)','integer'],['processed','Lançamentos importados','integer'],['classified','Lançamentos classificados','integer'],
+ ['effectiveSeconds','Tempo efetivo (segundos)','integer'],['waitingSeconds','Tempo de espera (segundos)','integer'],['exportDate','Data da exportação','date'],['dominioImportDate','Data de importação efetiva no Domínio','date'],['reviewSentAt','Enviado para revisão','date'],['reviewedAt','Data da revisão','date'],['approvalDate','Data da aprovação','date'],['correctionCompletedAt','Correção concluída em','date'],['reworkCount','Quantidade de retrabalhos','integer'],['processed','Lançamentos importados','integer'],['classified','Lançamentos classificados','integer'],
  ['pendingFound','Pendências identificadas','integer'],['pendingResolved','Pendências resolvidas','integer'],['pendingRemaining','Pendências restantes','integer'],
  ['exportStatus','Situação da exportação','export'],['dominioStatus','Importação no Domínio','dominio'],
  ['reviewStatus','Situação da revisão','review'],['delayReason','Motivo do atraso','delay'],
