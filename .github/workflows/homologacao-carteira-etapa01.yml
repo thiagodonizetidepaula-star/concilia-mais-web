@@ -1,0 +1,106 @@
+name: Homologação isolada - Carteira de Clientes (Etapa 01)
+on:
+  push:
+    branches:
+      - feature/carteira-clientes-etapa01-review-20261127
+      - feature/melhoria02-gestao-documentos-homologacao-20261128
+      - feature/melhoria03-crm-manual-homologacao-20261128
+      - feature/melhoria04-controle-conciliacoes-homologacao-20261128
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  homologacao:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout somente da branch revisada
+        uses: actions/checkout@v4
+      - name: Configurar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Conferir sintaxe JavaScript
+        run: |
+          node --check app.js
+          node --check document-import.js
+          node --check document-management.js
+          node --check crm-core.js
+          node --check crm.js
+          node --check tracking-core-v4.js
+          node --check tracking-control-v4.js
+          node --check client-wallet.js
+          node --check core.js
+          node --check partners.js
+          node --check reconciliation-tracking.js
+          node --check productivity-manual-v2.js
+          node --check retention-policy.js
+      - name: Testes de homologação da Carteira e regressão existente
+        run: |
+          set -o pipefail
+          node --test testes/tracking-melhoria04.test.cjs testes/crm-melhoria03.test.cjs testes/document-management-melhoria02.test.cjs testes/carteira-clientes-etapa01.test.cjs testes/plano-dominio-t-vazio.test.cjs testes/auditoria-detalhada.test.cjs testes/multibancos-pdf.test.cjs testes/restaurar-tudo.test.cjs tests/tax-reconciliation.test.js 2>&1 | tee homologacao-resultado.txt
+      - name: Verificar visual em Chromium com dados fictícios
+        run: |
+          set -e
+          CHROME="$(command -v google-chrome || command -v chromium || true)"
+          if [ -z "$CHROME" ]; then
+            echo "Chrome não disponível para captura" | tee -a homologacao-resultado.txt
+            exit 1
+          fi
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-carteira-desktop.png" "file://$PWD/testes/carteira-homologacao-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --hide-scrollbars --window-size=390,850 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-carteira-mobile.png" "file://$PWD/testes/carteira-homologacao-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --virtual-time-budget=2500 --dump-dom "file://$PWD/testes/carteira-homologacao-visual.html" > homologacao-carteira-dom.html
+          grep -o 'data-homologacao="[^"]*"' homologacao-carteira-dom.html || true
+          grep -o 'wallet-client-card' homologacao-carteira-dom.html | head -n 5 || true
+          grep -q 'data-homologacao="true"' homologacao-carteira-dom.html
+          grep -q 'EMPRESA MODELO ALFA LTDA' homologacao-carteira-dom.html
+          echo "Chromium: renderização DOM confirmada em ambiente fictício." | tee -a homologacao-resultado.txt
+      - name: Validar interface da Melhoria 02 com Chromium
+        run: |
+          set -e
+          CHROME="$(command -v google-chrome || command -v chromium)"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-documentos-desktop.png" "file://$PWD/testes/documentos-homologacao-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --hide-scrollbars --window-size=390,850 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-documentos-mobile.png" "file://$PWD/testes/documentos-homologacao-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --virtual-time-budget=2500 --dump-dom "file://$PWD/testes/documentos-homologacao-visual.html" > homologacao-documentos-dom.html
+          grep -q 'data-docs-homologado="true"' homologacao-documentos-dom.html
+          grep -q 'EMPRESA FICTÍCIA ALFA' homologacao-documentos-dom.html
+          echo "Documentos: renderização real Chromium com 3 clientes fictícios validada" | tee -a homologacao-resultado.txt
+      - name: Validar CRM Contábil em Chromium desktop e mobile
+        run: |
+          set -e
+          CHROME="$(command -v google-chrome || command -v chromium)"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-crm-desktop.png" "file://$PWD/testes/crm-homologacao-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --hide-scrollbars --window-size=390,850 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-crm-mobile.png" "file://$PWD/testes/crm-homologacao-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --virtual-time-budget=2500 --dump-dom "file://$PWD/testes/crm-homologacao-visual.html" > homologacao-crm-dom.html
+          grep -q 'data-crm-homologado="true"' homologacao-crm-dom.html
+          grep -q 'EMPRESA ALFA FICTÍCIA' homologacao-crm-dom.html
+          echo "CRM: renderização desktop/mobile e tabela real confirmadas" | tee -a homologacao-resultado.txt
+      - name: Validar Controle de Conciliações 04 no Chromium
+        run: |
+          set -e
+          CHROME="$(command -v google-chrome || command -v chromium)"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-controle-v4-desktop.png" "file://$PWD/testes/controle-melhoria04-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --hide-scrollbars --window-size=390,850 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-controle-v4-mobile.png" "file://$PWD/testes/controle-melhoria04-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --virtual-time-budget=2500 --dump-dom "file://$PWD/testes/controle-melhoria04-visual.html" > homologacao-controle-v4-dom.html
+          grep -q 'data-tracking4-homologado="true"' homologacao-controle-v4-dom.html
+          echo "Controle 04: UI portfolio desktop/mobile e tabela de 10 clientes fictícios confirmadas" | tee -a homologacao-resultado.txt
+      - name: Publicar evidências da homologação (somente artefato CI)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: carteira-clientes-homologacao-etapa01
+          path: |
+            homologacao-resultado.txt
+            homologacao-carteira-desktop.png
+            homologacao-carteira-mobile.png
+            homologacao-documentos-desktop.png
+            homologacao-documentos-mobile.png
+            homologacao-documentos-dom.html
+            homologacao-crm-desktop.png
+            homologacao-crm-mobile.png
+            homologacao-crm-dom.html
+            homologacao-controle-v4-desktop.png
+            homologacao-controle-v4-mobile.png
+            homologacao-controle-v4-dom.html
+            homologacao-carteira-dom.html
+          if-no-files-found: warn

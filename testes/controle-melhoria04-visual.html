@@ -1,0 +1,22 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Controle de Conciliações — Homologação 04</title><link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="../tracking-control-v4.css"><style>
+body{margin:0;background:#eff4f9;font-family:system-ui,Arial,sans-serif}.banner{position:sticky;top:0;background:#fff0cb;color:#825719;text-align:center;padding:9px;font-size:13px;font-weight:750;z-index:9}
+.layout{display:flex;min-height:100vh}.navside{background:#061b38;color:#fff;width:225px;flex-shrink:0;padding:20px}.navside strong{font-size:20px;display:block;margin:10px 0 35px}.navside span{display:block;padding:12px;color:#c5d8e8}.navside span.active{background:#205276;color:#fff;border-radius:10px}
+main{min-width:0;flex:1;max-width:1450px;padding:24px}.subtitle{font-size:12px;color:#75899b}
+@media(max-width:700px){.layout{display:block}.navside{width:auto;min-height:0;padding:12px}.navside strong{margin:0 0 10px}.navside span{display:inline-block;padding:5px;font-size:11px}main{padding:12px}}
+</style><script>
+window.state={companies:[]};window.cloudSyncEnabled=true;
+window.ConciliaCloud={accountId:()=> 'test-employee',authenticated:()=>true,revision:()=>1,identity:()=> 'usuario-homologacao@example.test'};
+window.ConciliaWallet={visible:()=>window.state.companies};window.store=async()=>{};window.lucide={createIcons(){}};
+const year=2026,period='2026-11';
+for(let i=0;i<11;i++){const c={id:'fake-'+i,name:['ESTÚDIO ALFA LTDA','TAZ DE TESTE COMERCIAL','GRUPO FICTÍCIO BETA','MATRIZ EXEMPLO LTDA','TRANSPORTADORA GAMA','DISTRIBUIDORA DELTA','LOGÍSTICA MODELO','EMPRESA ETA COMÉRCIO','CONTABILIDADE FICTÍCIA','INDÚSTRIA ÔMEGA','CLIENTE INATIVO'][i],cnpj:'11.222.333/0001-'+(11+i),dominio:String(100+i),walletAssignedUserIds:['test-employee'],clientInactive:i===10,
+ documentHistory:{[period]:{status:['Recebido','Cobrado','Pendente','Parcialmente recebido','Recebido'][i%5]}},reconciliationTracking:{},movements:[],imports:[],reconciliationReview:{}};
+ if(i===0)c.reconciliationTracking[period]={start:'2026-11-04',end:'2026-11-07',notes:'Conciliação validada'};
+ if(i===1)c.reconciliationTracking[period]={start:'2026-11-02'};
+ if(i===2)c.movements=[{id:'1',date:'2026-11-03',status:'PENDENTE'}];
+ window.state.companies.push(c);
+}
+window.showPage=()=>{};window.confirm=()=>true;
+</script></head><body class="authenticated"><div class="banner">HOMOLOGAÇÃO 04 · EMPRESAS FICTÍCIAS · SEM ACESSO AO BANCO REAL</div><div class="layout"><aside class="navside"><strong>ConCiliar+</strong><span>Carteira de Clientes</span><span>Controle de Documentos</span><span>CRM Contábil</span><span class="active">Controle de Conciliações</span></aside><main><p class="subtitle">GESTÃO E ACOMPANHAMENTO OPERACIONAL</p><section id="p-controle" class="page visible"><div id="trackingV4Panel"></div></section></main></div><script src="../tracking-core-v4.js"></script><script src="../tracking-control-v4.js"></script><script>
+function check(){window.ConciliaTrackingV4?.render();document.body.dataset.tracking4Homologado=String(document.querySelectorAll('.track4-summary button').length>=15&&document.querySelector('.track4-progress')?.getBoundingClientRect().height>5&&document.querySelectorAll('.track4-table')[0]?.querySelectorAll('tbody tr').length===10);}
+document.addEventListener('DOMContentLoaded',check);window.addEventListener('load',check);setTimeout(check,250);
+</script></body></html>

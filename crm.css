@@ -1,0 +1,41 @@
+/* ConCiliar+ CRM Contábil — reaproveita tipografia e cartões existentes */
+#crmPanel{color:#1b3852}
+.crm-heading,.crm-row{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}
+.crm-heading{padding:14px 0 18px}.crm-heading span{color:#4f87a5;font-size:11px;font-weight:800;letter-spacing:1px}
+.crm-heading h2{color:#143c5b;font-size:24px;margin:7px 0}.crm-heading p,.crm-row p{font-size:13px;color:#7890a4;margin:3px 0}
+.crm-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.crm-metrics>div{background:#fff;border:1px solid #dfe8f1;border-radius:14px;padding:16px;min-height:67px;display:flex;flex-direction:column;justify-content:space-between}
+.crm-metrics strong{color:#1a608d;font-size:26px}.crm-metrics small{color:#617e97;font-size:11px}
+.crm-next{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:12px 0}
+.crm-next>div,.crm-settings,.crm-detail{border:1px solid #dce7f1;border-radius:14px;background:#fff;padding:16px}
+.crm-next strong{color:#345d7a;font-size:12px}.crm-next p{font-size:13px;margin:6px 0;color:#336e99}
+.crm-alerts{margin:12px 0;color:#815c14;background:#fff8df;border:1px solid #f2dd9f;border-radius:12px;padding:12px;font-size:12px;line-height:1.7}
+.crm-settings{margin:16px 0}.crm-settings h3,.crm-detail h3{color:#205273;margin:0 0 6px;font-size:17px}
+.crm-dates{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:14px 0}
+.crm-dates label,.crm-filter label,.crm-record label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:#526f85;font-weight:700}
+.crm-dates input,.crm-dates select,.crm-filter input,.crm-filter select,.crm-record input,.crm-record select,.crm-record textarea{width:100%;box-sizing:border-box;min-width:0;border:1px solid #c8d9e6;border-radius:9px;background:#fff;padding:9px;color:#1c4363;font:inherit}
+.crm-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#crmPanel button{cursor:pointer;border:1px solid #176690;background:#176690;color:white;border-radius:9px;padding:9px 12px;font-size:12px;font-weight:750}
+#crmPanel button.secondary{background:#fff;color:#275b81;border:1px solid #c7d9e7}
+#crmPanel button:focus-visible{outline:3px solid #f5c26d;outline-offset:2px}
+.crm-filter{display:grid;grid-template-columns:2fr repeat(3,1fr);gap:12px;background:white;padding:16px;border:1px solid #e1eaf2;border-radius:12px;margin-top:15px}
+.crm-caption{font-size:12px;color:#6a8195;line-height:1.5}
+.crm-scroll{overflow:auto;background:#fff;border:1px solid #dde9f2;border-radius:12px;max-height:620px}
+.crm-scroll table{border-collapse:collapse;width:100%;min-width:1250px}
+.crm-scroll th{position:sticky;top:0;z-index:2;background:#f4f8fc;text-align:left;color:#4c6980;font-size:11px;padding:12px;border-bottom:1px solid #dde9f1}
+.crm-scroll td{font-size:12px;color:#305572;padding:12px;border-bottom:1px solid #edf1f5;vertical-align:top}
+.crm-scroll td strong,.crm-scroll td small{display:block}.crm-scroll td small{color:#8198ab;margin-top:3px}.crm-mail{min-width:175px;max-width:240px;overflow-wrap:anywhere}
+.crm-pill{display:inline-block;color:#4e6680;font-size:11px;border:1px solid #d3e2eb;border-radius:8px;background:#edf4fa;padding:4px 6px;margin:2px}
+.crm-unknown{padding:14px;border:1px dashed #cfdbe8;border-radius:12px;margin-top:12px;font-size:12px;color:#69809b}
+.crm-unknown summary{cursor:pointer;font-weight:700}.crm-unknown div{max-height:240px;overflow-y:auto}
+.crm-detail{margin-top:14px;display:grid;gap:16px}
+.crm-record{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:10px 0}
+.crm-record>p,.crm-record>.crm-periods,.crm-record>button,.crm-record>label:has(textarea){grid-column:1/-1}
+.crm-periods{display:flex;flex-wrap:wrap;gap:10px;max-height:180px;overflow-y:auto}
+.crm-periods label{display:flex;align-items:center;flex-direction:row;background:#f2f7fc;padding:8px;border-radius:9px}
+.crm-periods input{width:auto}.crm-history{max-height:560px;overflow:auto;display:grid;gap:10px}.crm-history article{padding:12px;border-radius:11px;border:1px solid #e0e9f1;background:#fafcff}
+.crm-history p{font-size:12px;color:#5d7088}
+#crmOverviewAlerts{margin:10px 0;padding:12px 16px;background:#f5faff;border:1px solid #c9dfef;border-radius:12px;color:#2d5877;font-size:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#crmOverviewAlerts button{background:#176690;color:white;border:0;border-radius:7px;padding:7px 10px;font-size:11px;cursor:pointer}
+@media(max-width:1050px){.crm-dates{grid-template-columns:repeat(3,1fr)}.crm-filter{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:650px){.crm-metrics{grid-template-columns:repeat(2,1fr)}.crm-next,.crm-filter,.crm-record{grid-template-columns:1fr}.crm-dates{grid-template-columns:repeat(2,1fr)}.crm-heading h2{font-size:21px}.crm-record>p,.crm-record>.crm-periods,.crm-record>button,.crm-record>label:has(textarea){grid-column:auto}}

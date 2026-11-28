@@ -1,0 +1,121 @@
+name: Homologação operacional Supabase local - Carteira
+on:
+  push:
+    branches:
+      - feature/carteira-clientes-etapa01-review-20261127
+      - feature/melhoria02-gestao-documentos-homologacao-20261128
+      - feature/melhoria03-crm-manual-homologacao-20261128
+      - feature/melhoria04-controle-conciliacoes-homologacao-20261128
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  auth-pdf-persistencia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.1
+      - name: Instância temporária sem qualquer vínculo de produção
+        run: |
+          set -euo pipefail
+          mkdir -p .homologacao/supa
+          cd .homologacao/supa
+          supabase init --yes
+          mkdir -p supabase/migrations
+          cp ../../testes/homologacao-supabase-local.sql supabase/migrations/20261127000100_wallet_homolog.sql
+          supabase start -x realtime,storage-api,imgproxy,studio,postgres-meta,edge-runtime,logflare,vector,supavisor,mailpit
+          supabase status -o env > ../local-supabase.env
+      - name: Instalar somente dependência de teste (não modifica app)
+        run: |
+          npm install --silent --prefix .homologacao/deps playwright@1.58.2
+      - name: Gerar PDF digital representativo do plano Domínio com dados fictícios
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          lines=[
+            'Empresa: EMPRESA HOMOLOGACAO LTDA Folha: 0001',
+            'C.N.P.J.: 11.222.333/0001-81',
+            'PLANO DE CONTAS',
+            'Codigo T Classificacao Nome Grau',
+            '1 S 1 ATIVO 1',
+            '7 S 1.1.1.02 BANCOS CONTA MOVIMENTO 4',
+            '8 1.1.1.02.000001 BANCO DO BRASIL 5',
+            '536 1.1.1.02.000002 BANCO STONE 5',
+            '10000 A 1.1.2.01.000001 CLIENTES 5'
+          ]
+          ops=['BT /F1 12 Tf 60 765 Td']
+          for i,line in enumerate(lines):
+            if i:ops.append('0 -23 Td')
+            clean=line.replace('\\','\\\\').replace('(','\\(').replace(')','\\)')
+            ops.append('('+clean+') Tj')
+          ops.append('ET')
+          stream='\n'.join(ops).encode()
+          objs=[
+            b'<< /Type /Catalog /Pages 2 0 R >>',
+            b'<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+            b'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+            b'<< /Length '+str(len(stream)).encode()+b' >>\nstream\n'+stream+b'\nendstream',
+            b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'
+          ]
+          pdf=bytearray(b'%PDF-1.4\n%lab\n')
+          offsets=[0]
+          for idx,obj in enumerate(objs,1):
+            offsets.append(len(pdf))
+            pdf+=str(idx).encode()+b' 0 obj\n'+obj+b'\nendobj\n'
+          start=len(pdf)
+          pdf+=b'xref\n0 6\n0000000000 65535 f \n'
+          for offset in offsets[1:]:pdf+=f'{offset:010d} 00000 n \n'.encode()
+          pdf+=b'trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n'+str(start).encode()+b'\n%%EOF\n'
+          out=Path(os.environ['RUNNER_TEMP'])/'plano-dominio-homologacao.pdf'
+          out.write_bytes(pdf)
+          print('PDF sintético gerado e validado estruturalmente:',len(pdf),'bytes')
+          PY
+      - name: Testar autenticação real, upload, RLS e persistência com navegador
+        env:
+          NODE_PATH: ${{ github.workspace }}/.homologacao/deps/node_modules
+          CHROME_BIN: /usr/bin/google-chrome
+        run: |
+          set -euo pipefail
+          set -a
+          . .homologacao/local-supabase.env
+          set +a
+          export TEST_SUPABASE_URL="$API_URL"
+          export TEST_SUPABASE_KEY="$ANON_KEY"
+          mkdir -p .homologacao/site
+          rsync -a --exclude=.git --exclude=.homologacao ./ .homologacao/site/
+          node -e '
+           const fs=require("fs"),p=".homologacao/site/cloud.js",s=fs.readFileSync(p,"utf8");
+           if(!s.includes("const url=")||!s.includes("const key="))throw Error("Config Supabase não localizada");
+           const out=s.replace(/const url=\x27[^\x27]*\x27;/,"const url="+JSON.stringify(process.env.TEST_SUPABASE_URL)+";")
+             .replace(/const key=\x27[^\x27]*\x27;/,"const key="+JSON.stringify(process.env.TEST_SUPABASE_KEY)+";");
+           if(out===s||out.includes("csnvudadurtzhudlplij.supabase.co"))throw Error("Troca para Supabase temporário falhou");
+           fs.writeFileSync(p,out);
+          '
+          python3 -m http.server 8765 --bind 127.0.0.1 --directory .homologacao/site > .homologacao/http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          sleep 2
+          node testes/homologacao-real-supabase.cjs 2>&1 | tee .homologacao/auth-integracao.log
+      - name: Evidências - somente laboratório isolado
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: homologacao-operacional-carteira-supabase-local
+          path: |
+            .homologacao/auth-integracao.log
+            ${{ runner.temp }}/carteira-real-auth-desktop.png
+            ${{ runner.temp }}/carteira-real-auth-mobile.png
+            ${{ runner.temp }}/crm-real-auth-desktop.png
+            ${{ runner.temp }}/crm-real-auth-detail-desktop.png
+            ${{ runner.temp }}/crm-real-auth-mobile.png
+            ${{ runner.temp }}/controle-v4-real-auth-desktop.png
+            ${{ runner.temp }}/controle-v4-real-auth-detail.png
+            ${{ runner.temp }}/controle-v4-real-auth-mobile.png
+          if-no-files-found: warn
