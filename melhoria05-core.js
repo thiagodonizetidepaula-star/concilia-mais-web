@@ -27,7 +27,7 @@ function create(kind,data,actorId,now=new Date()){
  }
  if(kind==='goal'){
    if(!record.title||!text(d.metric))throw Error('Informe título e indicador da meta');
-   record.metric=text(d.metric);record.start=validDay(d.start)?d.start:null;record.deadline=validDay(d.deadline)?d.deadline:null;
+   record.metric=text(d.metric);record.start=validDay(d.start)?d.start:null;record.deadline=validDay(d.deadline)?d.deadline:null;record.frequency=['day','week','month','quarter','semester','year','custom'].includes(d.frequency)?d.frequency:'month';if(record.start&&record.deadline&&record.start>record.deadline)throw Error('Período da meta inválido');
    record.baseline=finite(d.baseline)??0;record.target=finite(d.target);record.manualActual=finite(d.manualActual);
    record.direction=d.direction==='decrease'?'decrease':'increase';
    if(record.target===null||record.target===record.baseline)throw Error('Meta necessita resultado numérico diferente do inicial');
@@ -50,7 +50,7 @@ function create(kind,data,actorId,now=new Date()){
 }
 function edit(previous,patch,actorId,now=new Date()){
  if(!previous||previous.ownerId!==actorId)throw Error('Edição não autorizada');
- const allowed=['title','description','status','category','severity','cause','correctiveAction','resolvedAt','level','evidence','action','expected','deadline','manualActual','metric','baseline','target','direction','date','executionAt','activityType','effectiveSeconds','pauseSeconds','waitSeconds','reworkSeconds','movements','dailyHours','daysOff','start','ruleId','event','confirmed','originId'];
+ const allowed=['title','description','status','category','severity','cause','correctiveAction','resolvedAt','level','evidence','action','expected','deadline','manualActual','metric','baseline','target','direction','frequency','date','executionAt','activityType','effectiveSeconds','pauseSeconds','waitSeconds','reworkSeconds','movements','dailyHours','daysOff','start','ruleId','event','confirmed','originId'];
  const changes={};for(const k of allowed)if(Object.prototype.hasOwnProperty.call(obj(patch),k)){
   let v=patch[k];if(['manualActual','baseline','target','effectiveSeconds','pauseSeconds','waitSeconds','reworkSeconds','movements','dailyHours'].includes(k)){v=v===null?null:finite(v);if(v===null&&patch[k]!==null)throw Error('Número inválido');}
   else if(k==='daysOff')v=arr(v).filter(validDay);else if(k==='confirmed')v=v===true;else v=text(v);
@@ -58,6 +58,7 @@ function edit(previous,patch,actorId,now=new Date()){
   changes[k]=v;
  }
  if(changes.level&&!LEVELS.includes(changes.level))throw Error('Nível inválido');
+ if(changes.frequency&&!['day','week','month','quarter','semester','year','custom'].includes(changes.frequency))throw Error('Periodicidade inválida');
  const effective={...previous,...changes};
  if(Object.prototype.hasOwnProperty.call(previous,'metric')){
   const base=finite(effective.baseline),target=finite(effective.target),dir=effective.direction;
