@@ -4,6 +4,7 @@
 const TYPES=['quality','goal','competency','diary','achievement','development','activity','ruleEvent','calendar'];
 const CATEGORIES=['Processo interno','Documentação do cliente','Arquivo importado','Regra contábil','Classificação manual','Automação','Configuração do sistema','Falha técnica','Falta de informações','Outros fatores'];
 const LEVELS=['Não avaliado','Em aprendizagem','Em desenvolvimento','Aplicação prática','Proficiente','Avançado'];
+const COMPETENCY_GROUPS=['Contabilidade','Administração','Análise de dados','Tecnologia e automação','Gestão da qualidade'];
 const ISO=/^20\d\d-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/;
 const arr=x=>Array.isArray(x)?x:[];
 const obj=x=>x&&typeof x==='object'&&!Array.isArray(x)?x:{};
@@ -36,13 +37,13 @@ function create(kind,data,actorId,now=new Date()){
  }
  if(kind==='competency'){
    if(!record.title)throw Error('Informe competência');
-   record.level=LEVELS.includes(d.level)?d.level:'Não avaliado';record.evidence=text(d.evidence);record.status='Autoavaliação';
+   record.level=LEVELS.includes(d.level)?d.level:'Não avaliado';record.category=COMPETENCY_GROUPS.includes(d.category)?d.category:'Administração';record.evidence=text(d.evidence);record.status='Autoavaliação';
  }
  if(kind==='development'){
    if(!record.title)throw Error('Informe objetivo de desenvolvimento');
-   record.action=text(d.action);record.expected=text(d.expected);record.deadline=validDay(d.deadline)?d.deadline:null;record.status='Em desenvolvimento';
+   record.action=text(d.action);record.expected=text(d.expected);record.deadline=validDay(d.deadline)?d.deadline:null;record.progress=finite(d.progress);record.status='Em desenvolvimento';
  }
- if(kind==='diary'||kind==='achievement'){if(!record.title)throw Error('Informe título do registro');record.date=validDay(d.date)?d.date:at.slice(0,10);}
+ if(kind==='diary'||kind==='achievement'){if(!record.title)throw Error('Informe título do registro');record.date=validDay(d.date)?d.date:at.slice(0,10);record.category=text(d.category||'Evolução profissional');}
  if(kind==='activity'){if(!record.title)throw Error('Informe atividade');record.executionAt=validDay(d.executionAt)?d.executionAt:at.slice(0,10);record.activityType=text(d.activityType||'Conciliação');record.effectiveSeconds=finite(d.effectiveSeconds);record.pauseSeconds=finite(d.pauseSeconds);record.waitSeconds=finite(d.waitSeconds);record.reworkSeconds=finite(d.reworkSeconds);record.movements=finite(d.movements);record.originId=text(d.originId||'');record.status='Concluída';}
  if(kind==='ruleEvent'){if(!record.companyId||!record.period)throw Error('Regra deve possuir empresa e competência');record.executionAt=validDay(d.executionAt)?d.executionAt:at.slice(0,10);record.ruleId=text(d.ruleId);record.event=['used','confirmed','corrected','deactivated'].includes(d.event)?d.event:'used';record.confirmed=d.confirmed===true;record.activityType='Aprendizagem';}
  if(kind==='calendar'){record.title='Disponibilidade pessoal';record.start=validDay(d.start)?d.start:null;record.deadline=validDay(d.deadline)?d.deadline:null;record.dailyHours=finite(d.dailyHours);record.daysOff=arr(d.daysOff).filter(validDay);record.activityType='Planejamento';}
@@ -50,9 +51,9 @@ function create(kind,data,actorId,now=new Date()){
 }
 function edit(previous,patch,actorId,now=new Date()){
  if(!previous||previous.ownerId!==actorId)throw Error('Edição não autorizada');
- const allowed=['title','description','status','category','severity','cause','correctiveAction','resolvedAt','level','evidence','action','expected','deadline','manualActual','metric','baseline','target','direction','frequency','date','executionAt','activityType','effectiveSeconds','pauseSeconds','waitSeconds','reworkSeconds','movements','dailyHours','daysOff','start','ruleId','event','confirmed','originId'];
+ const allowed=['title','description','status','category','severity','cause','correctiveAction','resolvedAt','level','evidence','action','expected','deadline','manualActual','metric','baseline','target','direction','frequency','date','executionAt','activityType','effectiveSeconds','pauseSeconds','waitSeconds','reworkSeconds','movements','dailyHours','daysOff','start','ruleId','event','confirmed','originId','progress'];
  const changes={};for(const k of allowed)if(Object.prototype.hasOwnProperty.call(obj(patch),k)){
-  let v=patch[k];if(['manualActual','baseline','target','effectiveSeconds','pauseSeconds','waitSeconds','reworkSeconds','movements','dailyHours'].includes(k)){v=v===null?null:finite(v);if(v===null&&patch[k]!==null)throw Error('Número inválido');}
+  let v=patch[k];if(['manualActual','baseline','target','effectiveSeconds','pauseSeconds','waitSeconds','reworkSeconds','movements','dailyHours','progress'].includes(k)){v=v===null?null:finite(v);if(v===null&&patch[k]!==null)throw Error('Número inválido');}
   else if(k==='daysOff')v=arr(v).filter(validDay);else if(k==='confirmed')v=v===true;else v=text(v);
   if(['deadline','date','executionAt','start'].includes(k)&&v&&!validDay(v))throw Error('Data inválida');
   changes[k]=v;
@@ -64,7 +65,9 @@ function edit(previous,patch,actorId,now=new Date()){
   const base=finite(effective.baseline),target=finite(effective.target),dir=effective.direction;
   if(!effective.metric||base===null||target===null||base===target||(dir==='increase'&&target<=base)||(dir==='decrease'&&target>=base))throw Error('Atualização de meta inválida');
  }
- if(changes.category&&!CATEGORIES.includes(changes.category))throw Error('Categoria inválida');
+ if(changes.category&&Object.prototype.hasOwnProperty.call(previous,'level')&&!COMPETENCY_GROUPS.includes(changes.category))throw Error('Grupo de competências inválido');
+ if(changes.category&&Object.prototype.hasOwnProperty.call(previous,'severity')&&!CATEGORIES.includes(changes.category))throw Error('Categoria de qualidade inválida');
+ if(changes.progress!==undefined&&changes.progress!==null&&changes.progress>100)throw Error('Progresso não pode exceder 100%');
  if(changes.severity&&!['Baixa','Média','Alta'].includes(changes.severity))throw Error('Gravidade inválida');
  const at=now.toISOString();
  return {...previous,...changes,updatedAt:at,audit:[...arr(previous.audit),{at,actorId,action:'edit',changes:Object.fromEntries(Object.keys(changes).map(k=>[k,{before:previous[k]??null,after:changes[k]}]))}]};
@@ -133,5 +136,5 @@ function anonymized(state,summary,userId){
   achievements:s.achievements.filter(r=>r.ownerId===userId).map(r=>({date:r.date,kind:'Realização pessoal registrada'})),
   competencies:s.competencies.filter(r=>r.ownerId===userId).map(r=>({level:r.level,kind:'Competência autoavaliada'}))};
 }
-return {TYPES,CATEGORIES,LEVELS,blank,normalize,create,edit,saveRecord,percent,validDay,resultGoals,summarizeQuality,activitySummary,complexity,insights,anonymized};
+return {TYPES,CATEGORIES,LEVELS,COMPETENCY_GROUPS,blank,normalize,create,edit,saveRecord,percent,validDay,resultGoals,summarizeQuality,activitySummary,complexity,insights,anonymized};
 });
