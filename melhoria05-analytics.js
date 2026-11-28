@@ -89,15 +89,27 @@ function quality(records,filter={}){
 }
 function metricAtGoal(goal,companies,userId,B,tracking){
  if(!B||!userId)return {value:null,source:'indisponível'};
- const period=month(goal.period)?goal.period:day(goal.start)?goal.start.slice(0,7):day(goal.deadline)?goal.deadline.slice(0,7):null;
- if(!period)return {value:null,source:'sem período definido'};
- if(goal.start&&goal.deadline&&goal.start>goal.deadline)return {value:null,source:'período inválido'};
  let rows=B.authorized(companies,userId);
  if(goal.companyId){rows=rows.filter(c=>c.id===goal.companyId);if(!rows.length)return {value:null,source:'empresa não autorizada'};}
- const result=B.summarize(rows,userId,period,{tracking}).summary;
  const supported=new Set(['concluded','movements','classified','documentReceived','charges','automated','excel','pending','learnedRules']);
  if(!supported.has(goal.metric))return {value:null,source:'métrica não disponível'};
- return {value:finite(result[goal.metric]),source:'indicador '+period,period};
+ const frequency=goal.frequency||'month',period=month(goal.period)?goal.period:day(goal.start)?goal.start.slice(0,7):day(goal.deadline)?goal.deadline.slice(0,7):null;
+ if(!period)return {value:null,source:'sem período definido'};
+ if(goal.start&&goal.deadline&&goal.start>goal.deadline)return {value:null,source:'período inválido'};
+ if(frequency==='month'){
+  const r=B.summarize(rows,userId,period,{tracking}).summary;
+  return {value:finite(r[goal.metric]),source:'indicador '+period,period};
+ }
+ const from=day(goal.start)?goal.start:period+'-01',to=day(goal.deadline)?goal.deadline:from;
+ const eligibleDays=frequency==='year'?{range:'year',year:Number(from.slice(0,4)),day:from}:
+ frequency==='quarter'||frequency==='semester'?{range:frequency,year:Number(from.slice(0,4)),day:from}:
+ frequency==='week'?{range:'week',day:from}:frequency==='day'?{range:'day',day:from}:
+ {range:'custom',start:from,end:to};
+ // Não converter obrigações mensais em métricas diárias quando não há data do evento.
+ if(['documentReceived','charges','pending','learnedRules'].includes(goal.metric)&&['day','week','custom'].includes(frequency))
+  return {value:null,source:'sem granularidade diária auditável',period};
+ const r=operational(rows,userId,B,eligibleDays,tracking).summary;
+ return {value:finite(r[goal.metric]),source:'indicador '+frequency+' '+from+'…'+to,period};
 }
 function goalProgress(goal,companies,userId,B,tracking){
  const actual=metricAtGoal(goal,companies,userId,B,tracking);
