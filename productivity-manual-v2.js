@@ -277,7 +277,7 @@ function stopRunning(){
 function init(){
  const nav=$('#nav'),main=document.querySelector('main');if(!nav||!main)return;
  if(!$('#prodNav')){const button=document.createElement('button');button.type='button';button.id='prodNav';button.dataset.page='produtividade';button.innerHTML='<i data-lucide="chart-no-axes-combined"></i> Dashboard de Produtividade';nav.append(button);}
- if(!$('#p-produtividade')){const page=document.createElement('section');page.className='page';page.id='p-produtividade';page.innerHTML='<div id="productivityPanel"></div>';main.append(page);}
+ if(!$('#p-produtividade')){const page=document.createElement('section');page.className='page';page.id='p-produtividade';page.innerHTML='<div id="productivityPanel"></div><div id="conciliaBI" aria-label="Dashboards integrados do ConCiliar+PLUS"></div>';main.append(page);}
  const button=$('#prodNav');
  button.addEventListener('click',()=>{if(!cloudReady&&window.ConciliaCloud?.authenticated?.())syncCloud();document.querySelectorAll('.page').forEach(x=>x.classList.toggle('visible',x.id==='p-produtividade'));document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('active',x===button));$('#pageTitle').textContent='Dashboard de Produtividade';$('#eyebrow').textContent='EVOLUÇÃO MANUAL';$('#subtitle').textContent='Sessões, tempo e histórico de conciliações.';render();});
  $('#productivityPanel').addEventListener('click',e=>{const button=e.target.closest('button[data-prod]');if(button&&!button.disabled){e.preventDefault();perform(button.dataset.prod);}});
