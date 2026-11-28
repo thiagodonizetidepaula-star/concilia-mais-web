@@ -1,0 +1,55 @@
+name: Homologação isolada - Carteira de Clientes (Etapa 01)
+on:
+  push:
+    branches:
+      - feature/carteira-clientes-etapa01-review-20261127
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  homologacao:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout somente da branch revisada
+        uses: actions/checkout@v4
+      - name: Configurar Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Conferir sintaxe JavaScript
+        run: |
+          node --check app.js
+          node --check client-wallet.js
+          node --check core.js
+          node --check partners.js
+          node --check reconciliation-tracking.js
+          node --check productivity-manual-v2.js
+          node --check retention-policy.js
+      - name: Testes de homologação da Carteira e regressão existente
+        run: |
+          node --test testes/carteira-clientes-etapa01.test.cjs testes/plano-dominio-t-vazio.test.cjs testes/auditoria-detalhada.test.cjs testes/multibancos-pdf.test.cjs testes/restaurar-tudo.test.cjs tests/tax-reconciliation.test.js 2>&1 | tee homologacao-resultado.txt
+      - name: Verificar visual em Chromium com dados fictícios
+        run: |
+          set -e
+          CHROME="$(command -v google-chrome || command -v chromium || true)"
+          if [ -z "$CHROME" ]; then
+            echo "Chrome não disponível para captura" | tee -a homologacao-resultado.txt
+            exit 1
+          fi
+          "$CHROME" --headless --no-sandbox --disable-gpu --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-carteira-desktop.png" "file://$PWD/testes/carteira-homologacao-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --hide-scrollbars --window-size=390,850 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-carteira-mobile.png" "file://$PWD/testes/carteira-homologacao-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --dump-dom "file://$PWD/testes/carteira-homologacao-visual.html" > homologacao-carteira-dom.html
+          grep -q 'data-homologacao="true"' homologacao-carteira-dom.html
+          grep -q 'EMPRESA MODELO ALFA LTDA' homologacao-carteira-dom.html
+          echo "Chromium: renderização DOM confirmada em ambiente fictício." | tee -a homologacao-resultado.txt
+      - name: Publicar evidências da homologação (somente artefato CI)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: carteira-clientes-homologacao-etapa01
+          path: |
+            homologacao-resultado.txt
+            homologacao-carteira-desktop.png
+            homologacao-carteira-mobile.png
+          if-no-files-found: warn
