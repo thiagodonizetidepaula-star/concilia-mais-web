@@ -82,11 +82,11 @@
    if((form.elements.dominioConfirmed.checked || form.elements.dreConfirmed.checked) && !end)
      throw Error('Informe a data de conclusão antes de confirmar o Domínio e a DRE.');
    company.reconciliationTracking ||= {};
-   company.reconciliationTracking[month] = {start, end, notes, dominioConfirmed, dreConfirmed, updatedAt: new Date().toISOString()};
+   company.reconciliationTracking[month] = {...(previous||{}),start, end, notes, dominioConfirmed, dreConfirmed, updatedAt: new Date().toISOString()};
    saving = true;
    render();
    try {
-    await store('CONTROLE_CONCILIACAO_SALVO', month + ' · ' + (end ? 'Concluída' : 'Em andamento'));
+    await window.ConciliaSaveManagementV4('CONTROLE_CONCILIACAO_SALVO', month + ' · ' + (end ? 'Concluída' : 'Em andamento'));
     say(cloudSyncEnabled ? 'Registro salvo.' : 'Registro salvo neste navegador. Confira a sincronização da conta.');
    } catch (error) {
     if (previous) company.reconciliationTracking[month] = previous;
