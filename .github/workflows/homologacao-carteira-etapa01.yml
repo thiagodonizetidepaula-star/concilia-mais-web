@@ -61,6 +61,16 @@ jobs:
           grep -q 'data-docs-homologado="true"' homologacao-documentos-dom.html
           grep -q 'EMPRESA FICTÍCIA ALFA' homologacao-documentos-dom.html
           echo "Documentos: renderização real Chromium com 3 clientes fictícios validada" | tee -a homologacao-resultado.txt
+      - name: Validar CRM Contábil em Chromium desktop e mobile
+        run: |
+          set -e
+          CHROME="$(command -v google-chrome || command -v chromium)"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-crm-desktop.png" "file://$PWD/testes/crm-homologacao-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --hide-scrollbars --window-size=390,850 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-crm-mobile.png" "file://$PWD/testes/crm-homologacao-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --virtual-time-budget=2500 --dump-dom "file://$PWD/testes/crm-homologacao-visual.html" > homologacao-crm-dom.html
+          grep -q 'data-crm-homologado="true"' homologacao-crm-dom.html
+          grep -q 'EMPRESA ALFA FICTÍCIA' homologacao-crm-dom.html
+          echo "CRM: renderização desktop/mobile e tabela real confirmadas" | tee -a homologacao-resultado.txt
       - name: Publicar evidências da homologação (somente artefato CI)
         if: always()
         uses: actions/upload-artifact@v4
@@ -73,5 +83,8 @@ jobs:
             homologacao-documentos-desktop.png
             homologacao-documentos-mobile.png
             homologacao-documentos-dom.html
+            homologacao-crm-desktop.png
+            homologacao-crm-mobile.png
+            homologacao-crm-dom.html
             homologacao-carteira-dom.html
           if-no-files-found: warn
