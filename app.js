@@ -32,11 +32,39 @@ function durableWorkspace(workspace){
 }
 const draftFields=['imports','movements','ledger','transfers','financialControls','reconciliationReview','taxSplits'];
 let draftRevision=0;
+/* Melhoria 05 — agregados mínimos e idempotentes para conservar contadores de uso
+   das regras após a retenção operacional autorizada (> 3 meses).
+   Não armazena extratos nem valores bancários nos agregados gerenciais. */
+function captureLearningMonthly(){
+ for(const c of state.companies||[]){
+  const groups=new Map();
+  for(const m of c.movements||[]){
+   const u=m.learningUsage;
+   if(!u||u.origin!=='REGRA_APRENDIDA'||!/^20\d\d-(0[1-9]|1[0-2])$/.test(String(m.date||'').slice(0,7)))continue;
+   const month=String(m.date).slice(0,7);
+   const g=groups.get(month)||{suggested:0,confirmed:0,corrected:0,rules:{}};
+   const result=m.status==='CONFIRMADO'?(String(m.counterpart||'')===String(u.suggestedCode||'')?'confirmed':'corrected'):null;
+   g.suggested++;if(result)g[result]++;
+   for(const ruleKey of [...new Set(Array.isArray(u.ruleKeys)?u.ruleKeys:[])]){
+    const key=String(ruleKey||'').slice(0,160);if(!key)continue;
+    const row=g.rules[key]||{suggested:0,confirmed:0,corrected:0};
+    row.suggested++;if(result)row[result]++;g.rules[key]=row;
+   }
+   groups.set(month,g);
+  }
+  if(groups.size){
+   c.learnedUsageMonthly ||= {};
+   for(const [month,counts] of groups)c.learnedUsageMonthly[month]={...counts,source:'REGRA_APRENDIDA',recordedAt:new Date().toISOString()};
+  }
+ }
+}
+
 
 let operationalCloudRevision=null,operationalCloudReady=false,operationalCloudQueue=Promise.resolve();
 /* Executa retenção somente em competências explicitamente encerradas e homologadas.
    Não altera cadastros, regras aprendidas, nem o histórico gerencial. */
 function runRetentionCleanup(){
+ captureLearningMonthly();
  if(!window.ConciliaRetention||!state?.companies?.length)return null;
  const result=window.ConciliaRetention.cleanupWorkspace(state);
  const deleted=Object.values(result.deleted).reduce((a,b)=>a+b,0);
@@ -113,6 +141,7 @@ function loadDraft(workspace){
 }
 
 function saveDB({operational=true}={}){
+ captureLearningMonthly();
  const key=operational&&authReady?draftKey():'';
  const draft=key?operationalSnapshot():null;
  const snapshot=draft?structuredClone(draft):null;
@@ -357,7 +386,7 @@ function renderSelection(){
 }
 
 function showPage(page){currentPage=page;document.querySelectorAll('.page').forEach(x=>x.classList.toggle('visible',x.id==='p-'+page));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===page));const titles={pendencias:['Central de pendências','REVISÃO','Investigue as ocorrências da empresa e competência selecionadas.'],controle:['Controle de conciliações','ACOMPANHAMENTO','Registre e consulte os trabalhos por empresa e competência.'],visao:['Visão geral','PAINEL OPERACIONAL','Selecione uma empresa e acompanhe o andamento da competência.'],empresas:['Empresas e plano de contas','CONFIGURAÇÃO INICIAL','Cada empresa utiliza seu próprio plano, seus bancos e suas regras.'],carteira:['Carteira de Clientes','GESTÃO DE CLIENTES','Acompanhe as empresas importadas do plano de contas e sob sua responsabilidade.'],documentos:['Controle de Documentos','GESTÃO DOCUMENTAL','Acompanhe documentos recebidos, cobrados e pendentes, por empresa e competência.'],crm:['CRM Contábil','RELACIONAMENTO CONTÁBIL','Organize cobranças manuais, retornos e lembretes das competências exigíveis.'],importar:['Importar extratos e Razão','PROCESSAMENTO DE DOCUMENTOS','O plano de contas é obrigatório antes dos extratos.'],movimentos:['Classificações','MOVIMENTAÇÕES','Conferência das contrapartidas e regras da empresa selecionada.'],tributos:['Tributos e separação','RECEITA FEDERAL','Consulta rápida, comprovantes DARF/DAS e conferência de separações sem duplicidade.'],transferencias:['Transferências entre contas','CRUZAMENTO DE BANCOS','Propostas que exigem confirmação da titularidade.'],conciliacao:['Conciliação e exportação','RAZÃO CONTÁBIL','Somente lançamentos confirmados e não encontrados no Razão.'],revisao:['Revisão de leitura','CONTROLE DE PENDÊNCIAS','Nenhuma linha ilegível deve desaparecer.'],regras:['Regras aprendidas','CONTROLE DE CLASSIFICAÇÕES','Edite, desative ou arquive sugestões específicas desta empresa.']} ;const [title,eye,sub]=titles[page]||titles.visao;$('#pageTitle').textContent=title;$('#eyebrow').textContent=eye;$('#subtitle').textContent=sub;render()}
-function render(){const c=current();if(c)autoLinkBankCodes(c);$('#statementButton').disabled=!canImport(c);$('#importPlanButton').disabled=false;$('#addBank').disabled=!c||!c.plan.length;$('#addRule').disabled=!c||!c.plan.length;$('#ledgerButton').disabled=!c;$('#financialButton').disabled=!c;$('#matchFinancial').disabled=!c;$('#downloadCsv').disabled=!c;$('#downloadExcel').disabled=!c;$('#downloadStatement').disabled=!c;const resetButton=$('#resetAll');if(resetButton)resetButton.disabled=!c;renderSetup();renderDashboard();renderImport();renderTaxes();renderMovements();renderTransfers();renderRecon();renderAuditoria();renderReviews();renderAssistente();window.ConciliaTracking?.render();window.ConciliaTrackingV4?.render();window.ConciliaReview?.render();window.ConciliaRules?.render();window.ConciliaWallet?.render();window.ConciliaDocuments?.render();window.ConciliaCRM?.render();window.ConciliaBI?.render({companies:state.companies,userId:window.ConciliaCloud?.accountId?.()||''});}
+function render(){const c=current();if(c)autoLinkBankCodes(c);$('#statementButton').disabled=!canImport(c);$('#importPlanButton').disabled=false;$('#addBank').disabled=!c||!c.plan.length;$('#addRule').disabled=!c||!c.plan.length;$('#ledgerButton').disabled=!c;$('#financialButton').disabled=!c;$('#matchFinancial').disabled=!c;$('#downloadCsv').disabled=!c;$('#downloadExcel').disabled=!c;$('#downloadStatement').disabled=!c;const resetButton=$('#resetAll');if(resetButton)resetButton.disabled=!c;renderSetup();renderDashboard();renderImport();renderTaxes();renderMovements();renderTransfers();renderRecon();renderAuditoria();renderReviews();renderAssistente();window.ConciliaTracking?.render();window.ConciliaTrackingV4?.render();window.ConciliaReview?.render();window.ConciliaRules?.render();window.ConciliaWallet?.render();window.ConciliaDocuments?.render();window.ConciliaCRM?.render();window.ConciliaBI?.render({companies:state.companies,userId:window.ConciliaCloud?.accountId?.()||''});window.Concilia05?.render({companies:state.companies,userId:window.ConciliaCloud?.accountId?.()||''});}
 function renderDashboard(){const c=current();if(!c){$('#stepBanner').innerHTML='<strong>Primeiro passo:</strong> importe o plano de contas; a empresa será criada automaticamente.';$('#metrics').innerHTML='';$('#steps').innerHTML='';$('#recentFiles').innerHTML=empty('Sem empresas cadastradas.');return}
   const mv=Core.periodMovements(c,period);const balance=Core.reconcile(c,period);const acc=new Set(mv.map(x=>x.accountId));const confirmed=balance.checked.filter(x=>x.recon==='CONCILIADO').length;
   const availablePeriods=[...new Set(c.imports.filter(x=>x.type==='EXTRATO').flatMap(x=>x.periods||[]))].sort().reverse();
@@ -602,16 +631,22 @@ function applyLearnedCode(c,m){
   if(!rule||rule.disabled||rule.archived)continue;
   const override=String(rule.overrideCode||'');
   const validOverride=override&&c.plan.some(p=>String(p.code)===override&&p.analytic)&&!c.accounts.some(a=>String(a.chartCode)===override);
-  if(validOverride){evidence.push({code:override,total:1,verified:true});continue;}
+  if(validOverride){evidence.push({ruleKey:key,code:override,total:1,verified:true});continue;}
   const codes=Object.entries(rule.codes||{}).filter(([code])=>c.plan.some(p=>String(p.code)===code&&p.analytic)&&!c.accounts.some(a=>String(a.chartCode)===code));
   const total=Object.values(rule.codes||{}).reduce((n,v)=>n+v,0);
   if(codes.length!==1||codes[0][1]!==total||(!rule.verifiedExamples&&total<2))continue;
-  evidence.push({code:codes[0][0],total,verified:!!rule.verifiedExamples});
+  evidence.push({ruleKey:key,code:codes[0][0],total,verified:!!rule.verifiedExamples});
  }
  const distinct=[...new Set(evidence.map(e=>e.code))];
  if(distinct.length!==1)return false;
  m.suggested=distinct[0];
  m.confidence='Aprendizado da empresa: '+Math.max(...evidence.map(e=>e.total))+' ocorrência(s) — exige confirmação';
+ // Melhoria 05: fonte de uso real, prospectiva e idempotente, vinculada ao lançamento.
+ // Não contabilizar a sugestão como confirmação ou movimentação conciliada.
+ if(!m.learningUsage||m.learningUsage.suggestedCode!==distinct[0]){
+  m.learningUsage={ruleKeys:[...new Set(evidence.map(e=>e.ruleKey))],suggestedCode:distinct[0],
+   suggestedAt:new Date().toISOString(),origin:'REGRA_APRENDIDA',sourceMovementId:m.id};
+ }
  return true;
 }
 function applyLearningPeriod(c,ym){

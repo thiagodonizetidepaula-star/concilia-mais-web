@@ -8,6 +8,7 @@ on:
       - feature/melhoria04-controle-conciliacoes-homologacao-20261128
       - feature/refinamento-ciclo01-04-20261128
       - feature/dashboards-bi-integrados-ciclo01-20261128
+      - feature/melhoria-05-inteligencia-operacional
   workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -27,6 +28,11 @@ jobs:
           node-version: "22"
       - name: Conferir sintaxe JavaScript
         run: |
+          node --check melhoria05-analytics.js
+          node --check melhoria05-advanced-ui.js
+          node --check melhoria05-reports.js
+          node --check melhoria05-core.js
+          node --check melhoria05-ui.js
           node --check dashboard-bi-metrics.js
           node --check dashboard-bi.js
           node --check classification-learning.js
@@ -46,7 +52,7 @@ jobs:
       - name: Testes de homologação da Carteira e regressão existente
         run: |
           set -o pipefail
-          node --test testes/dashboard-bi-integrado.test.cjs testes/refinamentos-ciclo01-04.test.cjs testes/tracking-melhoria04.test.cjs testes/crm-melhoria03.test.cjs testes/document-management-melhoria02.test.cjs testes/carteira-clientes-etapa01.test.cjs testes/plano-dominio-t-vazio.test.cjs testes/auditoria-detalhada.test.cjs testes/multibancos-pdf.test.cjs testes/restaurar-tudo.test.cjs tests/tax-reconciliation.test.js 2>&1 | tee homologacao-resultado.txt
+          node --test testes/melhoria05-integral.test.cjs testes/melhoria05-nucleo.test.cjs testes/dashboard-bi-integrado.test.cjs testes/refinamentos-ciclo01-04.test.cjs testes/tracking-melhoria04.test.cjs testes/crm-melhoria03.test.cjs testes/document-management-melhoria02.test.cjs testes/carteira-clientes-etapa01.test.cjs testes/plano-dominio-t-vazio.test.cjs testes/auditoria-detalhada.test.cjs testes/multibancos-pdf.test.cjs testes/restaurar-tudo.test.cjs tests/tax-reconciliation.test.js 2>&1 | tee homologacao-resultado.txt
       - name: Verificar backup completo ZIP do código candidato
         run: |
           python3 scripts/backup_release.py | tee backup-candidato.json
@@ -115,6 +121,28 @@ jobs:
           grep -q 'data-bi-homologado="true"' homologacao-bi-dom.html
           grep -q 'Dashboards integrados' homologacao-bi-dom.html
           echo "BI integrado: visual desktop/mobile, 4 perspectivas, filtros e indicadores aprovados" | tee -a homologacao-resultado.txt
+      - name: Validar interface da Melhoria 05 no Chromium
+        run: |
+          set -e
+          CHROME="$(command -v google-chrome || command -v chromium)"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --window-size=1440,1000 --virtual-time-budget=3500 --screenshot="$PWD/homologacao-melhoria05-desktop.png" "file://$PWD/testes/melhoria05-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --window-size=390,850 --virtual-time-budget=3500 --screenshot="$PWD/homologacao-melhoria05-mobile.png" "file://$PWD/testes/melhoria05-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --virtual-time-budget=3500 --dump-dom "file://$PWD/testes/melhoria05-visual.html" > homologacao-melhoria05-dom.html
+          grep -q 'data-melhoria05-homologada="true"' homologacao-melhoria05-dom.html
+          echo "Melhoria 05: 9 perspectivas responsivas e indicadores fictícios no laboratório: OK" | tee -a homologacao-resultado.txt
+      - name: Preparar ZIP candidato do segundo ciclo (não publicado)
+        if: github.ref_name == 'feature/melhoria-05-inteligencia-operacional'
+        run: |
+          python3 scripts/backup_release.py
+          mv CONCILIAR_PLUS_PROJETO_COMPLETO.zip CONCILIAR_PLUS_MELHORIA_05_CANDIDATA.zip
+          unzip -t CONCILIAR_PLUS_MELHORIA_05_CANDIDATA.zip | tail -n 1
+      - name: Anexar ZIP da Melhoria 05 à homologação isolada
+        if: github.ref_name == 'feature/melhoria-05-inteligencia-operacional'
+        uses: actions/upload-artifact@v4
+        with:
+          name: CONCILIAR_PLUS_MELHORIA_05_CANDIDATA
+          path: CONCILIAR_PLUS_MELHORIA_05_CANDIDATA.zip
+          if-no-files-found: error
       - name: Publicar evidências da homologação (somente artefato CI)
         if: always()
         uses: actions/upload-artifact@v4
@@ -125,6 +153,9 @@ jobs:
             homologacao-bi-desktop.png
             homologacao-bi-mobile.png
             homologacao-bi-dom.html
+            homologacao-melhoria05-desktop.png
+            homologacao-melhoria05-mobile.png
+            homologacao-melhoria05-dom.html
             homologacao-carteira-desktop.png
             homologacao-carteira-mobile.png
             homologacao-documentos-desktop.png

@@ -8,6 +8,7 @@ on:
       - feature/melhoria04-controle-conciliacoes-homologacao-20261128
       - feature/refinamento-ciclo01-04-20261128
       - feature/dashboards-bi-integrados-ciclo01-20261128
+      - feature/melhoria-05-inteligencia-operacional
   workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -34,6 +35,7 @@ jobs:
           supabase init --yes
           mkdir -p supabase/migrations
           cp ../../testes/homologacao-supabase-local.sql supabase/migrations/20261127000100_wallet_homolog.sql
+          cp ../../supabase/migrations/20261128050000_melhoria05_user_states.sql supabase/migrations/20261128050000_melhoria05_user_states.sql
           supabase start -x realtime,storage-api,imgproxy,studio,postgres-meta,edge-runtime,logflare,vector,supavisor,mailpit
           supabase status -o env > ../local-supabase.env
       - name: Instalar somente dependência de teste (não modifica app)
@@ -108,6 +110,7 @@ jobs:
           trap 'kill $SERVER_PID || true' EXIT
           sleep 2
           node testes/homologacao-real-supabase.cjs 2>&1 | tee .homologacao/auth-integracao.log
+          node testes/homologacao-melhoria05.cjs 2>&1 | tee .homologacao/etapa05-integracao.log
       - name: Evidências - somente laboratório isolado
         if: always()
         uses: actions/upload-artifact@v4
@@ -115,6 +118,9 @@ jobs:
           name: homologacao-operacional-carteira-supabase-local
           path: |
             .homologacao/auth-integracao.log
+            .homologacao/etapa05-integracao.log
+            ${{ runner.temp }}/melhoria05-auth-desktop.png
+            ${{ runner.temp }}/melhoria05-auth-mobile.png
             ${{ runner.temp }}/carteira-real-auth-desktop.png
             ${{ runner.temp }}/carteira-real-auth-mobile.png
             ${{ runner.temp }}/crm-real-auth-desktop.png

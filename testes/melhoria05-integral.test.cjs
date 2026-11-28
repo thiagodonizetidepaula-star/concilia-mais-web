@@ -1,0 +1,69 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict');
+const A=require('../melhoria05-analytics.js'),C=require('../melhoria05-core.js'),B=require('../dashboard-bi-metrics.js');
+const R=require('../melhoria05-reports.js');
+const user='test-owner-05',c={id:'c1',name:'TESTE CLIENTE CONFIDENCIAL',cnpj:'00.000.000/0001-00',dominio:'888',walletAssignedUserIds:[user],
+ movements:[{date:'2026-10-12',status:'CONFIRMADO',confidence:'Excel colado'},{date:'2026-11-03',status:'CONFIRMADO',confidence:'Regra aprendida'},{date:'2026-11-14',status:'PENDENTE'}],
+ reconciliationTracking:{'2026-10':{start:'2026-10-05',end:'2026-10-13'},'2026-11':{start:'2026-11-02',end:'2026-11-05'}},
+ documentHistory:{'2026-11':{status:'Recebido'}},learnedCodes:[]};
+const f={range:'month',month:'2026-11',day:'2026-11-12',year:2026,period:'',companyId:''};
+test('filtros: dia e semana com segunda-feira correta',()=>{assert.deepEqual(A.bounds({...f,range:'day',day:'2026-11-12'}),{from:'2026-11-12',to:'2026-11-12',range:'day'});assert.equal(A.bounds({...f,range:'week'}).from,'2026-11-09');});
+test('filtros: trimestres, semestres, virada de ano, personalizados',()=>{assert.equal(A.bounds({...f,range:'quarter'}).from,'2026-10-01');assert.equal(A.bounds({...f,range:'semester'}).from,'2026-07-01');assert.equal(A.bounds({...f,range:'month',month:'2026-12'}).to,'2026-12-31');assert.throws(()=>A.bounds({...f,range:'custom',start:'2026-12-01',end:'2026-11-01'}),/inválido/);});
+test('filtro por competência NÃO confunde data real de execução',()=>{const x=[{companyId:'c1',period:'2026-10',executionAt:'2026-11-12'},{companyId:'c1',period:'2026-11',executionAt:'2026-11-12'}];assert.equal(A.filterRows(x,{...f,range:'day',period:'2026-10'}).length,1);});
+test('filtros por dono, empresa, status e atividade',()=>{const x=[{ownerId:user,companyId:'c1',status:'Concluída',activityType:'Revisão',executionAt:'2026-11-12'},{ownerId:'outro',companyId:'c1',status:'Concluída',activityType:'Revisão',executionAt:'2026-11-12'}];assert.equal(A.filterRows(x,{...f,range:'day',ownerId:user,status:'Concluída',activityType:'Revisão'}).length,1);});
+test('atividade mesma origem e dono não conta duas vezes',()=>{const r=C.create('activity',{title:'Conciliação',originId:'orig-1',effectiveSeconds:3600},user,new Date('2026-11-12T12:00:00Z'));const s=C.saveRecord(C.blank(),'activity',r,user);const second=C.create('activity',{title:'Conciliação',originId:'orig-1'},user,new Date('2026-11-12T12:01:00Z'));assert.throws(()=>C.saveRecord(s,'activity',second,user),/já registrada/);});
+test('tempo efetivo, pausa e espera são medidas distintas',()=>{const x=[{id:'a',ownerId:user,executionAt:'2026-11-12',finishedAt:'2026-11-12',effectiveSeconds:7200,pauseSeconds:900,waitSeconds:1800,movements:35,activityType:'Revisão'}];const m=A.sessions(x,{...f,range:'day',ownerId:user});assert.equal(m.effectiveSeconds,7200);assert.equal(m.pauseSeconds,900);assert.equal(m.waitSeconds,1800);assert.equal(m.movementsPerHour,17.5);});
+test('tempo não medido é indisponível, não zero',()=>{let x=A.sessions([{id:'x',executionAt:'2026-11-12',finishedAt:'2026-11-12'}],{...f,range:'day'});assert.equal(x.effectiveSeconds,null);assert.equal(x.movementsPerHour,null);});
+test('revisão exige transições válidas, autor e histórico',()=>{const r=C.create('quality',{title:'Ocorrência'},user,new Date('2026-11-03T00:00:00Z'));const a=A.reviewTransition(r,'Aguardando revisão',user);assert.throws(()=>A.reviewTransition(a,'Aprovada',user),/inválida/);assert.throws(()=>A.reviewTransition(a,'Em revisão','outro'),/autorizada/);const b=A.reviewTransition(a,'Em revisão',user),d=A.reviewTransition(b,'Devolvida',user);assert.equal(d.firstReviewOutcome,'Devolvida');assert.equal(d.reviewEvents.length,3);});
+test('taxa primeira aprovação e retrabalho não confundem sem revisão',()=>{let r=C.create('quality',{title:'Q'},user),a=A.reviewTransition(A.reviewTransition(r,'Aguardando revisão',user),'Em revisão',user),first=A.reviewTransition(a,'Devolvida',user),second=A.reviewTransition(a,'Aprovada',user);const q=A.quality([first,second,r]);assert.equal(q.firstReviewRate,50);assert.equal(q.reworkRate,50);});
+test('meta do mês OUTUBRO não usa conclusão de NOVEMBRO',()=>{const goal=C.create('goal',{title:'Outubro',metric:'concluded',baseline:0,target:2,period:'2026-10'},user,new Date('2026-10-05T00:00:00Z'));const p=A.goalProgress(goal,[c],user,B);assert.equal(p.period,'2026-10');assert.equal(p.actual,1);assert.equal(p.progress,50);});
+test('meta de outra empresa não usa carteira nem da competência atual',()=>{const g=C.create('goal',{title:'Empresa fora',metric:'concluded',baseline:0,target:2,companyId:'outra',period:'2026-11'},user);const p=A.goalProgress(g,[c],user,B);assert.equal(p.actual,null);});
+test('dias úteis retiram finais de semana e folgas explícitas',()=>{assert.equal(A.businessDays('2026-11-23','2026-11-27',['2026-11-25']),4);const p=A.planning(8,{from:'2026-11-23',deadline:'2026-11-27',dailyHours:6,daysOff:['2026-11-25']},3600);assert.equal(p.days,4);assert.equal(p.perDay,2);assert.equal(p.capacity,24);});
+test('regras registradas prospectivamente distinguem uso, correção e confirmação',()=>{const x=[{executionAt:'2026-11-12',event:'used',confirmed:true,ownerId:user},{executionAt:'2026-11-13',event:'used',confirmed:false,ownerId:user},{executionAt:'2026-11-14',event:'corrected',ownerId:user}];const r=A.learning(x,{...f,ownerId:user});assert.equal(r.confirmationRate,50);assert.equal(r.corrections,1);});
+test('economia de tempo exige comparação por complexidade igual',()=>{assert.equal(A.savings([{seconds:240,movements:20,complexityClass:'Alta'}],[{seconds:100,movements:20,complexityClass:'Baixa'}]).measured,false);});
+test('operações diárias filtram movimentos por data comprovada',()=>{const r=A.operational([c],user,B,{...f,range:'day',day:'2026-11-14'});assert.equal(r.summary.movements,1);assert.equal(r.summary.classified,0);});
+test('relatório tem dez abas, fórmulas e período',()=>{const report=R.build({filter:f,state:C.blank(),companies:[c],owner:user,analytics:A,B});assert.equal(report.sheets.length,10);assert.equal(report.criteria.length,6);assert.ok(report.periodDescription.includes('2026-11'));});
+test('relatório HTML profissional inclui tabela e gráfico, sem JSON bruto',()=>{const report=R.build({filter:f,state:C.blank(),companies:[c],owner:user,analytics:A,B});let h=R.html(report);assert.ok(h.includes('<table>'));assert.ok(h.includes('chart'));assert.ok(!h.includes('JSON.stringify'));});
+test('relatório anônimo não vaza cliente nem CNPJ nem texto livre',()=>{const r=C.create('achievement',{title:'CLIENTE TESTE CONFIDENCIAL',description:'CNPJ 00.000.000/0001-00'},user);const s=C.saveRecord(C.blank(),'achievement',r,user);const report=R.build({filter:f,state:s,companies:[c],owner:user,analytics:A,B},true);let serialized=JSON.stringify(report);assert.ok(!serialized.includes('TESTE CLIENTE CONFIDENCIAL'));assert.ok(!serialized.includes('00.000.000/0001-00'));});
+
+test('meta diária usa apenas conciliação encerrada no dia próprio',()=>{
+ const goal=C.create('goal',{title:'Hoje',metric:'concluded',baseline:0,target:2,frequency:'day',start:'2026-11-05',period:'2026-11'},user);
+ const result=A.goalProgress(goal,[c],user,B);
+ assert.equal(result.actual,1);
+ assert.equal(result.progress,50);
+});
+test('meta anual não multiplica por meses futuros o mesmo universo de empresas',()=>{
+ const goal=C.create('goal',{title:'Ano 2026',metric:'concluded',baseline:0,target:10,frequency:'year',start:'2026-01-01',deadline:'2026-12-31'},user);
+ const result=A.goalProgress(goal,[c],user,B);
+ assert.equal(result.actual,2);
+ assert.equal(result.progress,20);
+});
+test('aprendizagem de regras considera só eventos realmente registrados nos lançamentos',()=>{
+ const x={...c,movements:[{id:'1',date:'2026-11-04',status:'CONFIRMADO',counterpart:'123',learningUsage:{origin:'REGRA_APRENDIDA',suggestedCode:'123',suggestedAt:'2026-11-03T10:00:00Z'}},
+ {id:'2',date:'2026-11-05',status:'PENDENTE',learningUsage:{origin:'REGRA_APRENDIDA',suggestedCode:'222',suggestedAt:'2026-11-05T10:00:00Z'}},
+ {id:'3',date:'2026-11-06',status:'CONFIRMADO',counterpart:'444',learningUsage:{origin:'REGRA_APRENDIDA',suggestedCode:'555',suggestedAt:'2026-11-06T10:00:00Z'}}]};
+ const result=A.learningFromCompanies([x],user,B,f);
+ assert.equal(result.suggested,3);assert.equal(result.confirmed,1);assert.equal(result.corrected,1);
+});
+test('matriz profissional só aceita categorias documentadas',()=>{
+ const r=C.create('competency',{title:'Conciliação bancária',category:'Contabilidade',level:'Aplicação prática',evidence:'Exemplo anonimizado'},user);
+ assert.equal(r.category,'Contabilidade');
+ assert.throws(()=>C.edit(r,{category:'Título inexistente'},user),/inválido/);
+});
+test('relatório anônimo remove também companyId nos filtros',()=>{
+ const report=R.build({filter:{...f,companyId:'c1'},state:C.blank(),companies:[c],owner:user,analytics:A,B},true);
+ assert.ok(!JSON.stringify(report.filter).includes('c1'));
+});
+test('futuro não gera empresa em atraso fictício na carteira anual',()=>{
+ const rs=A.operational([c],user,B,{range:'year',year:2027,day:'2027-01-02'});
+ assert.equal(rs.summary.remaining,0);
+});
+
+test('retencao conserva agregados históricos de aprendizagem sem duplicar movimentos ainda existentes',()=>{
+ const x={...c,learnedUsageMonthly:{'2026-09':{source:'REGRA_APRENDIDA',suggested:4,confirmed:3,corrected:1,rules:{'CODIGO-FAKE':{suggested:4,confirmed:3,corrected:1}}}},
+  movements:[{id:'m',date:'2026-11-05',status:'CONFIRMADO',counterpart:'111',learningUsage:{origin:'REGRA_APRENDIDA',suggestedAt:'2026-11-05T11:00:00Z',suggestedCode:'111',ruleKeys:['REGRA-2']}}]};
+ const a=A.learningFromCompanies([x],user,B,{range:'year',year:2026,day:'2026-11-05'});
+ assert.equal(a.suggested,5);assert.equal(a.confirmed,4);assert.equal(a.corrected,1);
+ assert.equal(a.archived.length,1);
+ assert.equal(a.byRule.length,2);
+});

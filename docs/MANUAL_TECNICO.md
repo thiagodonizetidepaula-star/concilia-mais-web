@@ -105,3 +105,33 @@ Quatro perspectivas permanentes: (1) produtividade e desenvolvimento profissiona
 
 ### Padrão BI aprovado
 Fundo `#080F20`, cartões `#111B35`, secundário `#14213D`, ciano `#20CEE6`, verde `#35D99C`, âmbar `#FFA600`, vermelho de alerta `#EF4444`, borda `#253354` e texto `#98AACB`. A imagem é **referência visual**, sem copiar a marca Romeiro ou números do exemplo. A identidade do ConCiliar+ continua própria. Sem React/TSX novo: projeto real é JavaScript navegador e CSS, com scripts existentes, sem pipeline de compilação.
+
+
+## Melhoria 05 — segundo ciclo em desenvolvimento isolado (28/11/2026)
+**A Melhoria 05 ainda NÃO está na produção. Nenhuma autorização de merge ou Render foi concedida para o segundo ciclo.** Ela é mantida na branch `feature/melhoria-05-inteligencia-operacional`, com fluxo de testes GitHub Actions e ambiente efêmero Supabase local.
+
+Arquivos reais: `melhoria05-core.js` (regras puras; sem alteração de dados contábeis), `melhoria05-ui.js` (nove perspectivas internas, persistência privada CAS, relatórios), `melhoria05.css` (BI azul-marinho responsivo), `index.html` e `app.js` (encaixe na Visão Geral sem página principal duplicada), `supabase/migrations/20261128050000_melhoria05_user_states.sql` (SOMENTE proposta, não executada na produção), `testes/melhoria05-nucleo.test.cjs`, `testes/melhoria05-visual.html` e `testes/homologacao-melhoria05.cjs` (cálculos, fixture e E2E Auth/RLS no laboratório).
+
+Reaproveitamento: `ConciliaBIMetrics`, `ConciliaTrackingCore`, `ConciliaManualProductivity.history()`, `ConciliaCloud`, dados existentes de documentos, CRM, empresas e aprendizagem. A nova coleção `user_melhoria05_states` é isolada por `auth.uid()` no RLS e usa revisão otimista (CAS) para proteger gravações; não substitui `user_workspaces` nem `user_productivity_states` e não altera o cronômetro. **O procedimento de publicação futura depende de aprovação separada e migração testada; não aplicar a migration automaticamente.**
+
+Os registros de qualidade, metas, autoavaliações, diário, realizações e PDI são *declarações identificadas do profissional*, com origem e trilha de alterações. Indicadores automáticos de produtividade, conciliação e automação vêm apenas dos registros previamente autorizados. Classificação confirmada não significa conciliação aprovada; tempo manual não é somado ao cronômetro do Controle 04; metas, complexidade e análises não determinam punições nem juízos definitivos de competência.
+
+Relatórios XLSX usam a biblioteca `XLSX` já presente; PDF depende da impressão/salvamento nativo do navegador. O portfólio exportável remove nomes/identificadores de clientes e textos livres para evitar vazamento de informações corporativas. A ausência de dados é representada por **Sem dados / Sem medição**, nunca por valores inventados.
+
+Para extensão: incluir novos critérios em `docs/DICIONARIO_DE_INDICADORES.md`, testar RLS de dois usuários e concorrência CAS, validar logs dos GitHub Actions na mesma versão, revisar documentação, criar ZIP de homologação, e **aguardar autorização do segundo ciclo**. Não iniciar Melhoria 06.
+
+
+## Melhoria 05 — extensão modular e governança (candidata, 2026-11-28)
+**Sem merge ou publicação do segundo ciclo.** Matriz original com 1.118 requisitos listados por linha: `docs/MATRIZ_REQUISITOS_MELHORIA05.md`. Manual operacional: `docs/MANUAL_MELHORIA05.md`.
+
+**Contrato de código:** `melhoria05-core.js` (tipos, auditoria, metas e eventos privados), `melhoria05-analytics.js` (filtros puros, séries, revisões, comparação, metas, dias úteis, learning e estimativas), `melhoria05-ui.js` (persistência RLS/CAS e nove perspectivas), `melhoria05-advanced-ui.js` (filtros e drilldowns), `melhoria05-reports.js` (PDF HTML para impressão + Excel temático), `melhoria05.css` e `melhoria05-advanced.css` (BI sem CSS global), `app.js` (metadados prospectivos de uso de regra no próprio movimento), `index.html` (carregamento integrado).
+**Persistência proposta:** `supabase/migrations/20261128050000_melhoria05_user_states.sql`, com `user_id` FK, JSONB payload, revision CAS e RLS de dono; aplicada **somente ao laboratório Supabase** até autorização expressa para o segundo ciclo.
+
+**Limites e fontes:** competência não é dia de execução. Cronômetro 04 e Produtividade Manual são fontes distintas; o módulo 05 nunca soma ambas sem vínculo auditável. `learningUsage` registra sugestões de regras novas prospectivamente com `ruleKeys`, código sugerido e data, sem mudar débito/crédito; confirmação é observada apenas quando o lançamento realmente está CONFIRMADO com código igual. Nenhuma data retroativa é inferida. `melhoria05-reports.js` produz relatórios privados filtrados e saída externa que descarta campos livres confidenciais.
+
+**Testes candidatos:** `testes/melhoria05-nucleo.test.cjs`, `testes/melhoria05-integral.test.cjs`, `testes/melhoria05-visual.html`, `testes/homologacao-melhoria05.cjs` e todas as regressões 01–04. CI deverá comprovar RLS real (dois usuários fictícios), CAS, exportação XLSX, HTML diagramado para PDF, cronômetros isolados, responsividade, fórmulas e históricos. Nenhum CI verde em commit antigo confirma alterações posteriores. Backup ZIP com commit exato e hashes após a homologação da branch.
+
+
+### Retenção e aprendizagem — agregação idempotente
+`app.js` adiciona `captureLearningMonthly()`, que sintetiza contagens de sugestões, confirmações e correções das regras por competência e `ruleKey`, antes do salvamento e da limpeza operacional. Os resumos `company.learnedUsageMonthly` são gerenciais, não armazenam extratos ou saldos e não são removidos com movimentos antigos; os dados só aparecem se eventos reais `movement.learningUsage` tiverem sido registrados. A função `learningFromCompanies()` prefere eventos disponíveis e recorre aos resumos dos meses já sem movimentos, sem dupla contagem e sem alocar totais mensais a dias.
+Ajustes manuais de `effectiveSeconds`, pausas, espera, retrabalho ou volume exigem `adjustmentReason` não vazio e são auditados em `record.audit` com antes/depois, autor e data.

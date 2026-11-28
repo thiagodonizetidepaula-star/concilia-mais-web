@@ -99,3 +99,29 @@ Auditoria read-only executada para refs, banco, backup e serviço Render; docume
 **Controle e segurança:** ler somente empresas acessíveis ao usuário autenticado, preservando RLS, regras de carteira, cronômetros manuais e histórico. Desconsiderar competências futuras no cálculo de atraso, não comparar pessoas sem permissão, não fingir números de horas ou automação sem evidência. Nenhuma migração destrutiva. Não contratar serviços, nem utilizar Vercel. Não iniciar Melhoria 05.
 
 **Releases:** abrir branch isolada, criar e validar backup, testar cálculos/segurança/Chromium/Supabase local, merge no GitHub apenas com CI aprovado, confirmar Render original live, testar integridade do Supabase e criar ZIP completo **do código publicado** sem dados/segredos corporativos. Recuperação exige comparar commit e revisão antes de reverter.
+
+
+## Melhoria 05 — segundo ciclo em desenvolvimento isolado (28/11/2026)
+**A Melhoria 05 ainda NÃO está na produção. Nenhuma autorização de merge ou Render foi concedida para o segundo ciclo.** Ela é mantida na branch `feature/melhoria-05-inteligencia-operacional`, com fluxo de testes GitHub Actions e ambiente efêmero Supabase local.
+
+Arquivos reais: `melhoria05-core.js` (regras puras; sem alteração de dados contábeis), `melhoria05-ui.js` (nove perspectivas internas, persistência privada CAS, relatórios), `melhoria05.css` (BI azul-marinho responsivo), `index.html` e `app.js` (encaixe na Visão Geral sem página principal duplicada), `supabase/migrations/20261128050000_melhoria05_user_states.sql` (SOMENTE proposta, não executada na produção), `testes/melhoria05-nucleo.test.cjs`, `testes/melhoria05-visual.html` e `testes/homologacao-melhoria05.cjs` (cálculos, fixture e E2E Auth/RLS no laboratório).
+
+Reaproveitamento: `ConciliaBIMetrics`, `ConciliaTrackingCore`, `ConciliaManualProductivity.history()`, `ConciliaCloud`, dados existentes de documentos, CRM, empresas e aprendizagem. A nova coleção `user_melhoria05_states` é isolada por `auth.uid()` no RLS e usa revisão otimista (CAS) para proteger gravações; não substitui `user_workspaces` nem `user_productivity_states` e não altera o cronômetro. **O procedimento de publicação futura depende de aprovação separada e migração testada; não aplicar a migration automaticamente.**
+
+Os registros de qualidade, metas, autoavaliações, diário, realizações e PDI são *declarações identificadas do profissional*, com origem e trilha de alterações. Indicadores automáticos de produtividade, conciliação e automação vêm apenas dos registros previamente autorizados. Classificação confirmada não significa conciliação aprovada; tempo manual não é somado ao cronômetro do Controle 04; metas, complexidade e análises não determinam punições nem juízos definitivos de competência.
+
+Relatórios XLSX usam a biblioteca `XLSX` já presente; PDF depende da impressão/salvamento nativo do navegador. O portfólio exportável remove nomes/identificadores de clientes e textos livres para evitar vazamento de informações corporativas. A ausência de dados é representada por **Sem dados / Sem medição**, nunca por valores inventados.
+
+Para extensão: incluir novos critérios em `docs/DICIONARIO_DE_INDICADORES.md`, testar RLS de dois usuários e concorrência CAS, validar logs dos GitHub Actions na mesma versão, revisar documentação, criar ZIP de homologação, e **aguardar autorização do segundo ciclo**. Não iniciar Melhoria 06.
+
+
+## Continuidade da Melhoria 05 — PR #82 mantido em rascunho
+A documentação `docs/MATRIZ_REQUISITOS_MELHORIA05.md` acompanha individualmente os itens do prompt original. O desenvolvimento reaproveita a Visão Geral e a Carteira, Controle 04, Documentos, CRM, Aprendizagem, Produtividade e o núcleo BI, sem criar outra aplicação. A branch autorizada é `feature/melhoria-05-inteligencia-operacional` e o PR #82 não pode ser mesclado à `main` sem consentimento posterior explícito.
+
+Para retomar em outra conversa, abrir PR #82, verificar HEAD atualizado e CI no MESMO SHA; conferir `docs/MANUAL_MELHORIA05.md`, `docs/MATRIZ_REQUISITOS_MELHORIA05.md` e `docs/DICIONARIO_DE_INDICADORES.md`. A migração `supabase/migrations/20261128050000_melhoria05_user_states.sql` é proposta local e **não foi aplicada à produção**. Nunca adicionar service_role no navegador nem ampliar permissões gerenciais. Registros pessoais ficam no payload privado por usuário; os três payloads anteriores (workspace, operacional e produtividade) continuam independentes e preservados. A política de retenção já aprovada permanece; o novo módulo não apaga históricos existentes.
+
+Verificar antes de declarar homologação integral: fórmula de metas próprias, dados ausentes/zero, ajustes manuais, histórico de revisão, comprovantes de classificação, calendários, relatórios PDF/XLSX, isolamento RLS, duas sessões concorrentes e interface desktop/mobile. Se algum item não tiver teste, manter a classificação pertinente na matriz. Ao final gerar ZIP do **código da branch** sem dados dos clientes. O ZIP não substitui o backup privado já existente do Supabase. Não iniciar Melhoria 06.
+
+
+### Preservação do histórico gerencial após retenção
+A mudança da Melhoria 05 é somente aditiva: `company.learnedUsageMonthly` preserva totais mensais prospectivos de eventos reais de uso de regras, com contagens por regra, sem valores bancários e sem reconstituir registros eliminados. A retenção dos extratos antigos permanece a política existente, assim como o histórico profissional do usuário. Verificar `testes/melhoria05-integral.test.cjs` antes da promoção.
