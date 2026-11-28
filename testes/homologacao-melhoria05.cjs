@@ -132,11 +132,19 @@ async function login(page,u){
    const workbook=window.XLSX.utils.book_new();
    for(const sheet of p.sheets)window.XLSX.utils.book_append_sheet(workbook,window.XLSX.utils.json_to_sheet(sheet.rows.length?sheet.rows:[{Mensagem:'Sem dados'}]),sheet.name);
    const bytes=window.XLSX.write(workbook,{type:'array',bookType:'xlsx'});
-   return {pdf:pdf.includes('<table>')&&pdf.includes('CONCILIAR+'),xlsxSheets:workbook.SheetNames.length,xlsxSize:bytes.byteLength};
+   return {pdf:pdf.includes('<table>')&&pdf.includes('CONCILIAR+'),pdfHtml:pdf,xlsxSheets:workbook.SheetNames.length,xlsxSize:bytes.byteLength};
   });
   assert.equal(evidence.pdf,true,'PDF diagramado');
   assert.equal(evidence.xlsxSheets,10,'Excel temático');
   assert.ok(evidence.xlsxSize>8000,'XLSX com conteúdo real');
+  const pdfPage=await browser.newPage();
+  try{
+   await pdfPage.setContent(evidence.pdfHtml,{waitUntil:'domcontentloaded'});
+   const pdfBytes=await pdfPage.pdf({format:'A4',printBackground:true});
+   assert.equal(Buffer.from(pdfBytes).subarray(0,5).toString(),'%PDF-','Arquivo PDF binário válido');
+   assert.ok(pdfBytes.length>7000,'PDF profissional não vazio');
+  }finally{await pdfPage.close();}
+
   console.log('MELHORIA 05 AVANÇADA: atividade, revisão completa, calendário, PDF HTML e 10 abas XLSX: OK');
   const pageB=await browser.newPage({viewport:{width:390,height:850}});
   await login(pageB,b);
