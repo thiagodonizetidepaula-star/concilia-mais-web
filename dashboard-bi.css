@@ -42,3 +42,7 @@
 @media(max-width:730px){#conciliaBI .bi-shell{padding:14px}#conciliaBI .bi-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}#conciliaBI .bi-graphs{grid-template-columns:1fr}#conciliaBI .bi-tabs button{flex:1 1 120px}#conciliaBI .bi-kpi strong{font-size:23px}}
 @media(max-width:400px){#conciliaBI .bi-kpis{grid-template-columns:1fr 1fr;gap:7px}#conciliaBI .bi-kpi{padding:12px 10px}#conciliaBI .bi-filters{grid-template-columns:1fr}#conciliaBI .bi-filters button{grid-column:1}}
 @media(prefers-reduced-motion:reduce){#conciliaBI *,#conciliaBI *:before,#conciliaBI *:after{animation:none!important;transition:none!important}}
+
+#conciliaBI .bi-kpi[data-bi-go]{cursor:pointer;transition:transform .15s ease,border-color .15s ease}
+#conciliaBI .bi-kpi[data-bi-go]:hover{transform:translateY(-2px);border-color:#20cee6}
+#conciliaBI .bi-kpi[data-bi-go]:focus-visible{outline:3px solid #ffa600;outline-offset:2px}
