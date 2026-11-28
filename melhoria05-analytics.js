@@ -161,16 +161,16 @@ function savings(manual,auto){
 function learningFromCompanies(companies,userId,B,filter={}){
  if(!B)return {suggested:0,confirmed:0,corrected:0,byCompany:[]};
  const cs=B.authorized(companies,userId).filter(c=>!filter.companyId||c.id===filter.companyId);
- let suggested=0,confirmed=0,corrected=0;const rows=[],history=[],byRule=new Map();
+ let suggested=0,confirmed=0,corrected=0;const rows=[],history=[],byRule=new Map(),archived=[];
  const b=bounds(filter);
  for(const c of cs){
-  let uses=0;
+  let uses=0;const activeMonths=new Set();
   for(const m of arr(c.movements)){
    const u=m.learningUsage;if(!u||u.origin!=='REGRA_APRENDIDA')continue;
    const d=date(u.suggestedAt||'');
    if(!day(d)||d<b.from||d>b.to)continue;
    if(filter.period&&date(m.date).slice(0,7)!==filter.period)continue;
-   suggested++;uses++;
+   suggested++;uses++;activeMonths.add(date(m.date).slice(0,7));
    const result=m.status==='CONFIRMADO'?(String(m.counterpart||'')===String(u.suggestedCode||'')?'Confirmado':'Corrigido'):'Sugestão pendente';
    if(result==='Confirmado')confirmed++;
    if(result==='Corrigido')corrected++;
@@ -181,10 +181,27 @@ function learningFromCompanies(companies,userId,B,filter={}){
     byRule.set(key,r);
    }
   }
+  // Depois da retenção, os lançamentos originais podem ter sido excluídos
+  // legitimamente. Usar SOMENTE agregados mensais já registrados, nunca recriar
+  // histórias individuais ou alocar quantidades mensais a dias artificiais.
+  if(!['day','week','custom'].includes(filter.range)){
+   for(const [month,summary] of Object.entries(c.learnedUsageMonthly||{})){
+    if(activeMonths.has(month)||month<b.from.slice(0,7)||month>b.to.slice(0,7)||filter.period&&filter.period!==month)continue;
+    if(summary?.source!=='REGRA_APRENDIDA')continue;
+    const count=finite(summary.suggested)||0;if(!count)continue;
+    suggested+=count;confirmed+=finite(summary.confirmed)||0;corrected+=finite(summary.corrected)||0;uses+=count;
+    archived.push({companyId:c.id,companyName:c.name||'',period:month,count,origin:'resumo mensal preservado'});
+    for(const [key,stats] of Object.entries(summary.rules||{})){
+     const row=byRule.get(key)||{ruleId:key,suggestions:0,confirmed:0,corrected:0};
+     row.suggestions+=finite(stats.suggested)||0;row.confirmed+=finite(stats.confirmed)||0;row.corrected+=finite(stats.corrected)||0;
+     byRule.set(key,row);
+    }
+   }
+  }
   if(uses)rows.push({companyId:c.id,name:c.name||'',uses});
  }
  return {suggested,confirmed,corrected,confirmationRate:pct(confirmed,suggested),byCompany:rows,
-  byRule:[...byRule.values()],history,monthly:groupByMonths(history.map(r=>({executionAt:r.executionAt})),Number(filter.year||new Date().getFullYear())),
+  byRule:[...byRule.values()],history,archived,monthly:groupByMonths(history.map(r=>({executionAt:r.executionAt})),Number(filter.year||new Date().getFullYear())).map(row=>({...row,count:row.count+archived.filter(a=>a.period===row.period).reduce((n,a)=>n+a.count,0)})),
   note:'Somente sugestões registradas a partir desta versão; confirmação exige código final idêntico.'};
 }
 function groupByMonths(records,year,dateField='executionAt'){
