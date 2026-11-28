@@ -28,6 +28,9 @@ jobs:
           node-version: "22"
       - name: Conferir sintaxe JavaScript
         run: |
+          node --check melhoria05-analytics.js
+          node --check melhoria05-advanced-ui.js
+          node --check melhoria05-reports.js
           node --check melhoria05-core.js
           node --check melhoria05-ui.js
           node --check dashboard-bi-metrics.js
@@ -49,7 +52,7 @@ jobs:
       - name: Testes de homologação da Carteira e regressão existente
         run: |
           set -o pipefail
-          node --test testes/melhoria05-nucleo.test.cjs testes/dashboard-bi-integrado.test.cjs testes/refinamentos-ciclo01-04.test.cjs testes/tracking-melhoria04.test.cjs testes/crm-melhoria03.test.cjs testes/document-management-melhoria02.test.cjs testes/carteira-clientes-etapa01.test.cjs testes/plano-dominio-t-vazio.test.cjs testes/auditoria-detalhada.test.cjs testes/multibancos-pdf.test.cjs testes/restaurar-tudo.test.cjs tests/tax-reconciliation.test.js 2>&1 | tee homologacao-resultado.txt
+          node --test testes/melhoria05-integral.test.cjs testes/melhoria05-nucleo.test.cjs testes/dashboard-bi-integrado.test.cjs testes/refinamentos-ciclo01-04.test.cjs testes/tracking-melhoria04.test.cjs testes/crm-melhoria03.test.cjs testes/document-management-melhoria02.test.cjs testes/carteira-clientes-etapa01.test.cjs testes/plano-dominio-t-vazio.test.cjs testes/auditoria-detalhada.test.cjs testes/multibancos-pdf.test.cjs testes/restaurar-tudo.test.cjs tests/tax-reconciliation.test.js 2>&1 | tee homologacao-resultado.txt
       - name: Verificar backup completo ZIP do código candidato
         run: |
           python3 scripts/backup_release.py | tee backup-candidato.json
