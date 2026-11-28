@@ -47,13 +47,13 @@ const ownRecords=(key)=>{
 const formFields={
  quality:[['title','Descrição da ocorrência','text'],['category','Categoria','category'],['severity','Gravidade','severity'],['description','Detalhes e evidências','textarea'],['cause','Causa confirmada, se conhecida','text'],['correctiveAction','Ação corretiva','text']],
  goal:[['title','Nome da meta','text'],['metric','Indicador relacionado','metric'],['baseline','Valor inicial','number'],['target','Objetivo','number'],['manualActual','Resultado manual (quando necessário)','number'],['direction','Sentido da meta','direction'],['frequency','Periodicidade','frequency'],['start','Início do período','date'],['deadline','Prazo final','date'],['description','Observações','textarea']],
- competency:[['title','Competência avaliada','text'],['level','Nível (autoavaliação)','level'],['evidence','Evidência verificada','textarea']],
+ competency:[['title','Competência avaliada','text'],['category','Grupo profissional','competencyGroup'],['level','Nível (autoavaliação)','level'],['evidence','Evidência verificada','textarea']],
  diary:[['title','Aprendizado ou atividade','text'],['date','Data','date'],['description','Registro profissional','textarea']],
  achievement:[['title','Realização','text'],['date','Data','date'],['description','Evidência','textarea']],
- development:[['title','Objetivo de desenvolvimento','text'],['action','Plano de ação','textarea'],['expected','Resultado esperado','text'],['deadline','Prazo','date']]
+ development:[['title','Objetivo de desenvolvimento','text'],['action','Plano de ação','textarea'],['expected','Resultado esperado','text'],['progress','Progresso declarado (0-100%)','number'],['deadline','Prazo','date']]
 };
 function options(name){
- const d={category:C.CATEGORIES,severity:['Baixa','Média','Alta'],direction:['increase','decrease'],frequency:['day','week','month','quarter','semester','year','custom'],level:C.LEVELS,
+ const d={competencyGroup:C.COMPETENCY_GROUPS,category:C.CATEGORIES,severity:['Baixa','Média','Alta'],direction:['increase','decrease'],frequency:['day','week','month','quarter','semester','year','custom'],level:C.LEVELS,
  metric:['concluded','movements','classified','documentReceived','charges','automated','excel','pending','learnedRules']};
  return d[name]||[];
 }
@@ -252,7 +252,7 @@ function init(){
  root.addEventListener('change',e=>{if(e.target.dataset.m05Filter==='year')year=Number(e.target.value);if(e.target.dataset.m05Filter==='company')companyId=e.target.value;render();});
  root.addEventListener('submit',async e=>{if(e.target.id!=='m05NewForm')return;e.preventDefault();
   const kind=e.target.dataset.kind,d=Object.fromEntries(new FormData(e.target).entries());
-  for(const k of ['baseline','target','manualActual'])if(d[k]!==undefined&&d[k]!=='')d[k]=Number(d[k]);
+  for(const k of ['baseline','target','manualActual','progress'])if(d[k]!==undefined&&d[k]!=='')d[k]=Number(d[k]);
   try{
    const editId=e.target.dataset.editId;
    let record;if(editId){
