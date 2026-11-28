@@ -110,9 +110,10 @@ function planning(){
 }
 function learning(){
  const rs=selected('ruleEvents'),a=A.learning(rs,filter());
+ const actual=A.learningFromCompanies(companies(),owner(),B,filter());
  return card('05.5 · Eventos auditáveis da memória de aprendizagem',
- '<div class="m05-ext-stat"><b>'+n(a.uses)+'</b><small>usos registrados</small><b>'+pct(a.confirmationRate)+'</b><small>confirmações / usos registrados</small><b>'+n(a.corrections)+'</b><small>correções documentadas</small></div>'+
- '<p class="m05-ext-note">O estoque de regras do módulo contábil não equivale ao histórico de utilização. Este novo registro é prospectivo: não inventa usos passados.</p>'+
+ '<div class="m05-ext-stat"><b>'+n(actual.suggested)+'</b><small>sugestões reais da memória</small><b>'+pct(actual.confirmationRate)+'</b><small>confirmações da memória</small><b>'+n(actual.corrected)+'</b><small>correções identificadas</small></div>'+
+ '<p class="m05-ext-note">As sugestões, confirmações e correções do sistema são auditadas no movimento bancário a partir da implantação desta versão. Eventos manuais ('+n(a.uses)+' usos declarados) são separados das medições reais.</p>'+
  '<form class="m05-ext-form" data-m05x-form="ruleEvent"><div class="m05-ext-grid">'+
  '<label>Empresa<select name="companyId" required>'+options([['','Selecione uma empresa'],...companies().map(c=>[c.id,c.name])],'')+'</select></label>'+
  input('period','Competência','month','value="'+esc(view.period||view.month)+'"')+
