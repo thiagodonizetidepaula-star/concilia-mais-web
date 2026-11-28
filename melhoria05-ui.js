@@ -173,7 +173,11 @@ function render(next){
  if(!id){owner='';ready=false;store=C.blank();root.replaceChildren();return;}
  const sameAccount=owner===id;
  const existingForm=sameAccount?root.querySelector('#m05NewForm'):null;
+ // Salvar referências dos formulários avançados antes de reconstruir os KPIs.
+ // Mantém os campos e foco, impedindo perda de edição ao receber nova renderização.
+ const activeForms=sameAccount?Array.from(root.querySelectorAll('[data-m05x-form]')).map(form=>[form.dataset.m05xForm,form]):[];
  if(existingForm)existingForm.remove();
+ for(const [,form] of activeForms)form.remove();
  if(owner!==id){owner=id;store=C.blank();revision=null;ready=false;loading=false;requested=false;error='';}
  if(!requested){requested=true;void load(id);}
  const selected=views[mode]||overview;
@@ -183,7 +187,16 @@ function render(next){
  // Eventos de outros módulos podem pedir renderização enquanto o usuário digita.
  // Reanexar o MESMO formulário conserva os campos, sem salvar rascunhos não confirmados.
  if(existingForm&&ready)root.querySelector('#m05FormHost')?.appendChild(existingForm);
- if(ready&&window.Concilia05Advanced?.panel){const host=root.querySelector('.m05-body');if(host)host.insertAdjacentHTML('beforeend',window.Concilia05Advanced.panel());}
+ if(ready&&window.Concilia05Advanced?.panel){
+  const host=root.querySelector('.m05-body');
+  if(host){
+   host.insertAdjacentHTML('beforeend',window.Concilia05Advanced.panel());
+   for(const [kind,original] of activeForms){
+    const fresh=Array.from(host.querySelectorAll('[data-m05x-form]')).find(e=>e.dataset.m05xForm===kind);
+    if(fresh)fresh.replaceWith(original);
+   }
+  }
+ }
 }
 async function load(id){
  if(loading||!id)return;loading=true;
