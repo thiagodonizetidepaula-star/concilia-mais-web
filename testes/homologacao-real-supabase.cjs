@@ -222,7 +222,9 @@ async function run(){
   stats.push('CRM: Cancelar e Restaurar padrões com persistência no Supabase real local: OK');
   await pageB.locator('button[data-page="controle"]').click();
   assert.doesNotMatch(await pageB.locator('#trackingV4Panel').textContent(),/Homologação gerencial isolada/);
-  assert.equal(await pageB.locator('#trackingV4Panel [data-track4-open]').count(),0,'Outra conta não tem empresas da A');
+  assert.equal(await pageB.locator('#trackingV4Panel [data-track4-open]').count(),1,'Outra conta só enxerga sua própria empresa fictícia');
+  const bDetails=await pageB.locator('#trackingV4Panel .track4-table').textContent();
+  assert.doesNotMatch(bDetails,/EMPRESA HOMOLOGACAO ATUALIZADA/,'Nenhuma empresa pertencente à conta A deve aparecer em B');
   stats.push('Controle 04 RLS: B não visualiza carteira gerencial ou cronômetro A: OK');
   stats.push('CRM RLS real: usuário B não acessa configurações/histórico da conta A: OK');
   stats.push('RLS real: usuário B não lê o workspace A, B mantém workspace próprio: OK');
