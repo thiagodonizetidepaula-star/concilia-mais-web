@@ -223,8 +223,11 @@ async function run(){
   stats.push('Refinamento Carteira: pesquisa parcial e limpeza retornam resultados corretos: OK');
   await pageA.locator('button[data-page="crm"]').click();
   if(await pageA.locator('[data-crm-action="back"]').count())await pageA.locator('[data-crm-action="back"]').click();
-  assert.ok(await pageA.locator('.crm-client-card').count()>0,'Novo CRM em cartões');
-  stats.push('Refinamento CRM: cartões expansíveis presentes no navegador autenticado: OK');
+  assert.ok(await pageA.locator('.crm-client-list').count()===1,'CRM deve renderizar lista compacta');
+  const cards=await pageA.locator('.crm-client-card').count();
+  assert.ok(cards>0 || await pageA.locator('.crm-empty').count()===1,'CRM vazio deve mostrar aviso, e não tabela larga');
+  if(cards>0)assert.ok(await pageA.locator('.crm-client-card details').first().count()===1,'Cartões oferecem detalhes expansíveis');
+  stats.push('Refinamento CRM: listagem compacta, estado vazio e expansão conforme carteira elegível: OK');
 
   // Verificar segurança no banco, não somente o filtro visual.
   let rows=await api('/rest/v1/user_workspaces?select=user_id&user_id=eq.'+creds[0].id,{accessToken:creds[1].token});
