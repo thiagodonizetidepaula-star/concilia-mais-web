@@ -105,3 +105,39 @@ Abas revisadas:
 - Para reverter, fechar o PR da Melhoria 02 e excluir esta branch; `main` e os dados reais de produção continuam intocados.
 - Após aprovação expressa da Melhoria 02, fazer revisão final dos dados e confirmação do ano; só então desbloquear o fluxo de importação definitiva de forma controlada e realizar publicação/merge mediante autorização específica.
 - **Melhoria 03 não iniciada e não autorizada.**
+
+---
+
+## 8. Autorização limitada para preparar importação — ano confirmado 2026
+
+O responsável confirmou **2026** como ano de referência, aprovou a homologação técnica e autorizou **apenas a preparação e conferência do pré-processamento**, sem gravação de clientes reais ou publicação.
+
+### Arquivo real reaberto e auditado novamente (somente leitura)
+Fonte: `BIA - Checklist - Contábil (1).xlsx`, SHA-256 `8b44cda8ab51da40` (prefixo), mantida inalterada.
+
+- 60 empresas identificadas exatamente como responsabilidade da Beatriz: 55 sem distrato, 5 com distrato.
+- 60 CNPJs normalizados distintos, correspondentes às mesmas 60 empresas da aba Fechamento; nenhuma razão social divergente entre abas.
+- 60 códigos Domínio sem duplicidade dentro da carteira.
+- 76 endereços de e-mail válidos e dois trechos inválidos para revisão (em um cadastro), cinco empresas sem e-mail.
+- 720 células mensais: 315 Cobrado, 187 Pendente, 118 Recebido, 87 vazias, cinco EX CLIENTE, nove outros registros especiais.
+- Aba de fechamento: 720 posições de competência, das quais 16 preenchidas. NENHUM módulo de fechamento foi acrescentado.
+- Os status especiais e as células vazias são mantidos com o texto original; não são convertidos artificialmente em Recebido ou Pendente.
+
+### Prévia confidencial entregue em arquivo separado (fora do GitHub)
+`Plano_Importacao_ConCiliar_2026_SOMENTE_CONFERENCIA.xlsx`: resumo, 60 clientes, 720 linhas de competências (documentos e fechamento referencial) e verificações, sem acesso ao servidor de produção. O Excel original não foi alterado.
+
+### Alterações adicionais na branch
+- Ano 2026 pré-preenchido no formulário de prévia, permanecendo obrigatório verificar as três abas.
+- Cada prévia executa, **somente em memória**, `M.merge(state,preview,...)` sobre uma cópia do workspace carregado, exibindo contagens de empresas novas/reaproveitadas, e-mails novos, competências e **conflitos bloqueados**.
+- A cópia simulada com dados de clientes é descartada ao final da prévia; somente o resumo de contagens/avisos fica no componente.
+- A rotina `merge()` bloqueia associações ambíguas quando o banco já possui mais de uma empresa com o mesmo CNPJ, ou quando o nome/código Domínio coincide mas o CNPJ diverge/falta.
+- A operação NÃO chama `store()`, `serializedSave()` ou endpoints de gravação; a flag `canImportDefinitively:false` permanece.
+- Testes adicionais comprovam que `merge()` não altera o workspace original e que colisões são detectadas.
+
+### Evidência pós-correção
+CI GitHub Actions: https://github.com/thiagodonizetidepaula-star/concilia-mais-web/actions/runs/46091936931 — **31 testes aprovados, zero falhas**, incluindo regressão e Chromium visual.
+
+### Importante: o que NÃO foi demonstrado
+O número real de empresas já existentes na conta corporativa Beatriz no Supabase não pode ser calculado apenas pelo Excel. É necessário abrir a prévia na sessão autenticada correta e verificar o resultado da comparação **sem gravar**. Não afirmar quantidade de cadastros efetivamente reaproveitados nem executar importação definitiva sem essa etapa e nova autorização expressa.
+
+**Permanece proibido:** gravar os 60 clientes no Supabase, realizar merge na `main`, publicar no Render ou iniciar Melhoria 03.
