@@ -193,6 +193,8 @@ function operational(companies,userId,B,filter={},tracking){
  }
  const records=[];
  for(const c of accepted)for(const period of months){
+  // Competências futuras não geram atrasos ou obrigações vencidas por extrapolação.
+  if(period>new Date().toISOString().slice(0,7))continue;
   if(f.period&&period!==f.period)continue;
   const r=B.record(c,period,tracking);
   const t=c.reconciliationTracking?.[period]||{};
