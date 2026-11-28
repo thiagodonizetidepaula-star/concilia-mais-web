@@ -74,6 +74,15 @@ jobs:
           grep -q 'data-crm-homologado="true"' homologacao-crm-dom.html
           grep -q 'EMPRESA ALFA FICTÍCIA' homologacao-crm-dom.html
           echo "CRM: renderização desktop/mobile e tabela real confirmadas" | tee -a homologacao-resultado.txt
+      - name: Validar Controle de Conciliações 04 no Chromium
+        run: |
+          set -e
+          CHROME="$(command -v google-chrome || command -v chromium)"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --hide-scrollbars --window-size=1440,1000 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-controle-v4-desktop.png" "file://$PWD/testes/controle-melhoria04-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --hide-scrollbars --window-size=390,850 --virtual-time-budget=2500 --screenshot="$PWD/homologacao-controle-v4-mobile.png" "file://$PWD/testes/controle-melhoria04-visual.html"
+          "$CHROME" --headless --no-sandbox --disable-gpu --allow-file-access-from-files --virtual-time-budget=2500 --dump-dom "file://$PWD/testes/controle-melhoria04-visual.html" > homologacao-controle-v4-dom.html
+          grep -q 'data-tracking4-homologado="true"' homologacao-controle-v4-dom.html
+          echo "Controle 04: UI portfolio desktop/mobile e tabela de 10 clientes fictícios confirmadas" | tee -a homologacao-resultado.txt
       - name: Publicar evidências da homologação (somente artefato CI)
         if: always()
         uses: actions/upload-artifact@v4
@@ -89,5 +98,8 @@ jobs:
             homologacao-crm-desktop.png
             homologacao-crm-mobile.png
             homologacao-crm-dom.html
+            homologacao-controle-v4-desktop.png
+            homologacao-controle-v4-mobile.png
+            homologacao-controle-v4-dom.html
             homologacao-carteira-dom.html
           if-no-files-found: warn
