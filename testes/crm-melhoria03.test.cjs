@@ -136,3 +136,32 @@ test('new app navigation and no automatic external messaging',()=>{
  assert.ok(app.includes('window.ConciliaCRM?.render()')&&app.includes("crm:['CRM Contábil'"));
  assert.ok(!/fetch\(\s*['"]https?:\/\/|sendMail\(|graph\.microsoft|smtp/i.test(crm));
 });
+
+test('anotação simples não redefine a situação anterior de uma cobrança',()=>{
+ const c=base();
+ C.addEvent(c,C.eventInput(c,{type:'charge',periods:['2026-09'],occurredAt:'2026-11-20',medium:'Outlook manual',status:'Aguardando retorno'},{userId:'employee-a',today:fixed}));
+ C.addEvent(c,C.eventInput(c,{type:'note',periods:['2026-09'],occurredAt:'2026-11-22',medium:'Outro',status:'A cobrar',notes:'Anotação administrativa'},{userId:'employee-a',today:fixed}));
+ assert.equal(C.statusFor(c,'2026-09'),'Aguardando retorno');
+});
+test('CRM mantém status de cobrança separado de documento parcialmente recebido',()=>{
+ const c=base();
+ C.addEvent(c,C.eventInput(c,{type:'charge',periods:['2026-11'],occurredAt:'2026-11-25',medium:'Outlook manual',status:'Aguardando retorno'},{userId:'employee-a',today:fixed}));
+ assert.equal(c.documentHistory['2026-11'].status,'Parcialmente recebido');
+ assert.equal(C.statusFor(c,'2026-11'),'Aguardando retorno');
+});
+test('retorno sobre competência já recebida permanece possível no histórico, sem nova cobrança',()=>{
+ const c=base();
+ const event=C.eventInput(c,{type:'reply',periods:['2026-08'],occurredAt:'2026-11-25',medium:'Telefone',status:'Cliente respondeu'},{userId:'employee-a',today:fixed});
+ C.addEvent(c,event);
+ assert.ok(!C.eligiblePeriods(c,fixed,C.DEFAULTS).due.some(p=>p.period==='2026-08'));
+ assert.equal(c.crmHistory.length,1);
+});
+test('carteira oferece acesso ao histórico CRM e documentos registram recebimento sem data inventada',()=>{
+ const wallet=fs.readFileSync(path.join(root,'client-wallet.js'),'utf8');
+ const docs=fs.readFileSync(path.join(root,'document-management.js'),'utf8');
+ const crm=fs.readFileSync(path.join(root,'crm.js'),'utf8');
+ assert.match(wallet,/data-wallet="crm-history"/);
+ assert.match(wallet,/ConciliaCRM\?\.openCompany\(id,'history'\)/);
+ assert.match(crm,/openCompany:\(id,mode='history'\)/);
+ assert.match(docs,/type:'receipt',periods:\[p\],occurredAt:null/);
+});
