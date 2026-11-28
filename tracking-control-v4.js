@@ -16,11 +16,11 @@ const fields=[
  ['reviewStatus','Situação da revisão','review'],['delayReason','Motivo do atraso','delay'],
  ['delayCategory','Responsabilidade pelo atraso','category'],['notes','Observações gerenciais','text'],['reviewNotes','Observações da revisão','text']
 ];
-let selected='',year=new Date().getFullYear(),month=new Date().getMonth()+1,search='',status='',docs='',review='',editing=false,busy=false,interval=null;
+let selected='',year=new Date().getFullYear(),month=new Date().getMonth()+1,search='',status='',docs='',review='',delay='',deadlineFilter='',editing=false,busy=false,interval=null;
 const p=()=>T.monthKey(year,month),validCompanies=()=>window.ConciliaWallet?.visible?.().filter(c=>T.owner(c,uid()))||[];
 function rows(){const q=search.trim().toLowerCase(),qs=search.replace(/\D/g,'');return validCompanies().filter(T.currentCompany).map(c=>({c,rec:T.effective(c,p()).data}))
 .filter(({c,rec})=>!(q&&!String(c.name||'').toLowerCase().includes(q)&&!String(c.dominio||'').includes(q)&&!(qs.length>2&&String(c.cnpj||'').replace(/\D/g,'').includes(qs))))
-.filter(({rec})=>!status||rec.status===status).filter(({rec})=>!docs||rec.docs===docs).filter(({rec})=>!review||rec.reviewStatus===review);
+.filter(({rec})=>!status||rec.status===status).filter(({rec})=>!docs||rec.docs===docs).filter(({rec})=>!review||rec.reviewStatus===review).filter(({rec})=>!delay||rec.delayReason===delay).filter(({rec})=>!deadlineFilter||(deadlineFilter==='overdue'?!!rec.deadline&&rec.deadline<T.todayBrazil()&&!['Concluída','Aprovada'].includes(rec.status):deadlineFilter==='on-time'?!!rec.deadline&&!!rec.end&&rec.end<=rec.deadline:deadlineFilter==='unset'?!rec.deadline:true));
 }
 function renderSummary(){
  const s=T.summarize(validCompanies(),p(),uid()),items=[
@@ -45,7 +45,7 @@ function renderList(){const list=rows(),period=p();return '<div class="track4-fi
  '<label>Mês<select data-track4-filter="month">'+Array.from({length:12},(_,i)=>option(i+1,String(i+1).padStart(2,'0'),month)).join('')+'</select></label>'+
  '<label>Situação<select data-track4-filter="status">'+option('','Todas',status)+T.STATES.map(x=>option(x,x,status)).join('')+'</select></label>'+
  '<label>Documentos<select data-track4-filter="docs">'+option('','Todos',docs)+['Recebido','Pendente','Cobrado','Parcialmente recebido','Não se aplica','Sem registro'].map(x=>option(x,x,docs)).join('')+'</select></label>'+
- '<label>Revisão<select data-track4-filter="review">'+option('','Todas',review)+['Não aprovada','Aguardando revisão','Revisada','Aprovada'].map(x=>option(x,x,review)).join('')+'</select></label></div>'+
+ '<label>Revisão<select data-track4-filter="review">'+option('','Todas',review)+['Não aprovada','Aguardando revisão','Revisada','Aprovada'].map(x=>option(x,x,review)).join('')+'</select></label>'+ '<label>Motivo do atraso<select data-track4-filter="delay">'+option('','Todos',delay)+T.delayReasons.map(x=>option(x,x,delay)).join('')+'</select></label>'+ '<label>Prazo<select data-track4-filter="deadline">'+option('','Todos',deadlineFilter)+option('overdue','Atrasados',deadlineFilter)+option('on-time','No prazo',deadlineFilter)+option('unset','Sem prazo',deadlineFilter)+'</select></label></div>'+
  '<div class="track4-table"><table><thead><tr><th>Empresa</th><th>CNPJ</th><th>Domínio</th><th>Documentos</th><th>Conciliação</th><th>Classificados</th><th>Pendências</th><th>Revisão</th><th>Ação</th></tr></thead><tbody>'+
  list.map(({c,rec})=>'<tr><td><strong>'+esc(c.name)+'</strong></td><td>'+esc(c.cnpj||'—')+'</td><td>'+esc(c.dominio||'—')+'</td><td>'+esc(rec.docs)+'</td><td>'+esc(rec.status)+'</td><td>'+rec.classified+'/'+rec.processed+'</td><td>'+rec.pendingRemaining+'</td><td>'+esc(rec.reviewStatus)+'</td><td><button data-track4-open="'+esc(c.id)+'">Acompanhar</button></td></tr>').join('')+'</tbody></table></div>'+
  '<p class="track4-caption">Exibindo '+list.length+' empresas ativas. Os totais automáticos só são conhecidos quando há dados operacionais disponíveis no aplicativo; não representam zero comprovado de arquivos retidos fora desta sessão.</p>';
@@ -176,6 +176,8 @@ function init(){
   if(field==='status')status=e.target.value;
   if(field==='docs')docs=e.target.value;
   if(field==='review')review=e.target.value;
+  if(field==='delay')delay=e.target.value;
+  if(field==='deadline')deadlineFilter=e.target.value;
   selected='';render();
  });
  el.addEventListener('input',e=>{if(e.target.dataset.track4Filter==='search'){search=e.target.value;const caret=e.target.selectionStart;render();const input=el.querySelector('[data-track4-filter="search"]');input?.focus();input?.setSelectionRange(caret,caret);}});
