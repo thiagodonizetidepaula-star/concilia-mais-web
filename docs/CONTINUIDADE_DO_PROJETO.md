@@ -65,3 +65,11 @@ Auditoria read-only executada para refs, banco, backup e serviço Render; docume
 - Avaliação de segurança: zero avisos de saúde no Supabase; avisos `WARN` remanescentes para três funções SECURITY DEFINER legítimas das políticas RLS (anon sem EXECUTE; auth.uid() nas funções) e proteção de senhas vazadas não habilitada, recurso Supabase Pro+ não contratado. Não afirmar risco zero nem que essas recomendações foram corrigidas.
 - Status de validação: deploy live e logs do Render conferidos; testes de funcionamento completo executados em laboratório isolado. Não foi possível inspecionar diretamente a sessão autenticada no endereço de produção nesta execução.
 - Melhoria 05 fora do escopo e não implementada.
+
+
+## Estado do refinamento 2026-11-28 — PR #80
+- Branch: `feature/refinamento-ciclo01-04-20261128` sobre `main` original `1923bee56e04517071a53306c3a2a54a2cdd8341`.
+- Supabase `csnvudadurtzhudlplij`: 62 empresas, 57 ativas e 5 inativas. São 55 importadas ativas + 5 importadas inativas + 2 originais ativas, sem duplicações a excluir. Quatro planos e 2.415 registros.
+- Backup privado `764a05ff-96cd-4634-8b2b-148d8605de97`, revisão 696, hash `4e791dd3d7a60300c411fe7cac183dcf7b4e0adf61b4c4357eb8a07bb8c65040`. Três payloads recuperados em tabela temporária, ROLLBACK aplicado.
+- Implementação e componentes: `docs/REFINAMENTO_CICLO01_04_2026-11-28.md`.
+- Pendente: resultado final integrado no commit mais recente, antes de publicar. Sem Melhoria 05.

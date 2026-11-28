@@ -31,3 +31,9 @@ Este histórico diferencia **desenvolvido** de **publicado**. Nenhuma Melhoria 0
 - Avaliação de segurança: zero avisos de saúde no Supabase; avisos `WARN` remanescentes para três funções SECURITY DEFINER legítimas das políticas RLS (anon sem EXECUTE; auth.uid() nas funções) e proteção de senhas vazadas não habilitada, recurso Supabase Pro+ não contratado. Não afirmar risco zero nem que essas recomendações foram corrigidas.
 - Status de validação: deploy live e logs do Render conferidos; testes de funcionamento completo executados em laboratório isolado. Não foi possível inspecionar diretamente a sessão autenticada no endereço de produção nesta execução.
 - Melhoria 05 fora do escopo e não implementada.
+
+
+## [Refinamento 01–04 candidato / não publicado] 2026-11-28
+- Busca ampliada da Carteira; CRM em cartões; classificação inequívoca do Excel com confirmação/aprendizagem automática e persistência dupla; pendências reais preservadas; Controle com gráficos, detalhes expansíveis e retenção avançada; dashboard de produtividade sem jargões de infraestrutura e sem cronômetros em paralelo.
+- Backup de dados privado validado `764a05ff-96cd-4634-8b2b-148d8605de97`, rev. 696; nenhuma DDL de produção.
+- Testes de regressão, Chromium e E2E Supabase local em execução na branch isolada. Sem publicação sem aprovação.
