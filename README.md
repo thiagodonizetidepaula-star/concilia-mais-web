@@ -29,25 +29,25 @@ O indicador profissional não deve ser confundido com qualidade ou desempenho fi
 
 
 ## Melhoria 05 — entrega parcial publicada, desenvolvimento integral em andamento (28/11/2026)
-**O PR #82 foi mesclado e os componentes homologados tiveram deploy registrado como live no Render em 28/11/2026. Isso NÃO encerra o escopo integral da Melhoria 05.** Ela é mantida na branch `feature/melhoria-05-inteligencia-operacional`, com fluxo de testes GitHub Actions e ambiente efêmero Supabase local.
+**O PR #82 foi mesclado e os componentes homologados tiveram deploy registrado como live no Render em 28/11/2026. Isso NÃO encerra o escopo integral da Melhoria 05.** Seu código original foi integrado à `main`; novas correções seguem em branches isoladas com GitHub Actions e Supabase local efêmero.
 
-Arquivos reais: `melhoria05-core.js` (regras puras; sem alteração de dados contábeis), `melhoria05-ui.js` (nove perspectivas internas, persistência privada CAS, relatórios), `melhoria05.css` (BI azul-marinho responsivo), `index.html` e `app.js` (encaixe na Visão Geral sem página principal duplicada), `supabase/migrations/20261128050000_melhoria05_user_states.sql` (SOMENTE proposta, não executada na produção), `testes/melhoria05-nucleo.test.cjs`, `testes/melhoria05-visual.html` e `testes/homologacao-melhoria05.cjs` (cálculos, fixture e E2E Auth/RLS no laboratório).
+Arquivos reais: `melhoria05-core.js` (regras puras; sem alteração de dados contábeis), `melhoria05-ui.js` (nove perspectivas internas, persistência privada CAS, relatórios), `melhoria05.css` (BI azul-marinho responsivo), `index.html` e `app.js` (encaixe na Visão Geral sem página principal duplicada), `supabase/migrations/20261128050000_melhoria05_user_states.sql` (migração aplicada na publicação parcial, com RLS registrado), `testes/melhoria05-nucleo.test.cjs`, `testes/melhoria05-visual.html` e `testes/homologacao-melhoria05.cjs` (cálculos, fixture e E2E Auth/RLS no laboratório).
 
-Reaproveitamento: `ConciliaBIMetrics`, `ConciliaTrackingCore`, `ConciliaManualProductivity.history()`, `ConciliaCloud`, dados existentes de documentos, CRM, empresas e aprendizagem. A nova coleção `user_melhoria05_states` é isolada por `auth.uid()` no RLS e usa revisão otimista (CAS) para proteger gravações; não substitui `user_workspaces` nem `user_productivity_states` e não altera o cronômetro. **O procedimento de publicação futura depende de aprovação separada e migração testada; não aplicar a migration automaticamente.**
+Reaproveitamento: `ConciliaBIMetrics`, `ConciliaTrackingCore`, `ConciliaManualProductivity.history()`, `ConciliaCloud`, dados existentes de documentos, CRM, empresas e aprendizagem. A nova coleção `user_melhoria05_states` é isolada por `auth.uid()` no RLS e usa revisão otimista (CAS) para proteger gravações; não substitui `user_workspaces` nem `user_productivity_states` e não altera o cronômetro. **Qualquer migração adicional exige teste, revisão e autorização antes de aplicação.**
 
 Os registros de qualidade, metas, autoavaliações, diário, realizações e PDI são *declarações identificadas do profissional*, com origem e trilha de alterações. Indicadores automáticos de produtividade, conciliação e automação vêm apenas dos registros previamente autorizados. Classificação confirmada não significa conciliação aprovada; tempo manual não é somado ao cronômetro do Controle 04; metas, complexidade e análises não determinam punições nem juízos definitivos de competência.
 
 Relatórios XLSX usam a biblioteca `XLSX` já presente; PDF depende da impressão/salvamento nativo do navegador. O portfólio exportável remove nomes/identificadores de clientes e textos livres para evitar vazamento de informações corporativas. A ausência de dados é representada por **Sem dados / Sem medição**, nunca por valores inventados.
 
-Para extensão: incluir novos critérios em `docs/DICIONARIO_DE_INDICADORES.md`, testar RLS de dois usuários e concorrência CAS, validar logs dos GitHub Actions na mesma versão, revisar documentação, criar ZIP de homologação, e **aguardar autorização do segundo ciclo**. Não iniciar Melhoria 06.
+Para extensão: incluir novos critérios em `docs/DICIONARIO_DE_INDICADORES.md`, testar RLS de dois usuários e concorrência CAS, validar logs dos GitHub Actions na mesma versão, revisar documentação, criar ZIP de homologação, e **não declarar conclusão integral sem testes e evidências dos requisitos pendentes**. Não iniciar Melhoria 06.
 
 
-## Segundo ciclo: Melhoria 05 — inteligência operacional (somente homologação)
-O código candidato reside em `feature/melhoria-05-inteligencia-operacional` (PR #82, rascunho), sem publicação no Render. O módulo interno **Visão Geral → Inteligência operacional e desenvolvimento** amplia os dashboards existentes, sem criar novo aplicativo.
+## Segundo ciclo: Melhoria 05 — publicação parcial concluída
+O PR #82 foi mesclado na `main` e teve deploy registrado como live no Render em 28/11/2026. O PR #83 é uma continuidade isolada ainda não publicada. O módulo interno **Visão Geral → Inteligência operacional e desenvolvimento** amplia os dashboards existentes, sem criar novo aplicativo.
 
-Consulte `docs/MANUAL_MELHORIA05.md` para uso, `docs/MATRIZ_REQUISITOS_MELHORIA05.md` para rastreabilidade completa e `docs/DICIONARIO_DE_INDICADORES.md` para fórmulas. A migração RLS está apenas proposta e deve ser testada isoladamente. Os dados privados não são exportados no ZIP do código.
+Consulte `docs/MANUAL_MELHORIA05.md` para uso, `docs/MATRIZ_REQUISITOS_MELHORIA05.md` para rastreabilidade completa e `docs/DICIONARIO_DE_INDICADORES.md` para fórmulas. A migração RLS da primeira entrega foi aplicada; novas alterações de banco ainda exigem testes isolados. Os dados privados não são exportados no ZIP do código.
 
-A rotina CI executa testes unitários, regressão, Chromium responsivo, Supabase local com dois usuários e validação do pacote candidato. **Não publicar ou mesclar na main sem autorização específica para o segundo ciclo.** 
+A rotina CI executa testes unitários, regressão, Chromium responsivo, Supabase local com dois usuários e validação do pacote candidato. **O PR #83 continua em homologação, sem autorização de publicação automática.** 
 
 
 ## Continuidade de homologação — filtros opcionais da Melhoria 05
