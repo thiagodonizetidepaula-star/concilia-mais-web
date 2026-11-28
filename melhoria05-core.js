@@ -1,7 +1,7 @@
 /* ConCiliar+ — Melhoria 05 (isolada, nao publicada).
    Calculos puros, sem mutar registros contabeis e sem inferir qualidade a partir de velocidade. */
 (function(root,factory){const core=factory();if(typeof module==='object'&&module.exports)module.exports=core;root.Concilia05Core=core;})(typeof globalThis!=='undefined'?globalThis:this,()=>{'use strict';
-const TYPES=['quality','goal','competency','diary','achievement','development'];
+const TYPES=['quality','goal','competency','diary','achievement','development','activity','ruleEvent','calendar'];
 const CATEGORIES=['Processo interno','Documentação do cliente','Arquivo importado','Regra contábil','Classificação manual','Automação','Configuração do sistema','Falha técnica','Falta de informações','Outros fatores'];
 const LEVELS=['Não avaliado','Em aprendizagem','Em desenvolvimento','Aplicação prática','Proficiente','Avançado'];
 const ISO=/^20\d\d-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/;
@@ -12,7 +12,7 @@ const percent=(n,d)=>d>0?Math.round(1000*n/d)/10:null;
 const validDay=x=>ISO.test(String(x))&&!Number.isNaN(Date.parse(x+'T00:00:00Z'));
 const text=s=>String(s??'').trim().slice(0,2000);
 const uid=()=>typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():'id-'+Date.now()+'-'+Math.random().toString(36).slice(2,10);
-function blank(){return {version:1,quality:[],goals:[],competencies:[],diary:[],achievements:[],development:[],updatedAt:null};}
+function blank(){return {version:2,quality:[],goals:[],competencies:[],diary:[],achievements:[],development:[],activities:[],ruleEvents:[],calendar:[],updatedAt:null};}
 function normalize(x){const o=obj(x),b=blank();for(const k of Object.keys(b))if(Array.isArray(b[k]))b[k]=arr(o[k]).filter(y=>y&&typeof y==='object'&&typeof y.id==='string');return {...b,updatedAt:o.updatedAt||null};}
 function create(kind,data,actorId,now=new Date()){
  if(!TYPES.includes(kind))throw Error('Tipo de registro desconhecido');
@@ -43,15 +43,18 @@ function create(kind,data,actorId,now=new Date()){
    record.action=text(d.action);record.expected=text(d.expected);record.deadline=validDay(d.deadline)?d.deadline:null;record.status='Em desenvolvimento';
  }
  if(kind==='diary'||kind==='achievement'){if(!record.title)throw Error('Informe título do registro');record.date=validDay(d.date)?d.date:at.slice(0,10);}
+ if(kind==='activity'){if(!record.title)throw Error('Informe atividade');record.executionAt=validDay(d.executionAt)?d.executionAt:at.slice(0,10);record.activityType=text(d.activityType||'Conciliação');record.effectiveSeconds=finite(d.effectiveSeconds);record.pauseSeconds=finite(d.pauseSeconds);record.waitSeconds=finite(d.waitSeconds);record.reworkSeconds=finite(d.reworkSeconds);record.movements=finite(d.movements);record.originId=text(d.originId||'');record.status='Concluída';}
+ if(kind==='ruleEvent'){if(!record.companyId||!record.period)throw Error('Regra deve possuir empresa e competência');record.executionAt=validDay(d.executionAt)?d.executionAt:at.slice(0,10);record.ruleId=text(d.ruleId);record.event=['used','confirmed','corrected','deactivated'].includes(d.event)?d.event:'used';record.confirmed=d.confirmed===true;record.activityType='Aprendizagem';}
+ if(kind==='calendar'){record.title='Disponibilidade pessoal';record.start=validDay(d.start)?d.start:null;record.deadline=validDay(d.deadline)?d.deadline:null;record.dailyHours=finite(d.dailyHours);record.daysOff=arr(d.daysOff).filter(validDay);record.activityType='Planejamento';}
  return record;
 }
 function edit(previous,patch,actorId,now=new Date()){
  if(!previous||previous.ownerId!==actorId)throw Error('Edição não autorizada');
- const allowed=['title','description','status','category','severity','cause','correctiveAction','resolvedAt','level','evidence','action','expected','deadline','manualActual','metric','baseline','target','direction','date'];
+ const allowed=['title','description','status','category','severity','cause','correctiveAction','resolvedAt','level','evidence','action','expected','deadline','manualActual','metric','baseline','target','direction','date','executionAt','activityType','effectiveSeconds','pauseSeconds','waitSeconds','reworkSeconds','movements','dailyHours','daysOff','start','ruleId','event','confirmed','originId'];
  const changes={};for(const k of allowed)if(Object.prototype.hasOwnProperty.call(obj(patch),k)){
-  let v=patch[k];if(['manualActual','baseline','target'].includes(k)){v=v===null?null:finite(v);if(v===null&&patch[k]!==null)throw Error('Número inválido');}
-  else v=text(v);
-  if((k==='deadline'||k==='date')&&v&&!validDay(v))throw Error('Data inválida');
+  let v=patch[k];if(['manualActual','baseline','target','effectiveSeconds','pauseSeconds','waitSeconds','reworkSeconds','movements','dailyHours'].includes(k)){v=v===null?null:finite(v);if(v===null&&patch[k]!==null)throw Error('Número inválido');}
+  else if(k==='daysOff')v=arr(v).filter(validDay);else if(k==='confirmed')v=v===true;else v=text(v);
+  if(['deadline','date','executionAt','start'].includes(k)&&v&&!validDay(v))throw Error('Data inválida');
   changes[k]=v;
  }
  if(changes.level&&!LEVELS.includes(changes.level))throw Error('Nível inválido');
@@ -68,8 +71,8 @@ function edit(previous,patch,actorId,now=new Date()){
 function saveRecord(state,kind,record,actorId){
  if(!TYPES.includes(kind))throw Error('Coleção inválida');
  if(record.ownerId!==actorId)throw Error('Usuário não autorizado');
- const s=normalize(state),key=kind==='quality'?'quality':kind==='goal'?'goals':kind==='competency'?'competencies':kind==='diary'?'diary':kind==='achievement'?'achievements':'development';
- const items=arr(s[key]);const i=items.findIndex(x=>x.id===record.id);
+ const s=normalize(state),key={quality:'quality',goal:'goals',competency:'competencies',diary:'diary',achievement:'achievements',development:'development',activity:'activities',ruleEvent:'ruleEvents',calendar:'calendar'}[kind];
+ const items=arr(s[key]);if(kind==='activity'&&record.originId&&items.some(x=>x.originId===record.originId&&x.id!==record.id))throw Error('Atividade com origem já registrada');const i=items.findIndex(x=>x.id===record.id);
  const next=i<0?[...items,record]:items.map((x,j)=>j===i?record:x);
  return {...s,[key]:next,updatedAt:record.updatedAt};
 }
