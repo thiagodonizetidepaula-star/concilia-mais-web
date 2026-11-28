@@ -84,6 +84,8 @@ async function run(){
   await pageA.locator('[data-bi-reset]').click();
   assert.match(await pageA.locator('#conciliaBI .bi-head').textContent(),/1 empresas visíveis/);
   stats.push('BI integrado: login real, 4 perspectivas, filtros e cálculo de carteira autorizada: OK');
+  await pageA.locator('button[data-page="carteira"]').click();
+  await pageA.locator('.wallet-client-card').first().waitFor({state:'visible',timeout:10000});
   stats.push('PDF digital com layout do Domínio: importação por botão existente e cadastro na carteira: OK');
   const c=pageA.locator('.wallet-client-card').first();
   assert.match(await c.textContent(),/EMPRESA HOMOLOGACAO LTDA/);
