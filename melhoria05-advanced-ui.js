@@ -144,7 +144,11 @@ function learning(){
  '<label>Evento<select name="event">'+options([['used','Regra utilizada'],['corrected','Regra corrigida'],['deactivated','Regra desativada']],'used')+'</select></label>'+
  '<label>Confirmação<select name="confirmed">'+options([['false','Não confirmada'],['true','Confirmada']],'false')+'</select></label>'+
  input('executionAt','Data da execução','date','value="'+today()+'"')+'</div>'+button('Registrar evento auditável','type="submit" class="m05-primary"')+'</form>'+
- bars(a.byCompany.slice(0,10).map(r=>({label:companies().find(c=>c.id===r.companyId)?.name||'Empresa autorizada',value:r.count})),'Eventos de aprendizagem'));
+ bars(a.byCompany.slice(0,10).map(r=>({label:companies().find(c=>c.id===r.companyId)?.name||'Empresa autorizada',value:r.count})),'Eventos manuais de aprendizagem')+
+ bars(actual.byRule.slice(0,10).map(r=>({label:r.ruleId,value:r.suggestions})),'Sugestões reais por regra')+
+ bars(actual.monthly.map(r=>({label:r.period.slice(5),value:r.count})),'Evolução mensal do uso real da memória')+
+ (actual.history.length?'<div class="m05-ext-scroll"><table><thead><tr><th>Empresa</th><th>Competência</th><th>Data</th><th>Regras</th><th>Resultado</th></tr></thead><tbody>'+
+ actual.history.slice(-80).reverse().map(r=>'<tr><td>'+esc(r.companyName)+'</td><td>'+esc(r.period)+'</td><td>'+esc(r.executionAt)+'</td><td>'+esc(r.ruleKeys.join(', '))+'</td><td>'+esc(r.status)+'</td></tr>').join('')+'</tbody></table></div>':'<p>Nenhuma utilização real registrada na seleção.</p>'));
 }
 function reportSummary(){
  return card('05.8 · Relatórios temáticos para a seleção',
