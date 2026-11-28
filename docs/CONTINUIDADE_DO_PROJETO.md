@@ -55,3 +55,13 @@ Auditoria read-only executada para refs, banco, backup e serviço Render; docume
 - Workflow Supabase local GoTrue/Postgres/PostgREST/RPC: https://github.com/thiagodonizetidepaula-star/concilia-mais-web/actions/runs/46100655738 — success; 18 checkpoints positivos, incluindo duas contas, login/logout, importação do Domínio, idempotência, 01 Carteira, 02 Documentos, 03 CRM, 04 cronômetro, persistência e isolamento RLS.
 - Security Advisor de produção classifica como WARN (não erro crítico): 3 funções SECURITY DEFINER empregadas por RLS, anon sem EXECUTE e authenticated com EXECUTE checando auth.uid(); proteção de senha vazada não habilitada — recurso Supabase Pro+ (custo proibido neste projeto). Não modificar permissões críticas sem suíte de regressão e autorização de risco.
 - CI inicial já aprovou o snapshot de dados; antes do merge revisar se a revisão corporativa permanece e registrar commit exato do release.
+
+## Publicação oficial do primeiro ciclo — 2026-11-28 UTC
+- PR #79 integrado diretamente à `main` preservando a cadeia das Melhorias 01 a 04. Commit de merge: `72401eb8a027b2db30436630fd96d439e7a961f4`.
+- GitHub Actions no commit candidato `83595ac5fc274a39cfeb66bb44ee7a2757ed3f8d`: 82 testes, 82 aprovados, zero falhas (https://github.com/thiagodonizetidepaula-star/concilia-mais-web/actions/runs/46101160997); E2E autenticado em Supabase isolado com 18 verificações e isolamento entre usuários aprovados (https://github.com/thiagodonizetidepaula-star/concilia-mais-web/actions/runs/46101161016).
+- Render original: serviço `srv-db9ttbtg1s2s73a19a9g`; deploy `dep-dc54bcl9el5s73c8e5c0` **live**, commit `72401eb8a027b2db30436630fd96d439e7a961f4`, https://concilia-mais-web.onrender.com.
+- Sem migração de produção necessária às quatro melhorias: usam campos JSONB opcionais no workspace existente. Nenhuma mudança nas permissões ou serviços adicionais.
+- Antes do merge: 62 empresas, das quais 60 na carteira (55 ativas/5 inativas), 4 planos somando 2.415 registros; backup privado de recuperação `e2a5d544-cfb0-4b03-98f2-8202634fcbe2`, SHA-256 e igualdade dos três payloads testados sem sobrescrever produção.
+- Avaliação de segurança: zero avisos de saúde no Supabase; avisos `WARN` remanescentes para três funções SECURITY DEFINER legítimas das políticas RLS (anon sem EXECUTE; auth.uid() nas funções) e proteção de senhas vazadas não habilitada, recurso Supabase Pro+ não contratado. Não afirmar risco zero nem que essas recomendações foram corrigidas.
+- Status de validação: deploy live e logs do Render conferidos; testes de funcionamento completo executados em laboratório isolado. Não foi possível inspecionar diretamente a sessão autenticada no endereço de produção nesta execução.
+- Melhoria 05 fora do escopo e não implementada.
