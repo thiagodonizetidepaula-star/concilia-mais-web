@@ -49,3 +49,9 @@ Auditoria read-only executada para refs, banco, backup e serviço Render; docume
 - Simulação read-only do RLS com identidade da própria workspace (1 linha visível) e identidade não relacionada (0 linhas).
 - As três funções de acesso `company_can_read`, `company_can_write`, `company_is_owner` têm `SECURITY DEFINER`, `search_path` fixo, e referenciam `auth.uid()`; são usadas em diversas políticas RLS. `anon` não pode executar, `authenticated` pode. Revogação simples quebraria essas políticas; não alterar sem teste de regressão. Aviso remanescente sobre proteção de senhas vazadas.
 - Workflows existentes incluem testes Node, Chromium e Supabase local; a execução verde no **commit atual** não foi comprovada com as interfaces disponíveis. Não declarar homologação do commit final. Não fazer merge/deploy.
+
+## Homologação integrada CI comprovada — commit 7f157caa0d8c
+- Workflow Node/sintaxe/regressão/Chromium: https://github.com/thiagodonizetidepaula-star/concilia-mais-web/actions/runs/46100655703 — success; log: 82 testes, 82 aprovados, zero falhas; capturas desktop/mobile dos quatro módulos com dados sintéticos.
+- Workflow Supabase local GoTrue/Postgres/PostgREST/RPC: https://github.com/thiagodonizetidepaula-star/concilia-mais-web/actions/runs/46100655738 — success; 18 checkpoints positivos, incluindo duas contas, login/logout, importação do Domínio, idempotência, 01 Carteira, 02 Documentos, 03 CRM, 04 cronômetro, persistência e isolamento RLS.
+- Security Advisor de produção classifica como WARN (não erro crítico): 3 funções SECURITY DEFINER empregadas por RLS, anon sem EXECUTE e authenticated com EXECUTE checando auth.uid(); proteção de senha vazada não habilitada — recurso Supabase Pro+ (custo proibido neste projeto). Não modificar permissões críticas sem suíte de regressão e autorização de risco.
+- CI inicial já aprovou o snapshot de dados; antes do merge revisar se a revisão corporativa permanece e registrar commit exato do release.
