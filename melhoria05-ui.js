@@ -109,7 +109,7 @@ function automation(){
 }
 function goals(){
  const a=bi(),gs=ownRecords('goals');
- return section('Metas individuais e planejamento',button('Cadastrar meta','data-m05-form="goal"')+(gs.length?'<div class="m05-rows">'+gs.map(g=>{const x=C.resultGoals(g,a);return '<article class="m05-item"><div><b>'+esc(g.title)+'</b><small>'+esc(g.metric)+' · '+esc(g.direction)+' · prazo '+dateBR(g.deadline)+'</small><strong>'+pct(x.progress)+'</strong><small>Origem: '+esc(x.source)+' · '+esc(g.status)+'</small></div>'+button('Editar','data-m05-edit="goal|'+esc(g.id)+'"')+button('Concluir','data-m05-complete="'+esc(g.id)+'"')+'</article>';}).join('')+'</div>':empty('Cadastre sua primeira meta, com base em indicadores medidos ou atualização manual identificada.')))+
+ return section('Metas individuais e planejamento',button('Cadastrar meta','data-m05-form="goal"')+(gs.length?'<div class="m05-rows">'+gs.map(g=>{const x=window.Concilia05Analytics?.goalProgress(g,companyList(),owner,B,tracked())||C.resultGoals(g,a);return '<article class="m05-item"><div><b>'+esc(g.title)+'</b><small>'+esc(g.metric)+' · '+esc(g.direction)+' · prazo '+dateBR(g.deadline)+'</small><strong>'+pct(x.progress)+'</strong><small>Origem: '+esc(x.source)+' · '+esc(g.status)+'</small></div>'+button('Editar','data-m05-edit="goal|'+esc(g.id)+'"')+button('Concluir','data-m05-complete="'+esc(g.id)+'"')+'</article>';}).join('')+'</div>':empty('Cadastre sua primeira meta, com base em indicadores medidos ou atualização manual identificada.')))+
  section('Planejamento','<p>Restantes no período: <b>'+fmt(a.remaining)+'</b>. Prazos e capacidade diária exigem calendário de disponibilidade informado; o sistema não inventa previsões nem avalia competência pelo cumprimento isolado de metas.</p>');
 }
 function professional(){
@@ -164,6 +164,7 @@ function render(next){
  // Eventos de outros módulos podem pedir renderização enquanto o usuário digita.
  // Reanexar o MESMO formulário conserva os campos, sem salvar rascunhos não confirmados.
  if(existingForm&&ready)root.querySelector('#m05FormHost')?.appendChild(existingForm);
+ if(ready&&window.Concilia05Advanced?.panel){const host=root.querySelector('.m05-body');if(host)host.insertAdjacentHTML('beforeend',window.Concilia05Advanced.panel());}
 }
 async function load(id){
  if(loading||!id)return;loading=true;
@@ -245,6 +246,6 @@ function init(){
   }catch(err){alert(err.message||String(err));}
  });
 }
-window.Concilia05={render,init,privateState:()=>own()?C.normalize(store):C.blank()};
+window.Concilia05={render,init,privateState:()=>own()?C.normalize(store):C.blank(),owner:()=>owner,context:()=>ctx,mode:()=>mode,saveRecord:persist};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
