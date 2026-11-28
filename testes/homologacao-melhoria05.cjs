@@ -27,6 +27,8 @@ async function login(page,u){
  await page.locator('#cloudLogin').click();
  await page.waitForFunction(()=>!document.querySelector('#app')?.hidden,{timeout:15000});
  await page.waitForFunction(()=>document.querySelector('#melhoria05Panel .m05-head small')?.textContent?.includes('sincronizados'),{timeout:20000});
+ await page.locator('button[data-page="visao"]').click();
+ await page.locator('[data-m05-tab="quality"]').waitFor({state:'visible',timeout:15000});
 }
 (async()=>{
  await Promise.all(users.map(register));
@@ -56,6 +58,7 @@ async function login(page,u){
   await page.screenshot({path:path.join(process.env.RUNNER_TEMP||'/tmp','melhoria05-auth-desktop.png')});
   await page.reload({waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>document.querySelector('#melhoria05Panel .m05-head small')?.textContent?.includes('sincronizados'),{timeout:20000});
+  await page.locator('button[data-page="visao"]').click();
   await page.locator('[data-m05-tab="quality"]').click();
   assert.match(await page.locator('#melhoria05Panel').textContent(),/Ocorrência fictícia E2E/,'Persistência real após reload');
   await page.locator('[data-m05-resolve]').first().click();
