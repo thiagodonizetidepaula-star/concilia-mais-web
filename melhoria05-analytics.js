@@ -161,7 +161,7 @@ function savings(manual,auto){
 function learningFromCompanies(companies,userId,B,filter={}){
  if(!B)return {suggested:0,confirmed:0,corrected:0,byCompany:[]};
  const cs=B.authorized(companies,userId).filter(c=>!filter.companyId||c.id===filter.companyId);
- let suggested=0,confirmed=0,corrected=0;const rows=[];
+ let suggested=0,confirmed=0,corrected=0;const rows=[],history=[],byRule=new Map();
  const b=bounds(filter);
  for(const c of cs){
   let uses=0;
@@ -171,12 +171,20 @@ function learningFromCompanies(companies,userId,B,filter={}){
    if(!day(d)||d<b.from||d>b.to)continue;
    if(filter.period&&date(m.date).slice(0,7)!==filter.period)continue;
    suggested++;uses++;
-   if(m.status==='CONFIRMADO'&&String(m.counterpart||'')===String(u.suggestedCode||''))confirmed++;
-   if(m.status==='CONFIRMADO'&&String(m.counterpart||'')!==String(u.suggestedCode||''))corrected++;
+   const result=m.status==='CONFIRMADO'?(String(m.counterpart||'')===String(u.suggestedCode||'')?'Confirmado':'Corrigido'):'Sugestão pendente';
+   if(result==='Confirmado')confirmed++;
+   if(result==='Corrigido')corrected++;
+   history.push({companyId:c.id,companyName:c.name||'',period:date(m.date).slice(0,7),executionAt:d,movementId:m.id||'',status:result,ruleKeys:arr(u.ruleKeys)});
+   for(const key of arr(u.ruleKeys)){
+    const r=byRule.get(key)||{ruleId:key,suggestions:0,confirmed:0,corrected:0};
+    r.suggestions++;if(result==='Confirmado')r.confirmed++;if(result==='Corrigido')r.corrected++;
+    byRule.set(key,r);
+   }
   }
   if(uses)rows.push({companyId:c.id,name:c.name||'',uses});
  }
  return {suggested,confirmed,corrected,confirmationRate:pct(confirmed,suggested),byCompany:rows,
+  byRule:[...byRule.values()],history,monthly:groupByMonths(history.map(r=>({executionAt:r.executionAt})),Number(filter.year||new Date().getFullYear())),
   note:'Somente sugestões registradas a partir desta versão; confirmação exige código final idêntico.'};
 }
 function groupByMonths(records,year,dateField='executionAt'){
