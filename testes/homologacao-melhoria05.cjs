@@ -65,6 +65,57 @@ async function login(page,u){
   await page.waitForFunction(()=>document.querySelector('#melhoria05Panel')?.textContent?.includes('Resolvida'),{timeout:12000});
   const final=await request(table+'?select=payload,revision&user_id=eq.'+a.id,{user:a});
   assert.equal(final[0].revision,3);assert.equal(final[0].payload.quality[0].status,'Resolvida');assert.equal(final[0].payload.quality[0].audit.length,2);
+  // Cenários 05.1 a 05.8: data de execução, competência, auditoria, revisão, calendário, relatórios.
+  await page.locator('[data-m05-tab="productivity"]').click();
+  await page.locator('[data-m05x="range"]').selectOption('day');
+  await page.locator('[data-m05x="day"]').fill(new Date().toISOString().slice(0,10));
+  await page.locator('[data-m05x-form="activity"] input[name="title"]').fill('Medição fictícia auditada');
+  await page.locator('[data-m05x-form="activity"] input[name="effectiveSeconds"]').fill('3600');
+  await page.locator('[data-m05x-form="activity"] input[name="waitSeconds"]').fill('1200');
+  await page.locator('[data-m05x-form="activity"] input[name="movements"]').fill('14');
+  await page.locator('[data-m05x-form="activity"] button[type="submit"]').click();
+  await page.waitForFunction(()=>document.querySelector('#melhoria05Panel')?.textContent?.includes('Medição fictícia auditada'),{timeout:15000});
+  const savedActivity=await request(table+'?select=payload,revision&user_id=eq.'+a.id,{user:a});
+  assert.equal(savedActivity[0].payload.activities.length,1);
+  assert.equal(savedActivity[0].payload.activities[0].waitSeconds,1200);
+  assert.equal(savedActivity[0].payload.activities[0].effectiveSeconds,3600);
+  await page.locator('[data-m05-tab="quality"]').click();
+  const qualityId=final[0].payload.quality[0].id;
+  await page.locator('[data-m05x-review="'+qualityId+'"][data-review-to="Aguardando revisão"]').click();
+  await page.waitForFunction(()=>document.querySelector('[data-review-to="Em revisão"]'),{timeout:12000});
+  await page.locator('[data-review-to="Em revisão"]').click();
+  await page.waitForFunction(()=>document.querySelector('[data-review-to="Aprovada"]'),{timeout:12000});
+  await page.locator('[data-review-to="Aprovada"]').click();
+  await page.waitForFunction(()=>document.querySelector('#melhoria05Panel')?.textContent?.includes('Aprovada'),{timeout:12000});
+  const reviewed=await request(table+'?select=payload&user_id=eq.'+a.id,{user:a});
+  assert.equal(reviewed[0].payload.quality[0].reviewStatus,'Aprovada');
+  assert.equal(reviewed[0].payload.quality[0].firstReviewOutcome,'Aprovada');
+  assert.equal(reviewed[0].payload.quality[0].reviewEvents.length,3);
+  await page.locator('[data-m05-tab="goals"]').click();
+  await page.locator('[data-m05x-form="calendar"] input[name="deadline"]').fill('2026-12-18');
+  await page.locator('[data-m05x-form="calendar"] input[name="dailyHours"]').fill('6');
+  await page.locator('[data-m05x-form="calendar"] button[type="submit"]').click();
+  await page.waitForFunction(()=>document.querySelector('#melhoria05Panel')?.textContent?.includes('dias úteis disponíveis'),{timeout:15000});
+  const withCalendar=await request(table+'?select=payload&user_id=eq.'+a.id,{user:a});
+  assert.equal(withCalendar[0].payload.calendar.length,1);
+  await page.locator('[data-m05-tab="reports"]').click();
+  const evidence=await page.evaluate(()=>{
+   const p=window.Concilia05Reports.build({
+    filter:window.Concilia05Advanced.filter(),
+    state:window.Concilia05.privateState(),companies:window.ConciliaBIMetrics.authorized(window.Concilia05.context().companies,window.Concilia05.owner()),
+    owner:window.Concilia05.owner(),analytics:window.Concilia05Analytics,B:window.ConciliaBIMetrics,tracking:window.ConciliaTrackingCore
+   });
+   const pdf=window.Concilia05Reports.html(p);
+   if(!window.XLSX)throw Error('Biblioteca XLSX não disponível no navegador');
+   const workbook=window.XLSX.utils.book_new();
+   for(const sheet of p.sheets)window.XLSX.utils.book_append_sheet(workbook,window.XLSX.utils.json_to_sheet(sheet.rows.length?sheet.rows:[{Mensagem:'Sem dados'}]),sheet.name);
+   const bytes=window.XLSX.write(workbook,{type:'array',bookType:'xlsx'});
+   return {pdf:pdf.includes('<table>')&&pdf.includes('CONCILIAR+'),xlsxSheets:workbook.SheetNames.length,xlsxSize:bytes.byteLength};
+  });
+  assert.equal(evidence.pdf,true,'PDF diagramado');
+  assert.equal(evidence.xlsxSheets,10,'Excel temático');
+  assert.ok(evidence.xlsxSize>8000,'XLSX com conteúdo real');
+  console.log('MELHORIA 05 AVANÇADA: atividade, revisão completa, calendário, PDF HTML e 10 abas XLSX: OK');
   const pageB=await browser.newPage({viewport:{width:390,height:850}});
   await login(pageB,b);
   await pageB.locator('[data-m05-tab="quality"]').click();
