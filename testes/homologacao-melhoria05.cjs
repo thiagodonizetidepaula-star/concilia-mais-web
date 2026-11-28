@@ -45,6 +45,7 @@ async function login(page,u){
  try{
   const page=await browser.newPage({viewport:{width:1380,height:950}});
   page.on('pageerror',err=>console.warn('PAGE:',err.message));
+  page.on('dialog',d=>{console.warn('05-DIALOG:',d.message());void d.accept();});
   await login(page,a);
   assert.equal(await page.locator('[data-m05-tab]').count(),9,'9 perspectivas em UI');
   await page.locator('[data-m05-tab="quality"]').click();
@@ -75,6 +76,14 @@ async function login(page,u){
   await page.locator('[data-m05x-form="activity"] input[name="waitSeconds"]').fill('1200');
   await page.locator('[data-m05x-form="activity"] input[name="movements"]').fill('14');
   await page.locator('[data-m05x-form="activity"] button[type="submit"]').click();
+  console.log('05 AFTER_ACTIVITY_SUBMIT',JSON.stringify(await page.evaluate(()=>({
+   text:document.querySelector('#melhoria05Panel .m05-head small')?.textContent,
+   activityCount:window.Concilia05?.privateState?.()?.activities?.length||0,
+   available:document.querySelectorAll('[data-m05x-edit-activity]').length,
+   activeTab:document.querySelector('[data-m05-tab][aria-selected="true"]')?.dataset.m05Tab,
+   range:window.Concilia05Advanced?.filter?.()?.range
+  }))));
+
   await page.waitForFunction(()=>document.querySelector('#melhoria05Panel')?.textContent?.includes('Medição fictícia auditada'),{timeout:15000});
   const savedActivity=await request(table+'?select=payload,revision&user_id=eq.'+a.id,{user:a});
   assert.equal(savedActivity[0].payload.activities.length,1);
