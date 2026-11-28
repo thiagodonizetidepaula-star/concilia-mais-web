@@ -83,3 +83,9 @@
 .track4-chart-empty{padding:22px;border:1px dashed #c9dae7;border-radius:12px;background:#f8fbfd;color:#748c9e;font-size:12px;margin:12px 0}
 @media(max-width:1150px){.track4-visuals{grid-template-columns:repeat(2,minmax(0,1fr))}.track4-viz-card:last-child{grid-column:1/-1}}
 @media(max-width:690px){.track4-visuals{grid-template-columns:1fr}.track4-viz-card:last-child{grid-column:auto}}
+
+
+.track4-group{margin:10px 0;border:1px solid #e0e9f1;border-radius:12px;background:#fff;padding:10px 12px}
+.track4-group summary{font-size:12px;font-weight:750;color:#305f81;cursor:pointer;padding:3px}
+.track4-group[open] summary{padding-bottom:10px;border-bottom:1px solid #ecf1f5}
+.track4-group .track4-fields,.track4-group .track4-edit-fields{margin:12px 0 3px}
