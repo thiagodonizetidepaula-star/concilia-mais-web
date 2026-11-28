@@ -236,14 +236,16 @@ function evolution(){
  '<article class="insights-chart prod-history"><div class="insights-chart-head"><div><h4>Histórico de conciliações</h4><p>Datas, duração e resultados de cada medição.</p></div><button type="button" class="secondary" data-prod="csv">Exportar histórico CSV</button></div>'+
  '<div class="prod-history-scroll"><table><thead><tr><th>Empresa / Competência</th><th>Início</th><th>Conclusão</th><th>Duração</th><th>Processados</th><th>Pendências</th><th>Divergências</th><th>Produtividade</th></tr></thead><tbody>'+
  (rows.length?rows.map(r=>{const m=metrics(r);return '<tr><td><strong>'+esc(r.companyName||r.companyId)+'</strong><small>'+esc(r.period||'')+'</small></td><td>'+dateTime(r.startedAt)+'</td><td>'+dateTime(r.finishedAt)+'</td><td><strong>'+fmt(m.spent)+'</strong></td><td>'+m.processed+'</td><td>'+m.pending+'</td><td>'+m.divergent+'</td><td>'+m.productivity+'%</td></tr>';}).join(''):'<tr><td colspan="8" class="prod-muted">Nenhuma medição concluída neste filtro.</td></tr>')+
- '</tbody></table></div></article><p class="insights-note">Histórico das medições feitas neste navegador, associado ao usuário conectado. A contagem é manual e separada do Controle de Conciliações contábil. Não altera extratos ou lançamentos.</p></section>';
+ '</tbody></table></div></article><p class="insights-note">Histórico de medições associado ao usuário conectado. As informações manuais são identificadas e não alteram extratos ou lançamentos.</p></section>';
 }
 function draw(){
  const root=$('#productivityPanel');if(!root)return;
  const c=context(),k=scopeOf(c),r=k?state.sessions[k]||blank(c):null,m=metrics(r),enabled=!!k,started=!!r?.startedAt,finished=!!r?.finishedAt,active=canEdit(r);
- const stateText=finished?'Medição concluída':r?.runningSince?'Cronômetro em andamento':started?'Medição pausada':'Aguardando início manual';
+ const stateText=finished?'Medição concluída':r?.runningSince?'Cronômetro em andamento':started?'Medição pausada':'Pronto para começar';
+ const syncError=/^(Falha|Erro)/.test(cloudStatus);
+ const syncWarning=syncError?'<div class="prod-sync-warning" role="alert">Não foi possível proteger todas as alterações na nuvem. Seus registros locais foram mantidos. <button type="button" class="secondary" data-prod="sync">Tentar salvar novamente</button></div>':'';
  const input=(label,name,value)=>'<label class="prod-manual-field">'+label+'<input type="number" min="0" max="1000000" step="1" data-prod-field="'+name+'" value="'+value+'" '+(!active?'disabled':'')+'></label>';
- root.innerHTML='<div class="prod-heading"><div><span class="prod-kicker">CONTROLE PESSOAL DE EVOLUÇÃO</span><h2>Dashboard de Produtividade</h2><p>Inicie, registre manualmente seus resultados e compare cada conciliação.</p><div class="prod-cloud-row"><span data-prod-cloud>'+esc(cloudStatus)+'</span><button type="button" class="secondary" data-prod="sync">Sincronizar agora</button></div></div><div class="prod-status">'+stateText+'</div></div>'+
+ root.innerHTML='<div class="prod-heading"><div><span class="prod-kicker">CONTROLE PESSOAL DE EVOLUÇÃO</span><h2>Dashboard de Produtividade</h2><p>Inicie, registre seus resultados e acompanhe sua evolução. O salvamento ocorre automaticamente.</p></div><div class="prod-status">'+stateText+'</div></div>'+syncWarning+
  (!enabled?'<p class="prod-notice">Selecione uma empresa, competência e entre na sua conta para iniciar sua medição.</p>':'<p class="prod-context"><strong>'+esc(c.company?.name||'Empresa')+'</strong> · Competência '+esc(c.period)+'</p>')+
  evolution()+
  '<div class="prod-metrics-head"><span>MEDIÇÃO MANUAL ATUAL</span><h3>Indicadores do ciclo iniciado por você</h3></div>'+
@@ -256,14 +258,14 @@ function draw(){
  '<article class="prod-card"><span>Pendências e divergências</span><strong>'+m.pending+' <em>/ '+m.divergent+'</em></strong><small>Quantidades informadas manualmente</small></article></div>'+
  '<div class="prod-columns"><article class="prod-section"><h3>Cronômetro e controle do ciclo</h3>'+
  '<p>Os valores começam zerados. Clique em Iniciar, preencha o que realizou e conclua para salvar sua evolução. Zerar tudo não apaga trabalhos já concluídos.</p>'+
- '<div class="prod-actions"><button type="button" data-prod="start" class="primary" '+(!enabled||finished||r?.runningSince?'disabled':'')+'>'+(started?'▶ Retomar':'▶ Iniciar medição')+'</button><button type="button" data-prod="pause" class="secondary" '+(!r?.runningSince?'disabled':'')+'>Ⅱ Pausar</button><button type="button" data-prod="finish" class="secondary" '+(!started||finished?'disabled':'')+'>✓ Concluir e salvar</button></div>'+
+ '<div class="prod-actions"><button type="button" data-prod="start" class="primary" '+(!enabled||finished||r?.runningSince?'disabled':'')+'>'+(started?'▶ Retomar':'▶ Iniciar conciliação')+'</button><button type="button" data-prod="pause" class="secondary" '+(!r?.runningSince?'disabled':'')+'>Ⅱ Pausar</button><button type="button" data-prod="finish" class="secondary" '+(!started||finished?'disabled':'')+'>✓ Concluir e salvar</button></div>'+
  '<div class="prod-actions"><button type="button" data-prod="reset" class="secondary" '+(!enabled?'disabled':'')+'>↺ Zerar tudo / Novo ciclo</button><button type="button" data-prod="restore" class="secondary" '+(!enabled||!state.drafts.some(x=>x.scope===k)?'disabled':'')+'>↶ Restaurar medição</button><button type="button" data-prod="refresh" class="secondary">↻ Atualizar painel</button></div>'+
  '<div class="prod-manual-fields">'+input('Lançamentos processados','processed',m.processed)+input('Pendências encontradas','pending',m.pending)+input('Divergências encontradas','divergent',m.divergent)+'</div>'+
  '<label class="prod-label">Referência manual (minutos por lançamento)<input data-prod-field="baseline" type="number" min="0.1" max="120" step="0.5" value="'+(r?.baseline||3)+'" '+(!active?'disabled':'')+'></label>'+
  '<p class="prod-disclaimer">O sistema não importa automaticamente os totais dos extratos para estes indicadores. Tempo manual = lançamentos informados × referência. Produtividade = economia de tempo ÷ referência, apurada após a conclusão.</p></article>'+
  '<article class="prod-section"><h3>Resumo da medição</h3><dl><div><dt>Início</dt><dd>'+dateTime(r?.startedAt)+'</dd></div><div><dt>Conclusão</dt><dd>'+dateTime(r?.finishedAt)+'</dd></div><div><dt>Duração</dt><dd data-prod-duration>'+fmt(m.spent)+'</dd></div><div><dt>Lançamentos registrados</dt><dd>'+m.processed+'</dd></div><div><dt>Referência manual</dt><dd>'+fmt(m.manual)+'</dd></div><div><dt>Economia ao concluir</dt><dd>'+fmtDelta(m.saved)+'</dd></div></dl>'+
  '<p class="prod-disclaimer">O histórico permanece disponível após clicar em Zerar tudo. Para iniciar outra conciliação, selecione a empresa e a competência e crie um novo ciclo.</p></article></div>'+
- '<p class="prod-footnote">Este dashboard é uma ferramenta de desenvolvimento profissional. Os dados contábeis continuam separados e intactos; o histórico manual fica neste navegador, não é sincronizado entre aparelhos.</p>';
+ '<p class="prod-footnote">Este painel acompanha a produtividade sem alterar a conciliação contábil. Registros são salvos automaticamente na conta quando existe conexão; dados locais são mantidos em caso de falha.</p>';
 }
 function render(){draw();}
 function stopRunning(){
