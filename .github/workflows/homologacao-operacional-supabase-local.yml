@@ -112,5 +112,6 @@ jobs:
             ${{ runner.temp }}/carteira-real-auth-desktop.png
             ${{ runner.temp }}/carteira-real-auth-mobile.png
             ${{ runner.temp }}/crm-real-auth-desktop.png
+            ${{ runner.temp }}/crm-real-auth-detail-desktop.png
             ${{ runner.temp }}/crm-real-auth-mobile.png
           if-no-files-found: warn
