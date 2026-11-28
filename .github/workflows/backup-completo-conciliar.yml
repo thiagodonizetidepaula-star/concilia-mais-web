@@ -1,0 +1,44 @@
+name: Backup ZIP completo do ConCiliar+ publicado
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: backup-publicacao-conciliar
+  cancel-in-progress: false
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Baixar o commit exato para backup
+        uses: actions/checkout@v4
+      - name: Python nativo sem novas dependências
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Criar e validar pacote seguro do código
+        run: |
+          python3 scripts/backup_release.py | tee backup-info.json
+          test -s CONCILIAR_PLUS_PROJETO_COMPLETO.zip
+          python3 - <<'PY'
+          import json,zipfile
+          z=zipfile.ZipFile('CONCILIAR_PLUS_PROJETO_COMPLETO.zip')
+          assert z.testzip() is None
+          m=json.loads(z.read('RELEASE_METADATA.json'))
+          assert m['commit'],m
+          assert len(z.namelist())>=35
+          print('Integridade do ZIP aprovada:',len(z.namelist()),'arquivos; commit:',m['commit'])
+          PY
+      - name: Disponibilizar backup completo para download autenticado
+        uses: actions/upload-artifact@v4
+        with:
+          name: CONCILIAR_PLUS_PROJETO_COMPLETO
+          path: |
+            CONCILIAR_PLUS_PROJETO_COMPLETO.zip
+            backup-info.json
+          retention-days: 90
+          if-no-files-found: error
