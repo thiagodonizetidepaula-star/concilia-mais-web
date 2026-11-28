@@ -70,7 +70,10 @@ function merge(workspace,preview,sourceId='test',actor='test'){
  for(const row of preview.selected){
   if(!cnpjValid(row.cnpj)){counts.conflicts.push('CNPJ não válido na linha '+row.sourceRow);continue;}
   let c=result.companies.find(x=>digits(x.cnpj)===row.cnpj);
-  if(!c){c={id:'excel-'+row.cnpj,name:row.name,cnpj:row.cnpj,dominio:row.code??'',plan:[],plansHistory:[],accounts:[],rules:[],partners:[],relatedCompanies:[],taxRules:[],taxSplits:[],imports:[],movements:[],ledger:[],transfers:[]};result.companies.push(c);counts.created++;}
+  if(c&&Array.isArray(c.walletAssignedUserIds)&&actor&&!c.walletAssignedUserIds.includes(actor)){
+   counts.conflicts.push('Linha '+row.sourceRow+': empresa atribuída a outro usuário; alteração bloqueada.');continue;
+  }
+  if(!c){c={id:'excel-'+row.cnpj,name:row.name,cnpj:row.cnpj,dominio:row.code??'',plan:[],plansHistory:[],accounts:[],rules:[],partners:[],relatedCompanies:[],taxRules:[],taxSplits:[],imports:[],movements:[],ledger:[],transfers:[],walletAssignedUserIds:actor?[actor]:[]};result.companies.push(c);counts.created++;}
   else counts.reused++;
   for(const [field,value] of Object.entries({dominio:row.code,name:row.name,regimeTributario:row.regime,contractedPlan:row.plan,startDate:row.startedAt,distractDate:row.endedAt,clientNotes:row.notes,documentOwner:row.owner})){
    if((c[field]===null||c[field]===undefined||c[field]==='')&&value!==null&&value!==undefined&&value!=='')c[field]=value;
@@ -85,7 +88,7 @@ function merge(workspace,preview,sourceId='test',actor='test'){
    if(!Object.prototype.hasOwnProperty.call(c.documentHistory,period)){c.documentHistory[period]={status:doc.value,rawStatus:doc.raw,empty:doc.empty,special:doc.special,notes:'',source:'xlsx',sourceId,updatedAt:null,updatedBy:null,receivedAt:null,chargedAt:null};counts.docRecords++;}
    if(closing&&!Object.prototype.hasOwnProperty.call(c.closingHistory,period)){c.closingHistory[period]={status:closing.value,rawStatus:closing.raw,empty:closing.empty,source:'xlsx',sourceId};counts.closingRecords++;}
   }
-  if(Array.isArray(c.walletAssignedUserIds)&&!c.walletAssignedUserIds.includes(actor))counts.conflicts.push('Vínculo de outro usuário na linha '+row.sourceRow+' foi preservado.');
+
  }
  return {workspace:result,counts};
 }
