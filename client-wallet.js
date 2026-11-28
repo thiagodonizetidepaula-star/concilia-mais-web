@@ -128,6 +128,6 @@ function init(){
  });
  root.addEventListener('submit',event=>{if(event.target.id==='walletEditor'){event.preventDefault();saveEdit(event.target).catch(err=>say(err.message||String(err),true));}});
 }
-window.ConciliaWallet={render,cnpjValid,visible:available};
+window.ConciliaWallet={render,cnpjValid,visible:available,open:(id)=>{if(!available().some(c=>c.id===id))throw Error('Empresa fora da carteira autorizada.');editing=null;viewing=id;showPage('carteira');render();}};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
