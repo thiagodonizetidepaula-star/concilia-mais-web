@@ -6,7 +6,7 @@ Histórico: PR #82 mesclado em 28/11/2026, com deploy parcial registrado como li
 
 **Critério:** "Implementado e testado" apenas para guardrails de preservação comprovados ou cenários com evidências adequadas. "Parcialmente implementado" quando o requisito está coberto em parte, mas permanece alguma lacuna de integração, completude ou verificação. "Implementado, mas não testado" somente quando há código com teste pendente; "Não implementado" quando ainda não há funcionalidade equivalente. Sem impedimentos técnicos declarados sem prova.
 
-Itens extraídos: **1118**. Contagem auditada por regra documental: Implementado e testado: 176; Parcialmente implementado: 936; Não implementado: 4; Implementado, mas não testado: 2. **Três filtros foram reclassificados de não implementados para parciais em função do código e dos testes unitários da branch PR #83; faltam testes operacionais com dados reais autorizados.**
+Itens extraídos: **1118**. Contagem auditada por regra documental: Implementado e testado: 178; Parcialmente implementado: 936; Não implementado: 4; Implementado, mas não testado: 0. **Três filtros foram reclassificados de não implementados para parciais pelo PR #83; faltam testes operacionais com dados reais autorizados. Dois testes de exportação foram reclassificados com base na execução de PDF/XLSX autenticada registrada no PR #82.**
 
 As categorias podem mudar após a homologação final; este registro **não** é certificação de 100% de escopo.
 
@@ -876,8 +876,8 @@ As categorias podem mudar após a homologação final; este registro **não** é
 | 1786 | 76. TESTES FUNCIONAIS | Realizações. | Parcialmente implementado | Estrutura existente ou acrescentada no PR #82; este item não possui ainda comprovação ponta a ponta individual. |
 | 1787 | 76. TESTES FUNCIONAIS | Planos de desenvolvimento. | Parcialmente implementado | Estrutura existente ou acrescentada no PR #82; este item não possui ainda comprovação ponta a ponta individual. |
 | 1788 | 76. TESTES FUNCIONAIS | Análises gerenciais. | Parcialmente implementado | Estrutura existente ou acrescentada no PR #82; este item não possui ainda comprovação ponta a ponta individual. |
-| 1789 | 76. TESTES FUNCIONAIS | Relatórios PDF. | Implementado, mas não testado | Exportadores e testes específicos estão na branch; aguardar evidência autenticada do último commit. |
-| 1790 | 76. TESTES FUNCIONAIS | Relatórios Excel. | Implementado, mas não testado | Exportadores e testes específicos estão na branch; aguardar evidência autenticada do último commit. |
+| 1789 | 76. TESTES FUNCIONAIS | Relatórios PDF. | Implementado e testado | PR #82 documenta PDF binário renderizado por Chromium, com execução autenticada em Supabase local (Actions 46116485954). Verificação em ambiente de teste; não equivale à validação de todos os layouts reais. |
+| 1790 | 76. TESTES FUNCIONAIS | Relatórios Excel. | Implementado e testado | PR #82 documenta XLSX temático com dez abas gerado e validado no E2E Auth/Supabase local (Actions 46116485954), usando dados fictícios. |
 | 1791 | 76. TESTES FUNCIONAIS | Filtros. | Parcialmente implementado | Estrutura existente ou acrescentada no PR #82; este item não possui ainda comprovação ponta a ponta individual. |
 | 1792 | 76. TESTES FUNCIONAIS | Gráficos. | Parcialmente implementado | Estrutura existente ou acrescentada no PR #82; este item não possui ainda comprovação ponta a ponta individual. |
 | 1793 | 76. TESTES FUNCIONAIS | Acesso aos registros. | Parcialmente implementado | Estrutura existente ou acrescentada no PR #82; este item não possui ainda comprovação ponta a ponta individual. |
