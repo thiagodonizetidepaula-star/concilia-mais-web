@@ -39,7 +39,7 @@ function build({filter,state,companies,owner,analytics:A,B,tracking},anonymous=f
  const companyRows=anonymous?[]:cs.map(c=>{const r=B.record(c,filter.period||filter.month||new Date().toISOString().slice(0,7),tracking);
   return {Empresa:c.name||'Empresa',CodigoDominio:c.dominio||'',CNPJ:c.cnpj||'',Movimentos:r.movements,Confirmadas:r.classified,Automaticas:r.automatic,Excel:r.excel,TempoSegundos:r.seconds??'Sem medição',Documentos:r.documentStatus||'Sem dados'};});
  const goalsRows=goals.map(g=>{const x=A.goalProgress(g,cs,owner,B,tracking);
-  return {Meta:anonymous?'Meta profissional':g.title,Competencia:x.period||g.period||'Sem competência',Empresa:anonymous?'Protegida':g.companyId||'Carteira',Indicador:g.metric,ValorAtual:x.actual??'Sem medição',Alvo:g.target,Progresso:x.progress??'Sem dados',Situacao:g.status,Origem:x.source};});
+  return {Meta:anonymous?'Meta profissional':g.title,Competencia:x.period||g.period||'Sem competência',Empresa:anonymous?'Protegida':g.companyId||'Carteira',Indicador:anonymous?'Indicador interno':g.metric,ValorAtual:x.actual??'Sem medição',Alvo:g.target,Progresso:x.progress??'Sem dados',Situacao:g.status,Origem:x.source};});
  const qualityRows=quality.map(r=>({Ocorrencia:anonymous?'Ocorrência pessoal':r.title,Competencia:r.period||'',
   Empresa:anonymous?'Protegida':r.companyId,Revisao:r.reviewStatus||'Sem revisão',PrimeiraRevisao:r.firstReviewOutcome||'Não avaliada',
   Causa:anonymous?'Confidencial':r.cause||'Não identificada',Acao:anonymous?'Confidencial':r.correctiveAction||'Não informada',Status:r.status,Data:r.createdAt?.slice(0,10)||''}));
@@ -68,7 +68,7 @@ function build({filter,state,companies,owner,analytics:A,B,tracking},anonymous=f
  const trend=A.groupByMonths(activityRows.map(r=>({executionAt:r.Execucao})),filter.year||new Date().getFullYear());
  return {
   title:anonymous?'Relatório profissional anonimizado':'Relatório gerencial ConCiliar+',
-  generatedAt:new Date().toISOString(),periodDescription,filter:{...filter,ownerId:anonymous?'Omitido':'Usuário autenticado'},
+  generatedAt:new Date().toISOString(),periodDescription,filter:anonymous?{range:filter.range,month:filter.month,year:filter.year,period:filter.period,status:filter.status}:{...filter,ownerId:'Usuário autenticado'},
   anonymous,criteria,notes:[op.note,'Indicadores de tempo só usam medições válidas. Dados ausentes são indisponíveis.','Valores operacionais não representam lucro, remuneração ou avaliação profissional conclusiva.'],
   sheets:[
    {name:'Indicadores',rows:indicators},
