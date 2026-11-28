@@ -117,7 +117,7 @@ async function login(page,u){
   await page.locator('[data-m05x-form="calendar"] input[name="deadline"]').fill('2026-12-18');
   await page.locator('[data-m05x-form="calendar"] input[name="dailyHours"]').fill('6');
   await page.locator('[data-m05x-form="calendar"] button[type="submit"]').click();
-  await page.waitForFunction(()=>document.querySelector('#melhoria05Panel')?.textContent?.includes('dias úteis disponíveis'),{timeout:15000});
+  await page.waitForFunction(()=>window.Concilia05?.privateState?.()?.calendar?.length===1,null,{timeout:15000});
   const withCalendar=await request(table+'?select=payload&user_id=eq.'+a.id,{user:a});
   assert.equal(withCalendar[0].payload.calendar.length,1);
   await page.locator('[data-m05-tab="reports"]').click();
