@@ -84,7 +84,9 @@ function overview(){
 }
 function render(){
  const root=$('#crmPanel');if(!root)return;
- if(!cloudUser()||!window.ConciliaCloud?.authenticated?.()){root.innerHTML='<p>Faça login na sua conta para consultar o CRM.</p>';return;}
+ if(!cloudUser()||!window.ConciliaCloud?.authenticated?.()){selected=null;selectedPeriods=[];root.innerHTML='<p>Faça login na sua conta para consultar o CRM.</p>';return;}
+ // Após troca de usuário ou logout, nunca manter a seleção da conta anterior.
+ if(selected&&!getCompany(selected)){selected=null;selectedPeriods=[];tab='charge';}
  root.innerHTML=selected?selectedHtml():listHtml();
  overview();
 }
