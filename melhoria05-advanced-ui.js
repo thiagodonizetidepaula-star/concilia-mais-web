@@ -8,16 +8,29 @@ const pct=x=>x===null||x===undefined?'Sem dados':n(x)+'%';
 const options=(values,current)=>values.map(([v,label])=>'<option value="'+esc(v)+'" '+(current===v?'selected':'')+'>'+esc(label)+'</option>').join('');
 const date=x=>String(x||'').slice(0,10);
 const today=()=>new Date().toISOString().slice(0,10);
-let view={range:'month',day:today(),month:today().slice(0,7),year:Number(today().slice(0,4)),start:today().slice(0,7)+'-01',end:today(),period:'',companyId:'',search:'',status:'all',activityType:'all'},root=null;
+let view={range:'month',day:today(),month:today().slice(0,7),year:Number(today().slice(0,4)),start:today().slice(0,7)+'-01',end:today(),period:'',companyId:'',search:'',status:'all',activityType:'all',taxRegime:'',serviceType:'',complexityLevel:''},root=null;
 const card=(title,body)=>'<article class="m05-card"><h3>'+esc(title)+'</h3>'+body+'</article>';
 const button=(label,attr='')=>'<button '+(attr.includes('type=')?'':'type="button" ')+attr+'>'+esc(label)+'</button>';
 const input=(name,label,type='text',extra='')=>'<label>'+esc(label)+'<input type="'+type+'" name="'+name+'" '+extra+'></label>';
 const inputValue=(name,label,type,value)=>input(name,label,type,'value="'+esc(value??'')+'"');
 const owner=()=>window.Concilia05?.owner?.()||'';
 const store=()=>window.Concilia05?.privateState?.()||C.blank();
-const companies=()=>B.authorized(window.Concilia05?.context?.()?.companies,owner()).filter(c=>{
+// Campos opcionais: filtro só utiliza metadados presentes; ausência não é categoria presumida.
+const metadata=(c,fields)=>fields.map(k=>c?.[k]).find(v=>typeof v==='string'&&v.trim())?.trim()||'';
+const taxRegime=c=>metadata(c,['taxRegime','regimeTributario','regimeTributacao','taxationRegime']);
+const serviceType=c=>metadata(c,['serviceType','tipoServico','serviceCategory','categoriaServico']);
+const complexityLevel=c=>{
+ const r=B.record(c,view.period||view.month,window.ConciliaTrackingCore);
+ return C.complexity({movements:r.movements,accounts:Array.isArray(c.accounts)?c.accounts.length:null,pending:r.pending,manual:r.manual,rework:r.rework}).level||'';
+};
+const allowedCompanies=()=>B.authorized(window.Concilia05?.context?.()?.companies,owner());
+const companies=()=>allowedCompanies().filter(c=>{
  const q=String(view.search||'').trim().toLocaleLowerCase('pt-BR');
- return !q||[c.name,c.tradeName,c.fantasyName,c.dominio,c.cnpj].some(v=>String(v||'').toLocaleLowerCase('pt-BR').includes(q));
+ if(q&&![c.name,c.tradeName,c.fantasyName,c.dominio,c.cnpj].some(v=>String(v||'').toLocaleLowerCase('pt-BR').includes(q)))return false;
+ if(view.taxRegime&&taxRegime(c)!==view.taxRegime)return false;
+ if(view.serviceType&&serviceType(c)!==view.serviceType)return false;
+ if(view.complexityLevel&&complexityLevel(c)!==view.complexityLevel)return false;
+ return true;
 });
 const context=()=>window.Concilia05?.context?.()||{};
 const records=k=>(Array.isArray(store()[k])?store()[k]:[]).filter(r=>r.ownerId===owner()&&(!r.companyId||companies().some(c=>c.id===r.companyId)));
@@ -27,7 +40,7 @@ const save=async(kind,obj)=>{await window.Concilia05.saveRecord(kind,obj);window
 const create=(kind,data)=>C.create(kind,data,owner());
 const head=()=>'<div class="m05-ext-head"><strong>Filtros operacionais avançados</strong><span>Datas de execução e competências permanecem separadas</span></div>';
 function filters(){
- const f=view,cs=companies(),v=[['day','Dia'],['week','Semana'],['month','Mês'],['quarter','Trimestre'],['semester','Semestre'],['year','Ano'],['custom','Período personalizado']];
+ const f=view,cs=companies(),all=allowedCompanies(),distinct=fn=>[...new Set(all.map(fn).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt-BR')),v=[['day','Dia'],['week','Semana'],['month','Mês'],['quarter','Trimestre'],['semester','Semestre'],['year','Ano'],['custom','Período personalizado']];
  return card('Filtros integrados da Melhoria 05',head()+'<div class="m05-ext-filters">'+
  '<label>Intervalo<select data-m05x="range">'+options(v,f.range)+'</select></label>'+
  '<label>Dia de referência<input data-m05x="day" type="date" value="'+esc(f.day)+'"></label>'+
@@ -38,6 +51,9 @@ function filters(){
  '<label>Competência contábil<input data-m05x="period" type="month" value="'+esc(f.period)+'"></label>'+
  '<label>Pesquisar razão social, código Domínio ou CNPJ<input data-m05x="search" type="search" value="'+esc(f.search||'')+'"></label>'+ 
  '<label>Empresa<select data-m05x="companyId">'+options([['','Todas autorizadas'],...cs.map(c=>[c.id,c.name])],f.companyId)+'</select></label>'+
+ '<label>Regime tributário (quando disponível)<select data-m05x="taxRegime">'+options([['','Todos com dados disponíveis'],...distinct(taxRegime).map(x=>[x,x])],f.taxRegime)+'</select></label>'+
+ '<label>Complexidade (quando avaliada)<select data-m05x="complexityLevel">'+options([['','Todas'],...distinct(complexityLevel).map(x=>[x,x])],f.complexityLevel)+'</select></label>'+
+ '<label>Tipo de serviço (quando disponível)<select data-m05x="serviceType">'+options([['','Todos com dados disponíveis'],...distinct(serviceType).map(x=>[x,x])],f.serviceType)+'</select></label>'+
  '<label>Funcionário<input value="Somente minha conta autenticada" disabled aria-label="Funcionário atual"></label>'+
  '<label>Tipo de atividade<select data-m05x="activityType">'+options([['all','Todas'],['Conciliação','Conciliação'],['Conferência','Conferência'],['Classificação','Classificação'],['Revisão','Revisão'],['Cobrança documental','Cobrança documental'],['Administrativo','Administrativo'],['Correção','Correção']],f.activityType)+'</select></label>'+
  '<label>Situação<select data-m05x="status">'+options([['all','Todas'],['Concluída','Concluída'],['Aberta','Aberta'],['Resolvida','Resolvida'],['Aprovada','Aprovada'],['Em andamento','Em andamento']],f.status)+'</select></label>'+
@@ -204,7 +220,7 @@ function init(){
   window.Concilia05?.render();
  });
  root.addEventListener('click',async e=>{
-  if(e.target.closest('[data-m05x-reset]')){view={range:'month',day:today(),month:today().slice(0,7),year:Number(today().slice(0,4)),start:today().slice(0,7)+'-01',end:today(),period:'',companyId:'',search:'',status:'all',activityType:'all'};window.Concilia05?.render();return;}
+  if(e.target.closest('[data-m05x-reset]')){view={range:'month',day:today(),month:today().slice(0,7),year:Number(today().slice(0,4)),start:today().slice(0,7)+'-01',end:today(),period:'',companyId:'',search:'',status:'all',activityType:'all',taxRegime:'',serviceType:'',complexityLevel:''};window.Concilia05?.render();return;}
   const activityEdit=e.target.closest('[data-m05x-edit-activity]');
   if(activityEdit){
    const record=records('activities').find(r=>r.id===activityEdit.dataset.m05xEditActivity);
