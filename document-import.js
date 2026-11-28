@@ -27,7 +27,7 @@ function emails(v){
 function status(raw){
  if(raw===undefined||raw===null||t(raw)==='')return {value:'Sem registro',raw:null,empty:true,special:false};
  const found=STANDARD.find(x=>norm(x)===norm(raw));
- return {value:found||t(raw),raw:t(raw),empty:false,special:!found};
+ return {value:found||t(raw),raw:String(raw),empty:false,special:!found};
 }
 const headerIndex=(headers,field)=>{const i=headers.findIndex(x=>norm(x)===norm(field));if(i<0)throw Error('Coluna obrigatória ausente: '+field);return i;};
 function parseSheet(rows,kind){
