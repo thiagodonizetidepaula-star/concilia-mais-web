@@ -125,3 +125,37 @@ body.authenticated .sidebar .brand-workspace-side::after{
   body.authenticated .sidebar .brand-workspace-side,
   body.authenticated .sidebar .brand-workspace-side::after{animation:none!important}
 }
+
+/* Romeiro premium azul-marinho — destaque da marca no ambiente de uso.
+   A arte original permanece intacta; filtro branco garante contraste no card escuro. */
+body.authenticated .sidebar .brand-workspace-side{
+  background:
+    radial-gradient(ellipse at 50% -18%,rgba(65,137,226,.30),transparent 68%),
+    linear-gradient(155deg,#0b315f 0%,#061e40 58%,#03152d 100%);
+  border-color:rgba(246,195,77,.88);
+  padding:18px 12px 16px;
+}
+body.authenticated .sidebar .brand-workspace-side>span{
+  color:#f1c76b;
+  letter-spacing:1.7px;
+}
+body.authenticated .sidebar .brand-workspace-side img{
+  width:100%;
+  max-width:226px;
+  filter:brightness(0) invert(1) drop-shadow(0 3px 7px rgba(0,0,0,.20));
+}
+body.authenticated .sidebar .brand-workspace-side small{
+  color:#e2edff;
+  font-weight:650;
+}
+body.authenticated .sidebar .brand-workspace-side:before{
+  background:linear-gradient(90deg,transparent,#ffe29a,transparent);
+}
+@media(max-width:720px){
+  body.authenticated .sidebar .brand-workspace-side{
+    padding:13px 12px 12px;
+  }
+  body.authenticated .sidebar .brand-workspace-side img{
+    max-width:218px;
+  }
+}
