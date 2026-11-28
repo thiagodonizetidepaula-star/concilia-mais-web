@@ -1,4 +1,4 @@
-/* Concilia+ PDF - leitura conservadora de PDFs digitais, sem OCR ou envio de extratos ao servidor. */
+/* ConCiliar+PLUS PDF - leitura conservadora de PDFs digitais, sem OCR ou envio de extratos ao servidor. */
 (function(root,factory){const value=factory();if(typeof module==='object'&&module.exports)module.exports=value;root.ConciliaPDF=value;})(typeof globalThis!=='undefined'?globalThis:this,function(){
 'use strict';
 const banks=[['Nubank',/\b(NUBANK|NU PAGAMENTOS)\b/i],['Itaú',/\bITAU\b/i],['PagBank',/\b(PAGBANK|PAGSEGURO)\b/i],['Bradesco',/\bBRADESCO\b/i],['Santander',/\bSANTANDER\b/i],['Banco do Brasil',/\bBANCO DO BRASIL\b/i],['Caixa Econômica Federal',/\bCAIXA ECONOMICA\b/i]];

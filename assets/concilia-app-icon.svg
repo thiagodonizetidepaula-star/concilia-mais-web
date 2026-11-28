@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Concilia+">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="ConCiliar+PLUS">
 <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#154b87"/><stop offset=".52" stop-color="#082955"/><stop offset="1" stop-color="#04162f"/></linearGradient><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffe290"/><stop offset=".55" stop-color="#ffc343"/><stop offset="1" stop-color="#e69f16"/></linearGradient></defs>
 <rect x="10" y="10" width="492" height="492" rx="103" fill="url(#bg)"/>
 <rect x="19" y="19" width="474" height="474" rx="95" fill="none" stroke="#f4bb49" stroke-opacity=".72" stroke-width="8"/>

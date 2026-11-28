@@ -1,4 +1,4 @@
-# Changelog — ConCiliar+
+# Changelog — ConCiliar+PLUS
 
 ## [Publicado no Render em 2026-11-28] — Primeiro ciclo (01–04)
 - Melhoria 01: Carteira de Clientes; branch `feature/carteira-clientes-etapa01-review-20261127`.

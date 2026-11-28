@@ -1,4 +1,4 @@
-/* ConCiliar+ | Produtividade manual v2 — separada dos dados de conciliação.
+/* ConCiliar+PLUS | Produtividade manual v2 — separada dos dados de conciliação.
    Uma sessão começa somente com INICIAR. Indicadores não inferem valores de extratos. */
 (()=>{'use strict';
 const STORAGE='concilia-prod-manual-v2';

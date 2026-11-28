@@ -1,4 +1,4 @@
-/* Concilia+ Web | exportador XLSX sem bibliotecas externas, dados locais no navegador. */
+/* ConCiliar+PLUS Web | exportador XLSX sem bibliotecas externas, dados locais no navegador. */
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;root.ConciliaExcel=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
 'use strict';
 const enc=new TextEncoder();

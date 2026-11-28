@@ -1,4 +1,4 @@
-/* Concilia+ Web — experiência de teste 100% navegador. Dados persistidos no IndexedDB local. */
+/* ConCiliar+PLUS Web — experiência de teste 100% navegador. Dados persistidos no IndexedDB local. */
 'use strict';
 const Core=window.ConciliaCore, Pdf=window.ConciliaPDF, $=s=>document.querySelector(s), BRL=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
 const currency=c=>BRL.format((c||0)/100),safe=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -68,7 +68,7 @@ function runRetentionCleanup(){
  if(!window.ConciliaRetention||!state?.companies?.length)return null;
  const result=window.ConciliaRetention.cleanupWorkspace(state);
  const deleted=Object.values(result.deleted).reduce((a,b)=>a+b,0);
- if(deleted)console.info('ConCiliar+: limpeza de dados operacionais elegíveis',result);
+ if(deleted)console.info('ConCiliar+PLUS: limpeza de dados operacionais elegíveis',result);
  return deleted?result:null;
 }
 function operationalSnapshot(){
@@ -1662,7 +1662,7 @@ const periods=[...new Set(parsed.movements.map(x=>month(x.date)))],importId=Core
    }
    if(activeCompany!==companyId||activePeriod!==period)throw Error('Empresa ou competência alterada. Inicie a importação novamente.');
    const sample=result.proposals.slice(0,5).map(x=>x.date+' | '+(x.amount/100).toFixed(2)+' | '+x.history+' → '+x.code).concat(priorExamples.slice(0,5).map(x=>x.date+' | '+x.history+' → '+x.code+' (histórico)')).join('\n');
-   const message='CONCILIAR+ — APRENDER CLASSIFICAÇÕES\n\nEmpresa: '+c.name+'\nCompetência: '+activePeriod+'\nArquivo: '+file.name+'\n\n'+result.proposals.length+' classificação(ões) com correspondência única.\n'+priorExamples.length+' referência(s) históricas com código válido para aprender.\n'+result.issues.length+' linha(s) exigem revisão e serão ignoradas.\n\nExemplos:\n'+sample+'\n\nConfirmar códigos encontrados e gravar o aprendizado para esta empresa?';
+   const message='CONCILIAR+PLUS — APRENDER CLASSIFICAÇÕES\n\nEmpresa: '+c.name+'\nCompetência: '+activePeriod+'\nArquivo: '+file.name+'\n\n'+result.proposals.length+' classificação(ões) com correspondência única.\n'+priorExamples.length+' referência(s) históricas com código válido para aprender.\n'+result.issues.length+' linha(s) exigem revisão e serão ignoradas.\n\nExemplos:\n'+sample+'\n\nConfirmar códigos encontrados e gravar o aprendizado para esta empresa?';
    if(!confirm(message)){show('working','Importação cancelada. Nenhum lançamento foi modificado.');return;}
    let updated=0,learned=0;
    for(const item of result.proposals){

@@ -1,4 +1,4 @@
-/* ConCiliar+ Melhoria 05 — laboratorio isolado, sem produzir efeitos contabeis.
+/* ConCiliar+PLUS Melhoria 05 — laboratorio isolado, sem produzir efeitos contabeis.
    Os registros privados dependem de migração segura, ainda NÃO instalada em produção. */
 (()=>{'use strict';
 const C=window.Concilia05Core,B=window.ConciliaBIMetrics;
@@ -147,7 +147,7 @@ function overview(){
 }
 function reportPayload(){
  const a=bi(),q=C.summarizeQuality(ownRecords('quality'));
- const base={app:'ConCiliar+',generatedAt:new Date().toISOString(),year,period:mon(),filteredCompany:companyId||null,
+ const base={app:'ConCiliar+PLUS',generatedAt:new Date().toISOString(),year,period:mon(),filteredCompany:companyId||null,
  indicators:a,quality:q,goals:ownRecords('goals').map(g=>({title:g.title,result:C.resultGoals(g,a)})),
  notes:'Somente registros autorizados; lacunas não representam zero; este relatório não substitui auditoria contábil.'};
  return base;
@@ -236,7 +236,7 @@ async function exportAs(type){
  const safe=type==='portfolio'?C.anonymized(store,payload.indicators,owner):payload;
  if(type==='pdf'){
   const frame=document.createElement('iframe');frame.style.display='none';frame.title='Relatório para impressão';document.body.appendChild(frame);
-  const doc=frame.contentDocument;doc.open();doc.write('<!doctype html><html><head><meta charset="utf-8"><title>Relatório ConCiliar+</title><style>body{font:12px Arial;padding:25px}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style></head><body><h1>ConCiliar+ · Relatório gerencial</h1><p>Emitido em '+esc(new Date().toLocaleString('pt-BR'))+'</p><pre>'+esc(JSON.stringify(safe,null,2))+'</pre></body></html>');doc.close();frame.contentWindow?.focus();frame.contentWindow?.print();setTimeout(()=>frame.remove(),3000);return;
+  const doc=frame.contentDocument;doc.open();doc.write('<!doctype html><html><head><meta charset="utf-8"><title>Relatório ConCiliar+PLUS</title><style>body{font:12px Arial;padding:25px}pre{white-space:pre-wrap;overflow-wrap:anywhere}</style></head><body><h1>ConCiliar+PLUS · Relatório gerencial</h1><p>Emitido em '+esc(new Date().toLocaleString('pt-BR'))+'</p><pre>'+esc(JSON.stringify(safe,null,2))+'</pre></body></html>');doc.close();frame.contentWindow?.focus();frame.contentWindow?.print();setTimeout(()=>frame.remove(),3000);return;
  }
  if(type==='excel'){
   if(!window.XLSX)throw Error('Biblioteca XLSX não disponível no navegador');

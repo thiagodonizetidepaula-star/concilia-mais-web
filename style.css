@@ -66,7 +66,7 @@
 .cloud-panel [hidden]{display:none!important}
 @media(max-width:720px){.cloud-panel{margin-top:12px}.cloud-panel label{max-width:500px}}
 
-/* Concilia+ • Autenticação obrigatória / identidade visual profissional */
+/* ConCiliar+PLUS • Autenticação obrigatória / identidade visual profissional */
 body:not(.authenticated) .shell{display:none!important}
 body.authenticated .shell{display:flex!important}
 .auth-screen{min-height:100vh;display:grid;place-items:center;padding:22px;background:radial-gradient(circle at 15% 10%,#dff5f6 0%,transparent 40%),linear-gradient(140deg,#f3f8fc 0%,#e6edf5 100%)}

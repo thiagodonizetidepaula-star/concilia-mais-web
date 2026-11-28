@@ -1,4 +1,4 @@
-/* BI ConCiliar+ — visualização integrada em Visão Geral, sem páginas novas. */
+/* BI ConCiliar+PLUS — visualização integrada em Visão Geral, sem páginas novas. */
 (()=>{'use strict';
 const M=window.ConciliaBIMetrics;
 const $=s=>document.querySelector(s);
@@ -113,7 +113,7 @@ function render(next){
  let root=$('#conciliaBI');if(!root||!model)return;
  if(!model.userId){root.textContent='Entre na conta para consultar seus indicadores.';return;}
  const d=data();
- root.innerHTML='<div class="bi-shell"><header class="bi-head"><div><span>CONCILIAR+ · INTELIGÊNCIA OPERACIONAL</span><h2>Dashboards integrados</h2><p>Indicadores derivados dos registros reais da sua carteira, sem alterar a conciliação.</p></div><small>Competência '+esc(period())+' · '+fmt(d.agg.total)+' empresas visíveis</small></header>'+
+ root.innerHTML='<div class="bi-shell"><header class="bi-head"><div><span>CONCILIAR+PLUS · INTELIGÊNCIA OPERACIONAL</span><h2>Dashboards integrados</h2><p>Indicadores derivados dos registros reais da sua carteira, sem alterar a conciliação.</p></div><small>Competência '+esc(period())+' · '+fmt(d.agg.total)+' empresas visíveis</small></header>'+
  '<div class="bi-tabs" role="tablist" aria-label="Perspectivas dos dashboards">'+[['carteira','Carteira de clientes'],['empresa','Operação das empresas'],['funcionario','Produtividade'],['tecnologia','Automação e aprendizagem']].map(([id,label])=>'<button type="button" role="tab" aria-selected="'+(tab===id)+'" data-bi-tab="'+id+'">'+label+'</button>').join('')+'</div>'+
  filters()+'<div class="bi-body" role="tabpanel">'+views[tab](d)+'</div><footer class="bi-foot">As estimativas não substituem medições. Dados não registrados aparecem como “Sem dados”. Indicadores sensíveis respeitam a carteira autorizada e o contexto da conta.</footer></div>';
 }

@@ -1,4 +1,4 @@
-/* ConCiliar+ | Política conservadora de retenção de documentos operacionais.
+/* ConCiliar+PLUS | Política conservadora de retenção de documentos operacionais.
    A exclusão só é elegível quando competência >= 3 meses após o fechamento
    E o responsável registrou conclusão, envio ao Domínio e DRE conferida.
    Nunca remove empresas, configurações, planos, regras ou aprendizado. */
