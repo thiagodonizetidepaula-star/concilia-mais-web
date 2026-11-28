@@ -11,7 +11,7 @@ const nameEmail=e=>typeof e==='string'?e:e?.value||'';
 const dstatus=s=>({'Recebido':'received','Pendente':'pending','Cobrado':'charged','Parcialmente recebido':'partial','Não se aplica':'na','Sem registro':'unset'})[s]||'special';
 const badge=s=>'<span class="docs-badge '+dstatus(s)+'">'+esc(s)+'</span>';
 const option=(value,label,current)=>'<option value="'+esc(value)+'"'+(String(value)===String(current)?' selected':'')+'>'+esc(label)+'</option>';
-let mode='mensal',year=String(new Date().getFullYear()),month=new Date().getMonth()+1,search='',lifecycle='active',selectedStatus='',selectedRegime='',selectedPlan='',editingId='',editingMonth=1,preview=null;
+let mode='mensal',year=String(new Date().getFullYear()),month=new Date().getMonth()+1,search='',lifecycle='active',selectedStatus='',selectedRegime='',selectedPlan='',editingId='',editingMonth=1,preview=null,dryRun=null;
 const companies=()=>window.ConciliaWallet?.visible?.()||[];
 function matches(c){
  if(lifecycle==='active'&&c.clientInactive)return false;
@@ -60,12 +60,13 @@ function previewForm(){
  const counts=preview?.counts;
  return '<section class="docs-preview"><h3>Prévia segura da planilha</h3>'+
  '<p>O Excel é processado apenas neste navegador. <strong>Importação definitiva bloqueada nesta versão até a sua aprovação.</strong> Nenhum cliente da planilha será gravado em produção.</p>'+
- '<div class="docs-preview-row"><label>Ano da planilha (obrigatório)<input type="number" id="docsYearSource" min="1900" max="2099" placeholder="Confirmar ano" value=""></label>'+
+ '<div class="docs-preview-row"><label>Ano da planilha (confirmado)<input type="number" id="docsYearSource" min="1900" max="2099" value="2026"></label>'+
  '<label>Planilha Excel (.xlsx)<input type="file" id="docsExcel" accept=".xlsx"></label>'+
  '<button type="button" class="primary" data-doc-preview>Verificar e gerar prévia</button></div>'+
  (counts?'<div class="docs-review-summary"><h4>Resumo da prévia — '+preview.year+'</h4><p>'+counts.all+' empresas Beatriz: '+counts.active+' ativas e '+counts.inactive+' com distrato.</p>'+
  '<p>'+counts.emails+' endereços válidos (por empresa), '+counts.invalidEmails+' para revisão, '+counts.monthlyCells+' competências preservadas incluindo '+(counts.monthlyCells-counts.filledCells)+' células vazias e '+counts.closingCells+' registros mensais históricos de fechamento.</p>'+
  '<p>'+preview.issues.length+' observações de validação.</p><div class="docs-issues">'+preview.issues.slice(0,30).map(x=>'<p>'+esc(x)+'</p>').join('')+'</div>'+
+ (dryRun?'<div class="docs-dryrun"><h4>Simulação local — SEM GRAVAR</h4><p><strong>'+dryRun.counts.created+'</strong> cadastros novos, <strong>'+dryRun.counts.reused+'</strong> cadastros reaproveitados, <strong>'+dryRun.counts.newEmails+'</strong> e-mails adicionais, <strong>'+dryRun.counts.docRecords+'</strong> competências documentais novas, <strong>'+dryRun.counts.closingRecords+'</strong> históricos de fechamento preservados.</p><p>'+dryRun.counts.conflicts.length+' conflito(s) bloqueado(s). Nenhuma alteração foi aplicada ao cadastro ou ao Supabase.</p><div class="docs-issues">'+dryRun.counts.conflicts.slice(0,15).map(x=>'<p>'+esc(x)+'</p>').join('')+'</div></div>':'')+
  '<button type="button" disabled>Importação definitiva desabilitada — aprovação pendente</button></div>':'')+'</section>';
 }
 function render(){
@@ -104,7 +105,14 @@ async function previewFile(file,yr){
  for(const name of ['Conferência de Documentos','Fechamento Contábil','DASHBOARD'])if(!book.SheetNames.includes(name))throw Error('Aba obrigatória não encontrada: '+name);
  const sheet=name=>window.XLSX.utils.sheet_to_json(book.Sheets[name],{header:1,raw:true,defval:null,blankrows:true});
  preview=M.parseWorkbookRows(sheet('Conferência de Documentos'),sheet('Fechamento Contábil'),yr);
- render();return preview;
+ // Somente simulação: M.merge faz deep clone de state e não possui API de gravação.
+ // Pode comparar com o workspace autenticado já carregado, mas não envia o Excel à rede.
+ if(typeof state==='undefined'||!Array.isArray(state.companies))throw Error('Workspace autenticado indisponível para comparação.');
+ dryRun=M.merge(state,preview,'excel-preview-2026',window.ConciliaCloud?.accountId?.()||'');
+ // Descartar cópia com dados reais simulados: manter somente números e conflitos,
+ // não expor empresa/e-mail/CNPJ identificáveis em logs ou no PR.
+ dryRun={counts:dryRun.counts};
+ render();return {preview,counts:dryRun.counts};
 }
 function init(){
  const el=$('#documentsPanel');if(!el)return;
