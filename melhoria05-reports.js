@@ -36,8 +36,13 @@ function build({filter,state,companies,owner,analytics:A,B,tracking},anonymous=f
  status('Utilizações auditadas de regras',learning.uses,'eventos'),
  status('Aproveitamento de usos confirmados',learning.confirmationRate,'%')
  ];
- const companyRows=anonymous?[]:cs.map(c=>{const r=B.record(c,filter.period||filter.month||new Date().toISOString().slice(0,7),tracking);
-  return {Empresa:c.name||'Empresa',CodigoDominio:c.dominio||'',CNPJ:c.cnpj||'',Movimentos:r.movements,Confirmadas:r.classified,Automaticas:r.automatic,Excel:r.excel,TempoSegundos:r.seconds??'Sem medição',Documentos:r.documentStatus||'Sem dados'};});
+ const companyRows=anonymous?[]:cs.map(c=>{
+  const r=A.operational([c],owner,B,filter,tracking).summary;
+  const doc=filter.period?B.record(c,filter.period,tracking).documentStatus||'Sem dados':'Varia por competência';
+  return {Empresa:c.name||'Empresa',CodigoDominio:c.dominio||'',CNPJ:c.cnpj||'',
+   Movimentos:r.movements,Confirmadas:r.classified,Automaticas:r.automated,Excel:r.excel,
+   TempoSegundos:r.seconds??'Sem medição',Documentos:doc};
+ });
  const goalsRows=goals.map(g=>{const x=A.goalProgress(g,cs,owner,B,tracking);
   return {Meta:anonymous?'Meta profissional':g.title,Competencia:x.period||g.period||'Sem competência',Empresa:anonymous?'Protegida':g.companyId||'Carteira',Indicador:anonymous?'Indicador interno':g.metric,ValorAtual:x.actual??'Sem medição',Alvo:g.target,Progresso:x.progress??'Sem dados',Situacao:g.status,Origem:x.source};});
  const qualityRows=quality.map(r=>({Ocorrencia:anonymous?'Ocorrência pessoal':r.title,Competencia:r.period||'',
