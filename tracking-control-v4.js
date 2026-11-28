@@ -78,7 +78,7 @@ async function persist(c,period,old,type){
  busy=true;const before=window.ConciliaCloud.revision();
  try{
   // Salva pelo mecanismo existente, protegido por revisão (CAS).
-  await store(type,c.id+' · '+period);
+  await window.ConciliaSaveManagementV4(type,c.id+' · '+period);
   if(!cloudSyncEnabled||window.ConciliaCloud.revision()===before)throw Error('Gravação em nuvem não confirmada.');
  }catch(e){rollback(c,period,old);render();throw e;}finally{busy=false;}
 }
