@@ -161,7 +161,7 @@ function reports(){
 }
 const views={overview,productivity:prod,companies:companyStats,quality,efficiency,automation,goals,professional,reports};
 function header(){
- return '<header class="m05-head"><div><span>MELHORIA 05 · LABORATÓRIO NÃO PUBLICADO</span><h2>Inteligência operacional e desenvolvimento</h2><p>Planejamento, qualidade, produtividade e dados do usuário autenticado.</p></div><small>'+esc(error||(!ready?'Carregando dados privados...':saving?'Salvando...':'Registros privados sincronizados'))+'</small></header>';
+ return '<header class="m05-head"><div><span>MELHORIA 05 · DESENVOLVIMENTO CONTÍNUO</span><h2>Inteligência operacional e desenvolvimento</h2><p>Planejamento, qualidade, produtividade e dados do usuário autenticado.</p></div><small>'+esc(error||(!ready?'Carregando dados privados...':saving?'Salvando...':'Registros privados sincronizados'))+'</small></header>';
 }
 function filters(){
  return '<div class="m05-filters"><label>Ano<select data-m05-filter="year">'+[year-1,year,year+1].map(y=>'<option value="'+y+'" '+(year===y?'selected':'')+'>'+y+'</option>').join('')+'</select></label><label>Empresa<select data-m05-filter="company"><option value="">Todas autorizadas</option>'+companyList().map(c=>'<option value="'+esc(c.id)+'" '+(companyId===c.id?'selected':'')+'>'+esc(c.name||c.dominio||'Empresa')+'</option>').join('')+'</select></label>'+button('Atualizar dados','data-m05-refresh')+'</div>';
@@ -183,7 +183,7 @@ function render(next){
  const selected=views[mode]||overview;
  root.innerHTML='<div class="m05-shell">'+header()+'<div class="m05-nav" role="tablist" aria-label="Etapas da Melhoria 05">'+tabs.map(([id,label])=>'<button type="button" role="tab" data-m05-tab="'+id+'" aria-selected="'+(mode===id)+'">'+esc(label)+'</button>').join('')+'</div>'+filters()+
  (ready?'<div class="m05-body" role="tabpanel">'+selected()+'</div>':empty(error||'Sincronizando os registros pessoais...'))+
- '<div id="m05FormHost"></div><footer>Melhoria 05 em ambiente de homologação. Sem alterações em saldos, classificações, empresa ou dados de outros usuários.</footer></div>';
+ '<div id="m05FormHost"></div><footer>Melhoria 05: módulos implementados em uso, com escopo integral ainda em validação. Sem alterações em saldos, classificações ou dados de outros usuários.</footer></div>';
  // Eventos de outros módulos podem pedir renderização enquanto o usuário digita.
  // Reanexar o MESMO formulário conserva os campos, sem salvar rascunhos não confirmados.
  if(existingForm&&ready)root.querySelector('#m05FormHost')?.appendChild(existingForm);
