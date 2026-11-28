@@ -79,3 +79,10 @@ Este histórico diferencia **desenvolvido** de **publicado**. Nenhuma Melhoria 0
 - `app.js` registra uso prospectivo de regras aprendidas como metadado auditável no movimento e distingue sugestão de confirmação/correção.
 - Testes estendidos em `testes/melhoria05-integral.test.cjs`, fixtures Chromium e E2E Autenticação + RLS + registro + PDF/XLSX no Supabase local.
 - **Nada da Melhoria 05 foi mesclado à main, implantado no Render ou migrado no Supabase de produção.** PR #82 permanece em rascunho; Melhoria 06 não iniciada.
+
+
+### Adições de integridade e rastreabilidade da Melhoria 05
+- Gravação de `company.learnedUsageMonthly` antes de retenção para preservar dados agregados de aprendizagem sem extratos.
+- Histórico de uso real por regra e competência, distinto dos eventos manuais.
+- Edição auditada de tempo/volume com motivo obrigatório e valores antes/depois.
+- Cobertura adicionada de integridade de retensão, ajustes auditáveis e concorrência CAS no Supabase local.

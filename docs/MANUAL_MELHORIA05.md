@@ -33,3 +33,7 @@ Abra **Relatórios**. **Excel temático** cria dez planilhas com indicadores, em
 `user_melhoria05_states` tem RLS `user_id=auth.uid()`, permissões específicas para `authenticated`, e revisão otimista por número de versão (CAS). A aplicação preserva o usuário, data, valor anterior e novo nos ajustes; a versão oficial na `main` e no Render permanece inalterada. Testar com Auth e dois usuários fictícios, RLS SELECT/UPDATE, exportações PDF/XLSX, concorrência, períodos e regressão antes de solicitar o segundo ciclo.
 
 A matriz de requisitos está em `docs/MATRIZ_REQUISITOS_MELHORIA05.md` e é a fonte de acompanhamento das lacunas. **Não declarar conclusão integral até que os itens essenciais tenham evidência no commit candidato.** Não iniciar Melhoria 06.
+
+
+### Ajustes de tempo com justificativa
+Na perspectiva Produtividade, use **Ajustar** na linha da atividade. Informe os valores medidos e o **motivo do ajuste**. O sistema conserva usuário autenticado, data, valor anterior e valor ajustado no histórico, sem modificar lançamentos contábeis ou apagar a medição original.
