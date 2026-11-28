@@ -1,0 +1,47 @@
+#documentsPanel{color:#1d3c58}
+.docs-header{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:20px}
+.docs-header h2{font-size:25px;margin:7px 0 6px;color:#173756}
+.docs-header p{color:#72889b;font-size:13px;margin:0;line-height:1.5}
+.docs-kpis{display:flex;gap:10px}
+.docs-kpis>div{background:white;border:1px solid #dde9f2;border-radius:14px;min-width:80px;padding:12px;display:flex;flex-direction:column;text-align:center}
+.docs-kpis strong{font-size:25px;line-height:1.1;color:#23587e}
+.docs-kpis small{font-size:11px;color:#7490a8}
+.docs-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:15px}
+.docs-tabs button{padding:10px 15px;color:#52708b;background:#fff;border:1px solid #d6e3ed;border-radius:12px;cursor:pointer;font-weight:700}
+.docs-tabs button.active{background:#146394;color:white;border-color:#146394}
+.docs-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0;background:#fff;border:1px solid #e1eaf2;border-radius:14px;padding:15px}
+.docs-filters label,.docs-preview label,.docs-editor label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:#566f84}
+.docs-filters input,.docs-filters select,.docs-preview input,.docs-editor select,.docs-editor textarea{border:1px solid #c9d9e6;border-radius:9px;background:#fff;color:#174263;padding:10px;font:inherit;min-width:0;width:100%;box-sizing:border-box}
+.docs-summary{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;color:#71869b;margin:8px 0 12px}
+.docs-badge{font-size:11px;line-height:1.35;font-weight:750;display:inline-block;border:1px solid transparent;border-radius:10px;padding:5px 8px;white-space:normal;overflow-wrap:anywhere}
+.docs-badge.received{background:#e1f7ed;color:#176c48;border-color:#bcebd3}
+.docs-badge.pending{background:#fce7e8;color:#9a303e;border-color:#f6c6ca}
+.docs-badge.charged{background:#fff3d0;color:#97640f;border-color:#f5e0a4}
+.docs-badge.partial{background:#fff0db;color:#ae5c18;border-color:#f6d2ad}
+.docs-badge.unset{background:#f2f5f8;color:#697f93;border-color:#e1e7ee}
+.docs-badge.na{background:#e9edf2;color:#50677c;border-color:#dbe2eb}
+.docs-badge.special{background:#edf0fc;color:#514d8d;border-color:#d5daf7}
+.docs-scroll{overflow:auto;max-height:570px;scrollbar-color:#b6cadd transparent;border:1px solid #e0e9f1;border-radius:14px;background:white}
+.docs-scroll table{border-collapse:collapse;width:100%;min-width:810px}
+.docs-scroll th{background:#f2f7fb;color:#536f88;font-size:11px;position:sticky;top:0;z-index:1;text-align:left;white-space:nowrap;padding:12px;border-bottom:1px solid #dbe8f2}
+.docs-scroll td{font-size:12px;color:#284c6b;padding:12px;border-bottom:1px solid #edf1f5;vertical-align:top}
+.docs-scroll td strong,.docs-scroll td small{display:block}
+.docs-scroll td small{margin-top:4px;color:#8a9cae}
+.docs-scroll tr:hover td{background:#f9fcff}
+.docs-cell{border:0;background:transparent;padding:0;cursor:pointer;text-align:left}
+.docs-editor,.docs-preview{background:white;border:1px solid #dbe6f0;border-radius:15px;padding:20px;margin:16px 0;display:grid;gap:12px}
+.docs-editor h3,.docs-preview h3{font-size:18px;color:#204664;margin:0}
+.docs-editor p,.docs-preview p{font-size:12px;color:#6d8196;line-height:1.5;margin:0}
+.docs-editor-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.docs-editor button[type=submit]{justify-self:start}
+.docs-preview-row{display:flex;align-items:end;gap:14px;flex-wrap:wrap}
+.docs-preview-row label{flex:1;min-width:210px}
+.docs-preview-row button{min-height:43px}
+.docs-review-summary{padding:18px;border:1px solid #d5e5ef;border-radius:12px;background:#f7fbff}
+.docs-review-summary h4{color:#215478;margin:0 0 9px}
+.docs-issues{max-height:135px;overflow:auto}
+.docs-issues p{font-size:11px;padding:6px 0;border-bottom:1px solid #e0eaf2}
+.docs-note{font-size:11px;color:#7c91a5;margin:20px 0;line-height:1.6}
+.docs-empty{color:#71889b;text-align:center;padding:28px;background:white;border:1px dashed #cbdbe7;border-radius:12px}
+@media(max-width:850px){.docs-filters{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:570px){.docs-header{align-items:start;flex-direction:column}.docs-kpis{width:100%}.docs-kpis>div{flex:1}.docs-filters{grid-template-columns:1fr}.docs-tabs button{flex:1;font-size:12px;padding:9px}.docs-header h2{font-size:22px}}

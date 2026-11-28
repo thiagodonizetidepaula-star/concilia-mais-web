@@ -1,0 +1,24 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ConCiliar+ · Homologação de Documentos</title><link rel="stylesheet" href="../style.css"><link rel="stylesheet" href="../document-management.css"><style>
+body{background:#eff4f9;font-family:system-ui,Arial,sans-serif;margin:0}
+.homolog-only{background:#fff0ce;color:#77501f;text-align:center;padding:11px;font-weight:750}
+.structure{display:flex;min-height:100vh}.side{background:#061b38;width:230px;padding:22px;color:white;flex-shrink:0}.side h1{font-size:20px;margin:10px 0 36px;color:white}.side span{display:block;padding:13px;color:#d4e6f3}.side .active{color:#fff;background:#205173;border-radius:9px}
+main{flex:1;min-width:0;padding:28px;max-width:1300px}.heading{font-size:12px;color:#7d90a4}.heading h2{font-size:21px;color:#194060;margin:5px 0 20px}
+@media(max-width:700px){.structure{display:block}.side{width:auto;padding:12px}.side h1{margin:0 0 10px}.side span{display:inline-block;padding:6px;font-size:12px}main{padding:12px}}
+</style><script>
+const yr=new Date().getFullYear(),mm=String(new Date().getMonth()+1).padStart(2,'0');
+const sample=[
+{id:'demo-1',name:'EMPRESA FICTÍCIA ALFA LTDA',cnpj:'11222333000181',emails:[{value:'financeiro@alfa.example.test'}],regimeTributario:'SIMPLES',contractedPlan:'Básico',documentHistory:{},rules:[{term:'CEF MATRIZ',code:'192'}]},
+{id:'demo-2',name:'EMPRESA FICTÍCIA BETA LTDA',cnpj:'12345678000195',emails:[{value:'contabil@beta.example.test'}],regimeTributario:'LUCRO PRESUMIDO',contractedPlan:'Consultivo',documentHistory:{},rules:[]},
+{id:'demo-3',name:'EMPRESA FICTÍCIA GAMA LTDA',cnpj:'55123456000183',emails:[],regimeTributario:'SIMPLES',contractedPlan:'Básico',documentHistory:{},rules:[]},
+{id:'demo-4',name:'EMPRESA INATIVA DE TESTE',cnpj:'55987654000174',clientInactive:true,documentHistory:{},rules:[]}
+];
+sample[0].documentHistory[yr+'-'+mm]={status:'Recebido',notes:'Documentos recebidos para a competência.',source:'manual'};
+sample[1].documentHistory[yr+'-'+mm]={status:'Cobrado',notes:'Cobrança manual realizada, aguardando documentos.',source:'manual'};
+sample[2].documentHistory[yr+'-'+mm]={status:'Parcialmente recebido',notes:'Aguardando extrato bancário de teste.',source:'manual'};
+window.ConciliaWallet={visible:()=>sample};
+window.ConciliaCloud={accountId:()=> 'usuario-teste',authenticated:()=>true};
+window.confirm=()=>true;window.store=async()=>{};window.lucide={createIcons(){}};
+</script></head><body><div class="homolog-only">PRÉVIA DE HOMOLOGAÇÃO · EMPRESAS FICTÍCIAS · SEM DADOS REAIS</div><div class="structure"><aside class="side"><h1>ConCiliar+</h1><span>Visão geral</span><span>Carteira de Clientes</span><span class="active">Controle de Documentos</span><span>Importar extratos e Razão</span><span>Classificações</span></aside><main><div class="heading">GESTÃO DOCUMENTAL<h2>Controle de Documentos</h2></div><section id="documentsPanel"></section></main></div><script src="../document-import.js"></script><script src="../document-management.js"></script><script>
+const check=()=>{window.ConciliaDocuments?.render();document.body.dataset.docsHomologado=String(!!document.querySelector('.docs-scroll table')&&document.querySelectorAll('.docs-scroll tbody tr').length===3);};
+document.addEventListener('DOMContentLoaded',check);window.addEventListener('load',check);setTimeout(check,250);
+</script></body></html>

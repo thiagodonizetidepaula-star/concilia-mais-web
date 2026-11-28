@@ -33,13 +33,13 @@ function card(c){
  const id=escapeHtml(c.id),name=escapeHtml(c.name||'Empresa sem identificação'),fantasy=escapeHtml(c.fantasyName||'');
  return '<article class="wallet-client-card"><div><span class="wallet-client-icon"><i data-lucide="building-2"></i></span><div class="wallet-client-title"><h3>'+name+'</h3>'+
  (fantasy?'<span>Fantasia: '+fantasy+'</span>':'')+
- '<small>CNPJ: '+escapeHtml(fmtCnpj(c.cnpj))+'</small></div></div>'+
+ '<small>CNPJ: '+escapeHtml(fmtCnpj(c.cnpj))+'</small><small>E-mail: '+escapeHtml((c.emails||[]).map(x=>typeof x==='string'?x:x.value).join('; ')||'Não informado')+'</small>'+(c.clientInactive?'<small>Empresa inativa (distrato)</small>':'')+'</div></div>'+
  '<p><span>'+(Array.isArray(c.plan)?c.plan.length:0)+' contas no plano</span><span>'+(c.partners||[]).length+' sócio(s)</span><span>'+(c.relatedCompanies||[]).length+' empresa(s) relacionada(s)</span></p>'+
  '<div class="wallet-actions"><button type="button" class="secondary" data-wallet="detail" data-id="'+id+'">Detalhes</button>'+
  '<button type="button" class="secondary" data-wallet="edit" data-id="'+id+'">Editar</button>'+
  '<button type="button" class="secondary" data-wallet="plan" data-id="'+id+'">Plano de contas</button>'+
  '<button type="button" class="secondary" data-wallet="partners" data-id="'+id+'">Sócios</button>'+
- '<button type="button" class="secondary" data-wallet="related" data-id="'+id+'">Relacionadas</button></div></article>';
+ '<button type="button" class="secondary" data-wallet="related" data-id="'+id+'">Relacionadas</button>'+ '<button type="button" class="secondary" data-wallet="documents" data-id="'+id+'">Documentos</button></div></article>';
 }
 function details(c){
  if(!c)return '';
@@ -48,7 +48,7 @@ function details(c){
  '<div><dt>CNPJ</dt><dd>'+escapeHtml(fmtCnpj(c.cnpj))+'</dd></div><div><dt>Código no Domínio</dt><dd>'+escapeHtml(c.dominio||'Não informado')+'</dd></div>'+
  '<div><dt>Sócios cadastrados</dt><dd>'+((c.partners||[]).map(p=>escapeHtml(p.name)).join(', ')||'Nenhum')+'</dd></div>'+
  '<div><dt>Empresas relacionadas</dt><dd>'+((c.relatedCompanies||[]).map(p=>escapeHtml(p.name)).join(', ')||'Nenhuma')+'</dd></div>'+
- '<div><dt>Observações</dt><dd>'+escapeHtml(c.clientNotes||'Nenhuma')+'</dd></div></dl></section>';
+ '<div><dt>E-mails</dt><dd>'+escapeHtml((c.emails||[]).map(x=>typeof x==='string'?x:x.value).join('; ')||'Não informado')+' <button type="button" class="secondary" data-wallet="copy-email" data-id="'+escapeHtml(c.id)+'">Copiar e-mails</button></dd></div>'+ '<div><dt>Regime tributário</dt><dd>'+escapeHtml(c.regimeTributario||'Não informado')+'</dd></div>'+ '<div><dt>Plano contratado</dt><dd>'+escapeHtml(c.contractedPlan||'Não informado')+'</dd></div>'+ '<div><dt>Responsável</dt><dd>'+escapeHtml(c.documentOwner||'Não informado')+'</dd></div>'+ '<div><dt>Início</dt><dd>'+escapeHtml(c.startDate||'Não informado')+'</dd></div>'+ '<div><dt>Distrato</dt><dd>'+escapeHtml(c.distractDate||'Não informado')+'</dd></div>'+ '<div><dt>Observações</dt><dd>'+escapeHtml(c.clientNotes||'Nenhuma')+'</dd></div></dl></section>';
 }
 function form(c){
  if(!c)return '';
@@ -57,7 +57,7 @@ function form(c){
  '<label>Razão social<input name="name" maxlength="180" required value="'+escapeHtml(c.name||'')+'"></label>'+
  '<label>Nome fantasia<input name="fantasyName" maxlength="180" value="'+escapeHtml(c.fantasyName||'')+'"></label>'+
  '<label>CNPJ (sujeito a validação)<input name="cnpj" inputmode="numeric" maxlength="18" value="'+escapeHtml(fmtCnpj(c.cnpj||''))+'"></label>'+
- '<label>Observações<textarea name="clientNotes" maxlength="1500" rows="3">'+escapeHtml(c.clientNotes||'')+'</textarea></label>'+
+ '<label>E-mails (um por linha ou separados por ponto e vírgula)<textarea name="emails" maxlength="2400" rows="3">'+escapeHtml((c.emails||[]).map(x=>typeof x==='string'?x:x.value).join('; '))+'</textarea></label>'+ '<label>Regime tributário<input name="regimeTributario" maxlength="120" value="'+escapeHtml(c.regimeTributario||'')+'"></label>'+ '<label>Plano contratado<input name="contractedPlan" maxlength="120" value="'+escapeHtml(c.contractedPlan||'')+'"></label>'+ '<label>Código Domínio<input name="dominio" maxlength="40" value="'+escapeHtml(c.dominio||'')+'"></label>'+ '<label>Data de início<input type="date" name="startDate" value="'+escapeHtml(c.startDate||'')+'"></label>'+ '<label>Data do distrato<input type="date" name="distractDate" value="'+escapeHtml(c.distractDate||'')+'"></label>'+ '<label>Observações<textarea name="clientNotes" maxlength="1500" rows="3">'+escapeHtml(c.clientNotes||'')+'</textarea></label>'+
  '<p class="micro">Alterar o CNPJ exige confirmação específica. O sistema não transfere lançamentos ou códigos entre empresas.</p>'+
  '<div class="wallet-actions"><button type="submit" class="primary" '+(busy?'disabled':'')+'>Salvar alterações</button><button type="button" data-wallet="cancel" class="secondary">Cancelar</button></div>'+
  '</form></section>';
@@ -92,9 +92,15 @@ async function saveEdit(formEl){
  if(cnpj!==onlyDigits(c.cnpj)){
   if(!confirm('ATENÇÃO: você está alterando o CNPJ de um cadastro com plano e histórico. Confirma que é a mesma pessoa jurídica e verificou a documentação oficial? Nenhum lançamento será transferido entre empresas.'))return;
  }
- const previous={name:c.name,fantasyName:c.fantasyName,cnpj:c.cnpj,clientNotes:c.clientNotes,nameManuallyEdited:c.nameManuallyEdited,identityVerified:c.identityVerified};
+ const previous={name:c.name,fantasyName:c.fantasyName,cnpj:c.cnpj,clientNotes:c.clientNotes,nameManuallyEdited:c.nameManuallyEdited,identityVerified:c.identityVerified,emails:c.emails,regimeTributario:c.regimeTributario,contractedPlan:c.contractedPlan,dominio:c.dominio,startDate:c.startDate,distractDate:c.distractDate,clientInactive:c.clientInactive};
+ const parsedEmails=data.get('emails')!==null?window.ConciliaDocumentImport?.emails(data.get('emails')):null;
+ if(parsedEmails?.review?.length)throw Error('Confira os endereços de e-mail inválidos antes de salvar: '+parsedEmails.review.length+' entrada(s).');
+ if(data.get('distractDate')&&!/^\d{4}-\d{2}-\d{2}$/.test(String(data.get('distractDate'))))throw Error('Data de distrato inválida.');
  busy=true;
  c.name=name;c.fantasyName=fantasyName;c.cnpj=cnpj;c.clientNotes=clientNotes;
+ if(parsedEmails)c.emails=parsedEmails.valid.map(value=>({value,confirmed:true,source:'manual'}));
+ for(const field of ['regimeTributario','contractedPlan','dominio','startDate','distractDate'])if(data.get(field)!==null)c[field]=String(data.get(field)||'').trim();
+ if(data.get('distractDate')!==null)c.clientInactive=!!c.distractDate;
  c.nameManuallyEdited=true;
  if(cnpj!==onlyDigits(previous.cnpj))c.identityVerified=false; // requer verificação explícita na próxima importação
  try{
@@ -113,6 +119,8 @@ function init(){
   if(a==='edit'){editing=id;viewing=null;render();return;}
   if(a==='detail'){viewing=id;editing=null;render();return;}
   if(a==='close'||a==='cancel'){editing=null;viewing=null;render();return;}
+  if(a==='copy-email'){const c=available().find(x=>x.id===id);if(!c)return;const value=(c.emails||[]).map(x=>typeof x==='string'?x:x.value).join('; ');if(!value){say('Empresa sem e-mails cadastrados.',true);return;}navigator.clipboard?.writeText(value).then(()=>say('Endereços copiados.')).catch(()=>say('Não foi possível copiar automaticamente. Selecione o texto nos detalhes.',true));return;}
+  if(a==='documents'){showPage('documentos');return;}
   if(a==='plan'||a==='partners'||a==='related'){
    try{selectCompany(id,a==='partners'?'#partnerForm':a==='related'?'#relatedCompanyForm':'#planTable');}
    catch(err){say(err.message,true);}

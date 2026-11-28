@@ -75,6 +75,7 @@ async function run(){
   await c.locator('[data-wallet="edit"]').click();
   await pageA.locator('#walletEditor input[name="name"]').fill('EMPRESA HOMOLOGACAO ATUALIZADA LTDA');
   await pageA.locator('#walletEditor input[name="fantasyName"]').fill('Marca Homologação');
+  await pageA.locator('#walletEditor textarea[name="emails"]').fill('financeiro@empresa-ficticia.test; contabil@empresa-ficticia.test');
   await pageA.locator('#walletEditor textarea[name="clientNotes"]').fill('Registro fictício de homologação.');
   await pageA.locator('#walletEditor button[type=submit]').click();
   await pageA.waitForFunction(()=>document.querySelector('.wallet-client-card')?.textContent?.includes('ATUALIZADA'),{timeout:15000});
@@ -83,6 +84,20 @@ async function run(){
   assert.equal(companies[0].name,'EMPRESA HOMOLOGACAO ATUALIZADA LTDA');
   assert.equal(companies[0].plan.length,5);
   stats.push('Supabase PostgREST/RPC: edição, CNPJ e 5 contas do plano persistidos: OK');
+  assert.equal(companies[0].emails.length,2,'Dois emails válidos preservados no cadastro');
+  await pageA.locator('button[data-page="documentos"]').click();
+  await pageA.locator('button[data-doc-edit]').first().click();
+  await pageA.locator('#docsEditForm select[name="status"]').selectOption('Cobrado');
+  await pageA.locator('#docsEditForm textarea[name="notes"]').fill('Cobrança manual fictícia, ainda não recebido.');
+  await pageA.locator('#docsEditForm button[type=submit]').click();
+  await pageA.waitForTimeout(600);
+  const activePeriod=new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0');
+  companies=await checkStored(creds[0],1);
+  assert.equal(companies[0].documentHistory[activePeriod].status,'Cobrado');
+  assert.equal(companies[0].documentHistory[activePeriod].notes,'Cobrança manual fictícia, ainda não recebido.');
+  assert.equal(companies[0].documentHistory[activePeriod].updatedBy,creds[0].id);
+  assert.ok(companies[0].documentHistory[activePeriod].updatedAt);
+  stats.push('Documentos: edição de status Cobrado, observação e autor persistida no Supabase: OK');
   await pageA.locator('#cloudLogout').click();
   await pageA.waitForFunction(()=>!document.body.classList.contains('authenticated'),{timeout:15000});
   await pageA.locator('#cloudEmail').fill(creds[0].email);
@@ -91,7 +106,12 @@ async function run(){
   await pageA.waitForFunction(()=>document.body.classList.contains('authenticated'),{timeout:30000});
   await walletCount(pageA,1);
   assert.match(await pageA.locator('.wallet-client-card').textContent(),/ATUALIZADA/);
-  stats.push('Logout + login real A: cadastro persistido e recuperado: OK');
+  await pageA.locator('button[data-page="documentos"]').click();
+  assert.match(await pageA.locator('#documentsPanel').textContent(),/Cobrado/);
+  companies=await checkStored(creds[0],1);
+  assert.equal(companies[0].documentHistory[activePeriod].status,'Cobrado');
+  assert.equal(companies[0].emails.length,2);
+  stats.push('Logout + login real A: cadastro, dois e-mails e histórico documental recuperados: OK');
   await importPlan(pageA,path.join(dataDir,'plano-dominio-homologacao.pdf'));
   await walletCount(pageA,1);
   assert.match(await pageA.locator('.wallet-client-card').textContent(),/ATUALIZADA/);
@@ -109,6 +129,9 @@ async function run(){
   await loginViaUI(pageB,creds[1]);
   await walletCount(pageB,1); // Uma empresa própria criada via RPC, nunca a empresa de A.
   assert.doesNotMatch(await pageB.locator('#walletPanel').textContent(),/EMPRESA HOMOLOGACAO ATUALIZADA/);
+  await pageB.locator('button[data-page="documentos"]').click();
+  assert.doesNotMatch(await pageB.locator('#documentsPanel').textContent(),/Cobrança manual fictícia/);
+  assert.doesNotMatch(await pageB.locator('#documentsPanel').textContent(),/financeiro@empresa-ficticia.test/);
   stats.push('RLS real: usuário B não lê o workspace A, B mantém workspace próprio: OK');
   await pageA.screenshot({path:path.join(dataDir,'carteira-real-auth-desktop.png'),fullPage:true});
   await pageA.setViewportSize({width:390,height:850});
