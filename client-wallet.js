@@ -87,6 +87,7 @@ async function saveEdit(formEl){
  if(name.length<2)throw Error('Informe a razão social válida.');
  if(cnpj&&!cnpjValid(cnpj))throw Error('O CNPJ informado é inválido. Confira os dígitos.');
  if(!cnpj&&raw)throw Error('Informe o CNPJ completo ou deixe o campo vazio.');
+ if(!cnpj&&onlyDigits(c.cnpj))throw Error('O CNPJ existente não pode ser apagado. Para correções, informe o novo CNPJ válido e confirme a alteração.');
  if(cnpj&&(state.companies||[]).some(x=>x.id!==c.id&&onlyDigits(x.cnpj)===cnpj))throw Error('Este CNPJ já pertence a outra empresa no cadastro.');
  if(cnpj!==onlyDigits(c.cnpj)){
   if(!confirm('ATENÇÃO: você está alterando o CNPJ de um cadastro com plano e histórico. Confirma que é a mesma pessoa jurídica e verificou a documentação oficial? Nenhum lançamento será transferido entre empresas.'))return;
