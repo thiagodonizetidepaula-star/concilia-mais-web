@@ -22,7 +22,7 @@ function allRows(){
  return items;
 }
 function eventHistory(c){
- return (c.crmHistory||[]).slice().sort((a,b)=>String(b.occurredAt||'').localeCompare(String(a.occurredAt||''))||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+ return (c.crmHistory||[]).slice().sort((a,b)=>String(b.occurredAt||String(b.createdAt||'').slice(0,10)).localeCompare(String(a.occurredAt||String(a.createdAt||'').slice(0,10)))||String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
 }
 function latestCharge(c){return eventHistory(c).find(x=>x.type==='charge')?.occurredAt||null;}
 function row(c,periods){const id=esc(c.id),emails=(c.emails||[]).map(e=>typeof e==='string'?e:e.value).filter(Boolean),charges=(c.crmHistory||[]).filter(e=>e.type==='charge'),p=periods.map(x=>x.period).join(', '),status=periods.map(x=>C.statusFor(c,x.period)),unique=[...new Set(status)];
