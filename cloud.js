@@ -2,6 +2,7 @@
    Chave publishable é pública e depende do login e das políticas RLS. */
 'use strict';
 (function(){
+ window.CONCILIA_READONLY_PREVIEW=true;
  const url='https://csnvudadurtzhudlplij.supabase.co';
  const key='sb_publishable_Ujaf2hLpLsVZdJsqk6mixg_Rhrld87L';
  let client=null, revision=null, queue=Promise.resolve(), user=null;
@@ -12,7 +13,7 @@
  }
  function setUser(u){user=u||null;if(!user)revision=null;}
  async function signIn(email,password){const {data,error}=await connect().auth.signInWithPassword({email,password});if(error)throw error;setUser(data.user);return data.user;}
- async function signUp(email,password){const {data,error}=await connect().auth.signUp({email,password,options:{emailRedirectTo:'https://concilia-mais-web.onrender.com/'}});if(error)throw error;return data;}
+ async function signUp(email,password){throw Error('Cadastro de usuários desabilitado na prévia de consulta. Use sua conta existente.');const {data,error}=await connect().auth.signUp({email,password,options:{emailRedirectTo:'https://concilia-mais-web.onrender.com/'}});if(error)throw error;return data;}
  async function signOut(){const {error}=await connect().auth.signOut();if(error)throw error;setUser(null);}
  async function session(){const {data,error}=await connect().auth.getUser();if(error||!data?.user){setUser(null);return null;}setUser(data.user);return user;}
  function identity(){return user?.email||'';}
@@ -23,7 +24,7 @@
   revision=data?.revision??0;
   return data?.payload||null;
  }
- async function saveWorkspace(payload){
+ async function saveWorkspace(payload){throw Error('Prévia somente leitura: nenhuma gravação no Supabase é permitida.');
   if(!user)throw Error('Entre na sua conta antes de salvar.');
   if(revision===null)throw Error('Antes de salvar, verifique a nuvem ou faça a migração inicial.');
   const {data,error}=await connect().rpc('save_user_workspace',{p_payload:payload,p_expected_revision:revision});
@@ -43,7 +44,7 @@
   if(error)throw error;
   return data||null;
  }
- async function savePrivate(kind,payload,expectedRevision){
+ async function savePrivate(kind,payload,expectedRevision){throw Error('Prévia somente leitura: armazenamento privado não pode ser alterado.');
   if(!user)throw Error('Entre na sua conta antes de salvar na nuvem.');
   const table=privateTables[kind];if(!table)throw Error('Tipo de dados não autorizado.');
   const stamp=new Date().toISOString();
