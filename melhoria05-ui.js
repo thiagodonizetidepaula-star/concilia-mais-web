@@ -221,7 +221,7 @@ async function persist(kind,record){
   if(res.error)throw res.error;if(!res.data||owner!==id)throw Error('Conflito de versão ou troca de sessão; nenhum dado sobrescrito');
   revision=res.data.revision;store=snapshot;error='';
   document.querySelector('#m05FormHost')?.replaceChildren();
- }catch(e){error='Não salvo: '+String(e.message||e).slice(0,170)+' — atualize a página antes de tentar novamente';ready=false;requested=true;}
+ }catch(e){error='Não salvo: '+String(e.message||e).slice(0,170)+' — atualize a página antes de tentar novamente';ready=false;requested=true;throw e;}
  finally{saving=false;render();}
 }
 function fillForm(kind,id){const host=$('#m05FormHost');if(!host||!kindNames[kind]||!ready)return;
@@ -263,7 +263,7 @@ function init(){
   const g=e.target.closest('[data-m05-complete]');if(g){const prev=ownRecords('goals').find(x=>x.id===g.dataset.m05Complete);if(prev)try{await persist('goal',C.edit(prev,{status:'Concluída'},owner));}catch(err){alert(err.message);}return;}
   const ex=e.target.closest('[data-m05-export]');if(ex)try{await exportAs(ex.dataset.m05Export)}catch(err){alert(err.message);}
  });
- root.addEventListener('change',e=>{if(e.target.dataset.m05Filter==='year')year=Number(e.target.value);if(e.target.dataset.m05Filter==='company')companyId=e.target.value;render();});
+ root.addEventListener('change',e=>{const field=e.target.dataset.m05Filter;if(!field)return;if(field==='year')year=Number(e.target.value);if(field==='company')companyId=e.target.value;render();});
  root.addEventListener('submit',async e=>{if(e.target.id!=='m05NewForm')return;e.preventDefault();
   const kind=e.target.dataset.kind,d=Object.fromEntries(new FormData(e.target).entries());
   for(const k of ['baseline','target','manualActual','progress'])if(d[k]!==undefined&&d[k]!=='')d[k]=Number(d[k]);
