@@ -47,14 +47,21 @@ function create(kind,data,actorId,now=new Date()){
 }
 function edit(previous,patch,actorId,now=new Date()){
  if(!previous||previous.ownerId!==actorId)throw Error('Edição não autorizada');
- const allowed=['title','description','status','category','severity','cause','correctiveAction','resolvedAt','level','evidence','action','expected','deadline','manualActual'];
+ const allowed=['title','description','status','category','severity','cause','correctiveAction','resolvedAt','level','evidence','action','expected','deadline','manualActual','metric','baseline','target','direction','date'];
  const changes={};for(const k of allowed)if(Object.prototype.hasOwnProperty.call(obj(patch),k)){
-  let v=patch[k];if(['manualActual'].includes(k)){v=v===null?null:finite(v);if(v===null&&patch[k]!==null)throw Error('Número inválido');}
+  let v=patch[k];if(['manualActual','baseline','target'].includes(k)){v=v===null?null:finite(v);if(v===null&&patch[k]!==null)throw Error('Número inválido');}
   else v=text(v);
-  if(k==='deadline'&&v&&!validDay(v))throw Error('Data inválida');
+  if((k==='deadline'||k==='date')&&v&&!validDay(v))throw Error('Data inválida');
   changes[k]=v;
  }
  if(changes.level&&!LEVELS.includes(changes.level))throw Error('Nível inválido');
+ const effective={...previous,...changes};
+ if(Object.prototype.hasOwnProperty.call(previous,'metric')){
+  const base=finite(effective.baseline),target=finite(effective.target),dir=effective.direction;
+  if(!effective.metric||base===null||target===null||base===target||(dir==='increase'&&target<=base)||(dir==='decrease'&&target>=base))throw Error('Atualização de meta inválida');
+ }
+ if(changes.category&&!CATEGORIES.includes(changes.category))throw Error('Categoria inválida');
+ if(changes.severity&&!['Baixa','Média','Alta'].includes(changes.severity))throw Error('Gravidade inválida');
  const at=now.toISOString();
  return {...previous,...changes,updatedAt:at,audit:[...arr(previous.audit),{at,actorId,action:'edit',changes:Object.fromEntries(Object.keys(changes).map(k=>[k,{before:previous[k]??null,after:changes[k]}]))}]};
 }
