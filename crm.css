@@ -39,3 +39,25 @@
 #crmOverviewAlerts button{background:#176690;color:white;border:0;border-radius:7px;padding:7px 10px;font-size:11px;cursor:pointer}
 @media(max-width:1050px){.crm-dates{grid-template-columns:repeat(3,1fr)}.crm-filter{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:650px){.crm-metrics{grid-template-columns:repeat(2,1fr)}.crm-next,.crm-filter,.crm-record{grid-template-columns:1fr}.crm-dates{grid-template-columns:repeat(2,1fr)}.crm-heading h2{font-size:21px}.crm-record>p,.crm-record>.crm-periods,.crm-record>button,.crm-record>label:has(textarea){grid-column:auto}}
+
+/* Refinamento 02 — visão compacta sem tabelas horizontais */
+.crm-metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.crm-metrics>div{padding:12px 14px;min-height:60px;border-top:2px solid #c2a063}
+.crm-metrics strong{font-size:23px;line-height:1.15;color:#174d76}
+.crm-next>div{padding:12px 14px}
+.crm-client-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.crm-client-card{min-width:0;background:#fff;border:1px solid #dce6ef;border-radius:14px;padding:16px;box-shadow:0 6px 22px rgba(15,44,75,.05)}
+.crm-client-primary{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;min-width:0}
+.crm-client-primary>div{min-width:0}
+.crm-client-primary small{display:block;color:#6b8499;font-size:11px;overflow-wrap:anywhere}
+.crm-client-primary h3{font-size:15px;line-height:1.4;color:#1d4566;margin:6px 0;overflow-wrap:anywhere}
+.crm-client-primary p{font-size:11px;color:#607e96;margin:5px 0}
+.crm-client-primary button{flex-shrink:0}
+.crm-client-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:9px}
+.crm-client-card details{border-top:1px solid #e7eef4;padding-top:9px;margin-top:11px;color:#57728a;font-size:12px}
+.crm-client-card summary{cursor:pointer;font-weight:700;color:#2f6285}
+.crm-client-card details p{overflow-wrap:anywhere;line-height:1.55}
+.crm-empty{grid-column:1/-1;padding:28px;border:1px dashed #c6d8e6;background:#fff;border-radius:12px;color:#698299;text-align:center}
+#crmPanel button{min-height:34px}
+@media(max-width:1100px){.crm-client-list{grid-template-columns:1fr}}
+@media(max-width:650px){.crm-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.crm-client-primary{flex-direction:column}.crm-client-primary button{align-self:flex-start}}
