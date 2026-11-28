@@ -106,7 +106,7 @@ function automation(){
 }
 function goals(){
  const a=bi(),gs=ownRecords('goals');
- return section('Metas individuais e planejamento',button('Cadastrar meta','data-m05-form="goal"')+(gs.length?'<div class="m05-rows">'+gs.map(g=>{const x=C.resultGoals(g,a);return '<article class="m05-item"><div><b>'+esc(g.title)+'</b><small>'+esc(g.metric)+' · '+esc(g.direction)+' · prazo '+dateBR(g.deadline)+'</small><strong>'+pct(x.progress)+'</strong><small>Origem: '+esc(x.source)+' · '+esc(g.status)+'</small></div>'+button('Concluir','data-m05-complete="'+esc(g.id)+'"')+'</article>';}).join('')+'</div>':empty('Cadastre sua primeira meta, com base em indicadores medidos ou atualização manual identificada.'))+
+ return section('Metas individuais e planejamento',button('Cadastrar meta','data-m05-form="goal"')+(gs.length?'<div class="m05-rows">'+gs.map(g=>{const x=C.resultGoals(g,a);return '<article class="m05-item"><div><b>'+esc(g.title)+'</b><small>'+esc(g.metric)+' · '+esc(g.direction)+' · prazo '+dateBR(g.deadline)+'</small><strong>'+pct(x.progress)+'</strong><small>Origem: '+esc(x.source)+' · '+esc(g.status)+'</small></div>'+button('Concluir','data-m05-complete="'+esc(g.id)+'"')+'</article>';}).join('')+'</div>':empty('Cadastre sua primeira meta, com base em indicadores medidos ou atualização manual identificada.')))+
  section('Planejamento','<p>Restantes no período: <b>'+fmt(a.remaining)+'</b>. Prazos e capacidade diária exigem calendário de disponibilidade informado; o sistema não inventa previsões nem avalia competência pelo cumprimento isolado de metas.</p>');
 }
 function professional(){
