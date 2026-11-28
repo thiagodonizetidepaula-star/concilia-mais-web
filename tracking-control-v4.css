@@ -1,0 +1,37 @@
+#trackingV4Panel{margin-bottom:20px;color:#244760}
+.track4-heading{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:0 0 14px}
+.track4-heading h2{font-size:20px;margin:4px 0 6px;color:#153d5b}.track4-heading h3{margin:0;color:#19435f}
+.track4-heading span{font-size:11px;font-weight:800;letter-spacing:1px;color:#527b99}.track4-heading p{font-size:12px;color:#728aa0;margin:4px 0}
+.track4-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin:12px 0}
+.track4-summary button{background:#fff;border:1px solid #d8e6f0;border-radius:11px;padding:12px;text-align:left;display:flex;flex-direction:column;gap:6px;cursor:pointer;min-height:72px}
+.track4-summary strong{color:#22608b;font-size:22px}.track4-summary small{color:#617c93;font-size:11px}
+.track4-progress{padding:13px 15px;background:#fff;border:1px solid #dce6ee;border-radius:12px;margin:14px 0;font-size:12px}
+.track4-progress>div{margin-top:10px;background:#e6eef6;border-radius:10px;height:13px;overflow:hidden}
+.track4-progress>div span{background:linear-gradient(90deg,#2380b8,#24b6a4);display:block;height:100%;border-radius:10px}
+.track4-filters{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;padding:12px;border:1px solid #dfebf3;border-radius:12px;background:#fff;margin-bottom:12px}
+.track4-filters label,.track4-edit-fields label,#track4EditForm>label{font-size:11px;font-weight:700;color:#56768e;display:flex;flex-direction:column;gap:6px}
+.track4-filters input,.track4-filters select,.track4-edit-fields input,.track4-edit-fields select,.track4-edit-fields textarea,#track4EditForm textarea{box-sizing:border-box;min-width:0;width:100%;padding:9px;background:white;border:1px solid #c6dbe9;border-radius:8px;color:#173956;font:inherit}
+.track4-table{overflow:auto;border:1px solid #e0e9f0;background:#fff;border-radius:12px;max-height:570px}
+.track4-table table{width:100%;border-collapse:collapse;min-width:950px}
+.track4-table th{background:#f1f7fc;position:sticky;top:0;color:#5a748b;font-size:11px;padding:12px;text-align:left;border-bottom:1px solid #dfebf3}
+.track4-table td{padding:12px;font-size:12px;border-bottom:1px solid #e9eff5;vertical-align:middle}
+.track4-table button,.track4-actions button,.track4-heading button,#track4EditForm button{background:#176794;color:white;border:1px solid #176794;border-radius:8px;font-size:12px;padding:9px 11px;cursor:pointer}
+.track4-caption{font-size:11px;color:#7890a3;line-height:1.55}
+.track4-detail{background:#fff;border:1px solid #dce8f2;border-radius:13px;padding:18px}
+.track4-detail>p{font-size:12px;color:#66839a}
+.track4-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:15px 0}
+.track4-fields>div{background:#f5f9fc;border:1px solid #e0e9f1;border-radius:9px;padding:10px;min-width:0;overflow-wrap:anywhere}
+.track4-fields b{font-size:11px;color:#52708a;display:block}.track4-fields div div{font-size:13px;color:#234e6b;margin:5px 0}.track4-fields small{font-size:10px;color:#8199ac}
+.track4-actions{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}
+.track4-actions button:disabled{opacity:.5;cursor:not-allowed}
+.track4-edit-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:15px 0}
+#track4EditForm{padding:15px;border:1px solid #dce7ef;border-radius:12px;background:#f8fbfd}
+#track4EditForm p,.track4-timer p{color:#718ba0;font-size:11px;line-height:1.6}
+.track4-timer{border:1px solid #cbe3ee;background:#f6fbfd;padding:16px;border-radius:12px;margin-top:16px}
+.track4-timer h4{margin:0 0 12px;font-size:14px;color:#285978}
+.track4-timer>strong{font-size:29px;font-variant-numeric:tabular-nums;display:block;color:#145a86}
+.track4-timer>small{font-size:11px;color:#718ba0}
+.track4-history{border:1px dashed #d3e2ed;padding:13px;border-radius:9px;margin-top:12px;font-size:12px}
+.track4-history p{color:#607d95;padding:6px;border-bottom:1px solid #e8f0f6}
+@media(max-width:1050px){.track4-summary{grid-template-columns:repeat(3,minmax(0,1fr))}.track4-filters{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:660px){.track4-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.track4-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.track4-fields,.track4-edit-fields{grid-template-columns:1fr}.track4-detail{padding:12px}.track4-heading h2{font-size:18px}}
