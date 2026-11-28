@@ -56,14 +56,16 @@ function eligiblePeriods(c,today,settings){
 }
 function companyHistory(c){return Array.isArray(c.crmHistory)?c.crmHistory:[];}
 function statusFor(c,period){
- const history=companyHistory(c).filter(e=>e.periods?.includes(period)||e.period===period).sort((a,b)=>(a.occurredAt||'').localeCompare(b.occurredAt||'')||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
+ const history=companyHistory(c).filter(e=>(e.periods?.includes(period)||e.period===period)&&!(e.type==='note'&&(!e.status||e.status==='A cobrar'))).sort((a,b)=>(a.occurredAt||'').localeCompare(b.occurredAt||'')||String(a.createdAt||'').localeCompare(String(b.createdAt||'')));
  const doc=c.documentHistory?.[period],docStatus=doc?.status||'Sem registro';
  if(NORMALIZED(docStatus)===NORMALIZED('Recebido'))return 'Documentação recebida';
+ // O status de relacionamento da última cobrança/retorno prevalece sobre o
+ // status documental Parcialmente recebido, sem sobrescrever o documento.
+ const latest=history[history.length-1];
+ if(latest?.status&&CRM_STATUSES.includes(latest.status))return latest.status;
+ if(latest?.type==='reply')return 'Cliente respondeu';
+ if(latest?.type==='charge')return 'Aguardando retorno';
  if(NORMALIZED(docStatus)===NORMALIZED('Parcialmente recebido'))return 'Documentação parcialmente recebida';
- const latest=history[history.length-1];if(!latest)return 'A cobrar';
- if(latest.status&&CRM_STATUSES.includes(latest.status))return latest.status;
- if(latest.type==='reply')return 'Cliente respondeu';
- if(latest.type==='charge')return 'Aguardando retorno';
  return 'A cobrar';
 }
 function summary(companies,userId,now,settings){
@@ -71,7 +73,7 @@ function summary(companies,userId,now,settings){
  const eligible=[],unfilled=[];
  for(const c of list){const p=eligiblePeriods(c,today,settings);if(p.due.length)eligible.push({company:c,periods:p.due});if(p.unknown.length)unfilled.push({company:c,periods:p.unknown});}
  const [y,m,day]=today.split('-').map(Number),events=eventsForMonth(y,m,settings),charges=events.filter(e=>e.type.startsWith('charge')&&e.date<=today),round=charges.length?charges[charges.length-1].round:0;
- const charged=eligible.filter(({company})=>companyHistory(company).some(e=>e.type==='charge'&&e.round===round&&e.roundMonth===key(y,m))).length;
+ const charged=round?eligible.filter(({company})=>companyHistory(company).some(e=>e.type==='charge'&&e.round===round&&e.roundMonth===key(y,m))).length:0;
  const pendingReturn=eligible.filter(({company,periods})=>periods.some(x=>statusFor(company,x.period)==='Aguardando retorno')).length;
  const recurrent=eligible.filter(x=>x.periods.length>1).length;
  const upcoming=scheduleNext(today,settings);
