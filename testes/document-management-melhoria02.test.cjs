@@ -91,3 +91,34 @@ test('interface foi adicionada sem substituir módulos de conciliação',()=>{
  assert.ok(app.includes('window.ConciliaDocuments?.render()'));
  for(const key of ['id="importPlanButton"','data-page="importar"','data-page="movimentos"','data-page="transferencias"','data-page="carteira"'])assert.ok(html.includes(key));
 });
+
+test('prévia de importação é leitura somente e confirma o ano 2026',()=>{
+ const app=fs.readFileSync(path.join(root,'document-management.js'),'utf8');
+ assert.match(app,/id="docsYearSource"[^>]*value="2026"/);
+ assert.match(app,/dryRun=M.merge\(state,preview/);
+ assert.match(app,/canImportDefinitively:false/);
+ assert.ok(!app.includes('store(\'IMPORTACAO_XLSX'));
+});
+test('nome ou código Domínio coincidente com CNPJ divergente NÃO cria empresa duplicada',()=>{
+ const p=imp.parseWorkbookRows(fixture.docs,fixture.closing,2026);
+ const original={id:'old',name:p.selected[0].name,cnpj:'',dominio:p.selected[0].code,plan:[{code:'599'}],rules:[{counterpart:'599'}]};
+ const out=imp.merge({companies:[original]},p,'dryrun','user-a');
+ assert.equal(out.counts.conflicts.length,1);
+ assert.equal(out.workspace.companies.length,60);
+ assert.equal(out.workspace.companies.find(x=>x.id==='old').rules[0].counterpart,'599');
+});
+test('múltiplos registros existentes com mesmo CNPJ interrompem associação ambígua',()=>{
+ const p=imp.parseWorkbookRows(fixture.docs,fixture.closing,2026);
+ const a={id:'dup-1',name:'Cliente antigo',cnpj:p.selected[0].cnpj,plan:[{code:'1'}]};
+ const b={id:'dup-2',name:'Outro antigo',cnpj:p.selected[0].cnpj,plan:[{code:'2'}]};
+ const out=imp.merge({companies:[a,b]},p,'dryrun','user-a');
+ assert.equal(out.counts.conflicts.length,1);
+ assert.ok(out.workspace.companies.find(x=>x.id==='dup-1').plan.length===1);
+ assert.ok(out.workspace.companies.find(x=>x.id==='dup-2').plan.length===1);
+});
+test('mesclagem em memória jamais modifica o workspace original',()=>{
+ const p=imp.parseWorkbookRows(fixture.docs,fixture.closing,2026);
+ const original={companies:[{id:'old',name:'Empresa protegida',cnpj:cnpj(0),plan:[{code:'192'}],rules:[{code:'192'}],documentHistory:{'2026-01':{status:'Cobrado'}}}]};
+ const before=JSON.stringify(original);imp.merge(original,p,'dryrun','user-a');
+ assert.equal(JSON.stringify(original),before);
+});
