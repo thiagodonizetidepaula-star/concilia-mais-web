@@ -61,3 +61,10 @@ Este histórico diferencia **desenvolvido** de **publicado**. Nenhuma Melhoria 0
 - Testes adicionados em `testes/dashboard-bi-integrado.test.cjs` e `testes/dashboard-bi-visual.html`, com CI Chromium desktop/mobile, Supabase local e regressões das Melhorias 01–04.
 - Nenhuma nova página principal, serviço externo, custo, migração destrutiva ou funcionalidade da Melhoria 05.
 - Publicação e backup ZIP somente após aprovação do CI no commit candidato.
+
+## [Melhoria 05 — candidato isolado, NÃO PUBLICADO] 2026-11-28
+- Adicionadas nove perspectivas na Visão Geral: produtividade, empresas, qualidade, eficiência, automação, metas, evolução profissional, inteligência gerencial e relatórios.
+- Núcleo puro `melhoria05-core.js`, UI `melhoria05-ui.js`, tema escuro `melhoria05.css`, integração em `app.js` e `index.html`.
+- Nova migração proposta `user_melhoria05_states` com RLS por usuário e controle de revisão; **não aplicada na produção**.
+- Testes de núcleo, fixtures Chromium e E2E Supabase temporário; o CI define o resultado, não esta documentação.
+- Backups e código oficial anteriores preservados, sem merge/Render, Vercel, cobranças ou Melhoria 06.

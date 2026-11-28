@@ -26,3 +26,17 @@ Repositório: https://github.com/thiagodonizetidepaula-star/concilia-mais-web
 ## Dashboards BI integrados do ConCiliar+
 A Visão Geral contém quatro perspectivas **dentro da página existente**, com módulos `dashboard-bi-metrics.js`, `dashboard-bi.js`, `dashboard-bi.css` e filtros de ano, competência, empresa e pesquisa. O layout azul-marinho/ciano utiliza dados reais do workspace acessível e não altera saldos/classificações. Os testes são executados no GitHub Actions com Chromium e Supabase local temporário; não é necessário instalar dependências pagas. Consulte `docs/DICIONARIO_DE_INDICADORES.md` e `docs/MANUAL_TECNICO.md`.
 O indicador profissional não deve ser confundido com qualidade ou desempenho financeiro; ausência de medição não gera zero fictício. Nenhum token, senha ou backup corporativo é incluído no ZIP público do projeto.
+
+
+## Melhoria 05 — segundo ciclo em desenvolvimento isolado (28/11/2026)
+**A Melhoria 05 ainda NÃO está na produção. Nenhuma autorização de merge ou Render foi concedida para o segundo ciclo.** Ela é mantida na branch `feature/melhoria-05-inteligencia-operacional`, com fluxo de testes GitHub Actions e ambiente efêmero Supabase local.
+
+Arquivos reais: `melhoria05-core.js` (regras puras; sem alteração de dados contábeis), `melhoria05-ui.js` (nove perspectivas internas, persistência privada CAS, relatórios), `melhoria05.css` (BI azul-marinho responsivo), `index.html` e `app.js` (encaixe na Visão Geral sem página principal duplicada), `supabase/migrations/20261128050000_melhoria05_user_states.sql` (SOMENTE proposta, não executada na produção), `testes/melhoria05-nucleo.test.cjs`, `testes/melhoria05-visual.html` e `testes/homologacao-melhoria05.cjs` (cálculos, fixture e E2E Auth/RLS no laboratório).
+
+Reaproveitamento: `ConciliaBIMetrics`, `ConciliaTrackingCore`, `ConciliaManualProductivity.history()`, `ConciliaCloud`, dados existentes de documentos, CRM, empresas e aprendizagem. A nova coleção `user_melhoria05_states` é isolada por `auth.uid()` no RLS e usa revisão otimista (CAS) para proteger gravações; não substitui `user_workspaces` nem `user_productivity_states` e não altera o cronômetro. **O procedimento de publicação futura depende de aprovação separada e migração testada; não aplicar a migration automaticamente.**
+
+Os registros de qualidade, metas, autoavaliações, diário, realizações e PDI são *declarações identificadas do profissional*, com origem e trilha de alterações. Indicadores automáticos de produtividade, conciliação e automação vêm apenas dos registros previamente autorizados. Classificação confirmada não significa conciliação aprovada; tempo manual não é somado ao cronômetro do Controle 04; metas, complexidade e análises não determinam punições nem juízos definitivos de competência.
+
+Relatórios XLSX usam a biblioteca `XLSX` já presente; PDF depende da impressão/salvamento nativo do navegador. O portfólio exportável remove nomes/identificadores de clientes e textos livres para evitar vazamento de informações corporativas. A ausência de dados é representada por **Sem dados / Sem medição**, nunca por valores inventados.
+
+Para extensão: incluir novos critérios em `docs/DICIONARIO_DE_INDICADORES.md`, testar RLS de dois usuários e concorrência CAS, validar logs dos GitHub Actions na mesma versão, revisar documentação, criar ZIP de homologação, e **aguardar autorização do segundo ciclo**. Não iniciar Melhoria 06.
