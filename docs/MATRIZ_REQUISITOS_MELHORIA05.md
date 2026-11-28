@@ -2,11 +2,11 @@
 
 Fonte primária: prompt original `Texto colado(5).txt`, 2.246 linhas, itens numerados e listas de requisitos. Leitura conservadora: a existência de um controle NÃO equivale à aprovação do fluxo inteiro. Atualizar esta matriz somente com evidência de testes do commit candidato.
 
-Branch: `feature/melhoria-05-inteligencia-operacional` · PR #82 (rascunho) · sem merge ou migração em produção.
+Histórico: PR #82 mesclado em 28/11/2026, com deploy parcial registrado como live e migração RLS aplicada. Continuidade isolada: PR #83, branch `feature/melhoria05-conclusao-filtros-e-documentacao-20261128`, ainda sem merge/deploy.
 
 **Critério:** "Implementado e testado" apenas para guardrails de preservação comprovados ou cenários com evidências adequadas. "Parcialmente implementado" quando o requisito está coberto em parte, mas permanece alguma lacuna de integração, completude ou verificação. "Implementado, mas não testado" somente quando há código com teste pendente; "Não implementado" quando ainda não há funcionalidade equivalente. Sem impedimentos técnicos declarados sem prova.
 
-Itens extraídos: **1118**. Contagem auditada por regra documental: Implementado e testado: 176; Parcialmente implementado: 933; Não implementado: 7; Implementado, mas não testado: 2.
+Itens extraídos: **1118**. Contagem auditada por regra documental: Implementado e testado: 176; Parcialmente implementado: 936; Não implementado: 4; Implementado, mas não testado: 2. **Três filtros foram reclassificados de não implementados para parciais em função do código e dos testes unitários da branch PR #83; faltam testes operacionais com dados reais autorizados.**
 
 As categorias podem mudar após a homologação final; este registro **não** é certificação de 100% de escopo.
 
@@ -647,9 +647,9 @@ As categorias podem mudar após a homologação final; este registro **não** é
 | 1273 | 60. FILTROS FUNCIONAIS | Funcionário, conforme permissões. | Implementado e testado | melhoria05-analytics.js bounds/included e filtros em melhoria05-advanced-ui.js; testes de período, empresa, dono, status/tipo e visual Chromium. |
 | 1274 | 60. FILTROS FUNCIONAIS | Tipo de atividade. | Implementado e testado | melhoria05-analytics.js bounds/included e filtros em melhoria05-advanced-ui.js; testes de período, empresa, dono, status/tipo e visual Chromium. |
 | 1275 | 60. FILTROS FUNCIONAIS | Status. | Implementado e testado | melhoria05-analytics.js bounds/included e filtros em melhoria05-advanced-ui.js; testes de período, empresa, dono, status/tipo e visual Chromium. |
-| 1276 | 60. FILTROS FUNCIONAIS | Regime tributário, quando disponível. | Não implementado | Não existe seletor específico para esse campo na Melhoria 05; métricas não devem fingir filtragem que não ocorreu. |
-| 1277 | 60. FILTROS FUNCIONAIS | Complexidade, quando avaliada. | Não implementado | Não existe seletor específico para esse campo na Melhoria 05; métricas não devem fingir filtragem que não ocorreu. |
-| 1278 | 60. FILTROS FUNCIONAIS | Tipo de serviço, quando disponível. | Não implementado | Não existe seletor específico para esse campo na Melhoria 05; métricas não devem fingir filtragem que não ocorreu. |
+| 1276 | 60. FILTROS FUNCIONAIS | Regime tributário, quando disponível. | Parcialmente implementado | Novo seletor em `melhoria05-advanced-ui.js` usa somente metadados presentes em empresas autorizadas. Teste de unidade `testes/melhoria05-filtros-opcionais.test.cjs` na PR #83; pendente homologar com metadados reais. |
+| 1277 | 60. FILTROS FUNCIONAIS | Complexidade, quando avaliada. | Parcialmente implementado | Seletor calcula a complexidade somente se volume, contas, pendências, classificação manual e retrabalho tiverem valores observados. Testes de unidade no PR #83; pendente teste com medição operacional real. |
+| 1278 | 60. FILTROS FUNCIONAIS | Tipo de serviço, quando disponível. | Parcialmente implementado | Novo seletor consulta metadados declarados da empresa autorizada; não atribui categoria ausente. Testes unitários no PR #83; pendente homologação de preenchimento e filtragem no fluxo real. |
 | 1288 | 61. INTERATIVIDADE | Clicar nos indicadores. | Parcialmente implementado | Estrutura existente ou acrescentada no PR #82; este item não possui ainda comprovação ponta a ponta individual. |
 | 1289 | 61. INTERATIVIDADE | Consultar registros de origem. | Parcialmente implementado | Estrutura existente ou acrescentada no PR #82; este item não possui ainda comprovação ponta a ponta individual. |
 | 1290 | 61. INTERATIVIDADE | Selecionar categorias. | Parcialmente implementado | Busca e exportação implementadas, ordenação em determinadas tabelas; não há prova individual da interatividade de todos os gráficos. |
