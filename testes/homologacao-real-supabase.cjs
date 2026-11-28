@@ -129,6 +129,9 @@ async function run(){
   await loginViaUI(pageB,creds[1]);
   await walletCount(pageB,1); // Uma empresa própria criada via RPC, nunca a empresa de A.
   assert.doesNotMatch(await pageB.locator('#walletPanel').textContent(),/EMPRESA HOMOLOGACAO ATUALIZADA/);
+  await pageB.locator('button[data-page="documentos"]').click();
+  assert.doesNotMatch(await pageB.locator('#documentsPanel').textContent(),/Cobrança manual fictícia/);
+  assert.doesNotMatch(await pageB.locator('#documentsPanel').textContent(),/financeiro@empresa-ficticia.test/);
   stats.push('RLS real: usuário B não lê o workspace A, B mantém workspace próprio: OK');
   await pageA.screenshot({path:path.join(dataDir,'carteira-real-auth-desktop.png'),fullPage:true});
   await pageA.setViewportSize({width:390,height:850});
