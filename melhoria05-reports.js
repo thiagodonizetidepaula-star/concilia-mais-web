@@ -100,7 +100,7 @@ function excel(book){
   if(rows.length>0){ws['!autofilter']={ref:ws['!ref']};}
   x.utils.book_append_sheet(w,ws,sheet.name.slice(0,31));
  }
- const meta=x.utils.aoa_to_sheet([['ConCiliar+PLUS / Relatório'],['Gerado em',book.generatedAt],['Período',book.periodDescription],['Anonimizado',book.anonymous?'SIM':'NÃO']]);
+ const meta=x.utils.aoa_to_sheet([['ConCiliar+PLUS / Relatório'],['Produto','Software de automação e conciliação contábil'],['Titularidade','BEATRIZ CRISSILA'],['Ambiente','Romeiro Soluções Empresariais'],['Gerado em',book.generatedAt],['Período',book.periodDescription],['Anonimizado',book.anonymous?'SIM':'NÃO']]);
  x.utils.book_append_sheet(w,meta,'Capa');
  x.writeFile(w,book.anonymous?'ConCiliar_Portfolio_Anonimizado.xlsx':'ConCiliar_Relatorio_Gerencial.xlsx');
  return {sheets:w.SheetNames.length};
@@ -119,12 +119,12 @@ function html(book){
  'table{border-collapse:collapse;width:100%;font-size:8px}th{background:#172d4f;color:#fff;text-align:left}td,th{padding:7px 5px;border-bottom:1px solid #dce5f0;overflow-wrap:anywhere}tr:nth-child(even){background:#f5f9fd}.empty{color:#61748e}'+
  '.chart{height:130px;display:flex;gap:6px;align-items:end;border-bottom:1px solid #7088aa;padding:12px 3px}.chart div{height:100%;width:8%;display:flex;flex-direction:column;align-items:center;justify-content:end;gap:3px}.chart i{width:60%;min-height:1px;background:linear-gradient(0deg,#238dc0,#20cee6);border-radius:2px}.chart small,.chart b{font-size:7px;color:#29405e}.note{font-size:8px;line-height:1.6;color:#536988}footer{margin-top:26px;border-top:1px solid #c8d7e8;padding:12px;color:#607493;font-size:8px}'+
  '@media print{.section{page-break-inside:avoid}}'+
- '</style></head><body><header><span>CONCILIAR+PLUS · INTELIGÊNCIA OPERACIONAL</span><h1>'+esc(book.title)+'</h1><p>Período: '+esc(book.periodDescription)+'</p><p>Emissão: '+esc(new Date(book.generatedAt).toLocaleString('pt-BR'))+'</p></header><main>'+
+ '</style></head><body><header><span>CONCILIAR+PLUS · SOFTWARE DE AUTOMAÇÃO E CONCILIAÇÃO CONTÁBIL</span><h1>'+esc(book.title)+'</h1><p>Produto independente — titularidade BEATRIZ CRISSILA · Ambiente de uso: Romeiro Soluções Empresariais</p><p>Período: '+esc(book.periodDescription)+'</p><p>Emissão: '+esc(new Date(book.generatedAt).toLocaleString('pt-BR'))+'</p></header><main>'+
  '<section class="section"><h2>Indicadores principais</h2><div class="kpis">'+boxes+'</div></section>'+
  '<section class="section"><h2>Histórico de atividades registradas</h2>'+chart+'</section>'+
  book.sheets.filter(x=>!['Indicadores','Tendencia Mensal','Limitações'].includes(x.name)).map(x=>'<section class="section"><h2>'+esc(x.name)+'</h2>'+rows(x.rows)+'</section>').join('')+
  '<section class="section"><h2>Notas e limitações</h2>'+book.notes.map(x=>'<p class="note">'+esc(x)+'</p>').join('')+'</section></main>'+
- '<footer>ConCiliar+PLUS · Material '+(book.anonymous?'anonimizado para análise pessoal':'restrito à conta autorizada')+' · Não substitui verificação contábil do Domínio.</footer></body></html>';
+ '<footer>ConCiliar+PLUS · Titularidade BEATRIZ CRISSILA · Ambiente: Romeiro Soluções Empresariais · Material '+(book.anonymous?'anonimizado para análise pessoal':'restrito à conta autorizada')+' · Não substitui verificação contábil do Domínio.</footer></body></html>';
 }
 function printPDF(book){
  if(typeof window==='undefined')throw Error('A impressão PDF só está disponível no navegador');

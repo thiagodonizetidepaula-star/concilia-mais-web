@@ -1,7 +1,7 @@
 {
-  "name": "ConCiliar+PLUS Web — Conciliação Contábil e Bancária",
+  "name": "ConCiliar+PLUS — Software de automação e conciliação contábil",
   "short_name": "ConCiliar+PLUS",
-  "description": "Conciliação contábil e bancária por empresa",
+  "description": "Produto independente de automação e conciliação contábil — titularidade Beatriz Crissila",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

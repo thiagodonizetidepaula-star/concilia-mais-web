@@ -86,3 +86,6 @@ Este histórico diferencia **desenvolvido** de **publicado**. Nenhuma Melhoria 0
 - Histórico de uso real por regra e competência, distinto dos eventos manuais.
 - Edição auditada de tempo/volume com motivo obrigatório e valores antes/depois.
 - Cobertura adicionada de integridade de retensão, ajustes auditáveis e concorrência CAS no Supabase local.
+
+## Identidade institucional independente — 28/11/2026
+Marca principal: **ConCiliar+PLUS** — Software de automação e conciliação contábil. Assinatura institucional, conforme informação do titular: **Produto independente — titularidade BEATRIZ CRISSILA**. **Romeiro Soluções Empresariais** é identificada como ambiente de uso atual, não como marca proprietária do aplicativo. Essa indicação visual não substitui registro ou comprovação jurídica de propriedade intelectual. Login, sidebar, footer e relatórios atualizados em arquivos isolados; sem modificar domínio, dados, RLS ou integrações.

@@ -1,0 +1,35 @@
+/* ConCiliar+PLUS — marca do produto distinta do escritório operador. */
+.auth-header-inner{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.auth-header-inner .auth-header-product{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+.auth-header-inner .auth-product-name{font-size:clamp(20px,2vw,28px);font-weight:850}
+.auth-header-inner .auth-product-subtitle{font-size:clamp(10px,1.2vw,13px);white-space:normal}
+.brand-workspace{display:flex;gap:8px;align-items:center;min-width:0;color:#bcd0e9}
+.brand-workspace>span{font-size:9px;font-weight:800;letter-spacing:1px;color:#a7bfd8}
+.brand-workspace-auth{margin-left:auto;padding:7px 10px;border:1px solid #8babc044;border-radius:10px;background:#031b38a0}
+.brand-workspace-auth img{width:105px;max-height:39px;object-fit:contain}
+.concilia-login-brand{display:flex!important;flex-direction:column;align-items:center;gap:8px!important;min-height:0!important}
+.concilia-login-brand .concilia-login-symbol{display:block;width:60px;height:60px;filter:drop-shadow(0 7px 14px #06264d30)}
+.concilia-login-brand .app-brand-label{font-size:clamp(22px,3vw,29px);font-weight:850;line-height:1.1;color:#0a2b56}
+.concilia-login-brand .brand-tagline{font-size:11px;color:#5b748f;text-align:center}
+.brand-owner{font-size:11px;line-height:1.6}
+.brand-owner strong{font-weight:800}
+.brand-owner-login{text-align:center;color:#284f74!important;font-size:11px!important;margin:9px auto 2px!important}
+.brand-context-login{text-align:center;color:#70849b;font-size:11px!important;margin:1px 0 10px!important}
+.brand-context-login strong{color:#3c5672}
+body.authenticated .sidebar .concilia-sidebar-brand{display:flex;align-items:center;gap:10px;padding:13px 9px 9px;min-width:0}
+.sidebar .concilia-side-symbol{width:40px;height:40px;flex-shrink:0;object-fit:contain}
+.concilia-sidebar-brand-copy{display:flex;min-width:0;flex-direction:column;gap:3px}
+.concilia-sidebar-brand-copy>strong{font-size:clamp(16px,1.5vw,21px);font-weight:850;color:#f6f9ff;letter-spacing:-.6px;white-space:nowrap}
+.concilia-sidebar-brand-copy>strong span{color:#f8c553}
+.concilia-sidebar-brand-copy small{font-size:9px;line-height:1.3;color:#b2c8e0}
+body.authenticated .sidebar .brand-owner-side{padding:0 10px 11px;color:#aac3dc;font-size:10px}
+.brand-owner-side strong{color:#f1f5ff}
+body.authenticated .sidebar .brand-workspace-side{display:flex;flex-direction:column;align-items:flex-start;gap:4px;border-block:1px solid #ffffff22;padding:10px 9px 11px;margin:0 6px 7px;min-width:0}
+.brand-workspace-side img{width:97px;height:auto;max-height:35px;object-fit:contain;object-position:left}
+.brand-workspace-side small{font-size:9px;color:#a4bfd8}
+body.authenticated .topbar .product-mark-sub{white-space:normal;max-width:320px}
+.concilia-brand-footer{display:flex;flex-wrap:wrap;gap:5px 10px;align-items:center;color:#536e87!important;font-size:11px!important;line-height:1.6}
+.concilia-brand-footer strong{color:#082f5e}
+@media(max-width:980px){.brand-workspace-auth>span{display:none}.brand-workspace-auth img{width:78px}.auth-header-inner .auth-product-divider,.auth-header-inner .auth-product-subtitle{display:none}}
+@media(max-width:720px){.auth-header-inner{flex-wrap:wrap;gap:8px;justify-content:center}.brand-workspace-auth{padding:4px 7px;margin:0 auto}body.authenticated .sidebar .concilia-sidebar-brand{padding:8px 9px 5px}body.authenticated .sidebar .brand-workspace-side{flex-direction:row;align-items:center;gap:9px;padding:7px 8px}body.authenticated .sidebar .brand-workspace-side>span{display:none}body.authenticated .sidebar .brand-workspace-side img{width:70px;max-height:27px}body.authenticated .sidebar .brand-owner-side{padding:2px 10px 5px}.concilia-brand-footer{margin:10px 14px;font-size:10px!important}}
+@media(prefers-reduced-motion:reduce){.concilia-sidebar-brand *{transition:none!important;animation:none!important}}
